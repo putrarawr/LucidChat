@@ -44,6 +44,8 @@ export function stripThinkTags(text: string): string {
   cleaned = cleaned.replace(/<user_input>[\s\S]*?<\/user_input>/gi, "");
   cleaned = cleaned.replace(/^system_instructions[\s\S]*?\n/gi, "");
   cleaned = cleaned.replace(/^You are LucidChat AI Assistant[\s\S]*?\n\n/gi, "");
+  // 4. Remove any hallucinated Chinese, Japanese, or Korean characters (CJK)
+  cleaned = cleaned.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g, "");
   return cleaned.trim();
 }
 
@@ -168,9 +170,24 @@ function CodeTerminalBlock({
 }
 
 function parseInlineMarkdown(text: string) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\)|\*\*[\s\S]*?\*\*|`[^`]+`|\*[^*]+\*|https?:\/\/[^\s<)]+)/g);
+  const parts = text.split(/(\[\d+\]|\[[^\]]+\]\([^)]+\)|\*\*[\s\S]*?\*\*|`[^`]+`|\*[^*]+\*|https?:\/\/[^\s<)]+)/g);
 
   return parts.map((part, index) => {
+    // Numeric citation bracket: [1], [2], [3]
+    const citationMatch = part.match(/^\[(\d+)\]$/);
+    if (citationMatch) {
+      const num = citationMatch[1];
+      return (
+        <sup
+          key={index}
+          className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 rounded-md bg-white/10 hover:bg-white/20 text-[10px] font-semibold text-white/90 border border-white/15 select-none transition-all cursor-pointer"
+          title={`Sumber Referensi Berita #${num}`}
+        >
+          {num}
+        </sup>
+      );
+    }
+
     // Markdown link: [Title](url)
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {

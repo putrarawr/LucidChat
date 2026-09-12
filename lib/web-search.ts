@@ -17,6 +17,28 @@ function extractDomain(urlStr: string): string {
   }
 }
 
+function cleanScrapedText(text: string): string {
+  if (!text) return "";
+  let cleaned = text;
+
+  // 1. Decode HTML Entities
+  cleaned = cleaned
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#[0-9]+;/g, '')
+    .replace(/&#x[0-9a-fA-F]+;/g, '');
+
+  // 2. Remove CJK characters (Chinese, Japanese, Korean) to prevent AI token hallucinations
+  cleaned = cleaned.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g, "");
+
+  // 3. Remove excessive whitespace
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
 export async function performWebSearch(query: string): Promise<SearchResult[]> {
   if (!query || !query.trim()) return [];
   const cleanQuery = query.trim();
@@ -28,7 +50,11 @@ export async function performWebSearch(query: string): Promise<SearchResult[]> {
   const addResult = (item: SearchResult) => {
     if (!item.url || seenUrls.has(item.url)) return;
     seenUrls.add(item.url);
-    results.push(item);
+    results.push({
+      ...item,
+      title: cleanScrapedText(item.title),
+      snippet: cleanScrapedText(item.snippet),
+    });
   };
 
   // 1. Google News RSS Crawler (Real-Time News Headlines & Published Articles)
