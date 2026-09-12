@@ -43,7 +43,7 @@ const SLASH_COMMANDS = [
     cmd: "/diagram",
     title: "Buatkan Diagram Mermaid",
     desc: "Rancang flowchart / diagram urutan dengan Mermaid.js",
-    template: "Buatkan diagram flowchart Mermaid.js interaktif untuk alur ",
+    template: "Buatkan diagram flowchart menggunakan format kode ```mermaid (Mermaid.js) untuk alur ",
   },
   {
     cmd: "/fix",
@@ -89,6 +89,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const slashRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto resize textarea
@@ -99,11 +100,14 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
     }
   }, [input]);
 
-  // Close dropdown on outside click
+  // Close dropdown & slash menu on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsModelOpen(false);
+      }
+      if (slashRef.current && !slashRef.current.contains(e.target as Node)) {
+        setIsSlashOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -216,6 +220,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
     e?.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
     playSendSound();
+    setIsSlashOpen(false);
     onSendMessage(input.trim(), attachments, isWebSearchEnabled);
     setInput("");
     setAttachments([]);
@@ -234,6 +239,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
       {/* Quick Slash Commands Menu — opens upward */}
       {isSlashOpen && (
         <div
+          ref={slashRef}
           className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated py-2 z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-72 overflow-y-auto shadow-2xl"
           style={{ borderRadius: "20px" }}
         >

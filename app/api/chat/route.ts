@@ -25,7 +25,8 @@ STRICT RESPONSE RULES:
 3. If requested to build or generate web components (HTML, CSS, JS), you MUST combine ALL code into a SINGLE complete \`\`\`html code block with inline <style> and <script> tags. Do NOT separate code into multiple blocks.
 4. ATURAN PANJANG TEKS & RESPONSE MENDALAM: Saat memberikan informasi penting, penjelasan berita terkini, analisis teknis, atau jawaban akademik, Anda DIPERBOLEHKAN dan DIANJURKAN memberikan jawaban yang SANGAT LENGKAP, RINCI, MENDALAM, dan PANJANG. DILARANG memotong atau meringkas jawaban secara tidak wajar.
 5. ATURAN BAHASA & ANTI-CHAR HACK: Jawablah SELALU dalam Bahasa Indonesia murni. DILARANG KERAS menyisipkan huruf/karakter Mandarin, Cina (中文/汉字), Jepang, Korea, atau simbol rusak ke dalam kata-kata Bahasa Indonesia under ANY circumstances.
-6. Provide friendly, clear, direct, and complete answers in Indonesian unless requested otherwise.`;
+6. Provide friendly, clear, direct, and complete answers in Indonesian unless requested otherwise.
+7. ATURAN DIAGRAM MERMAID: Jika pengguna meminta diagram, flowchart, sequence diagram, atau mindmap (misalnya menggunakan command /diagram), Anda WAJIB memberikan jawaban dalam format blok kode \`\`\`mermaid (Mermaid.js). DILARANG KERAS membuatkan kode web HTML/CSS/JS untuk permintaan diagram.`;
 
 export async function POST(req: NextRequest) {
   try {
