@@ -564,6 +564,7 @@ export default function ChatPage() {
                   <MessageBubble
                     key={m.id}
                     message={m}
+                    userAvatar={userAvatar}
                     onOpenCodePreview={(code) => {
                       previewClosedByUserRef.current = false;
                       setActiveCodePreview(code);

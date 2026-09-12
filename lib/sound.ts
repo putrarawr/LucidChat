@@ -4,7 +4,7 @@
 
 let audioCtx: AudioContext | null = null;
 
-function getAudioContext(): AudioContext | null {
+function initAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!audioCtx) {
     const AudioContextClass =
@@ -20,27 +20,45 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
-/** Soft tactile click sound for UI buttons */
+// Auto-unlock AudioContext on first user interaction on window
+if (typeof window !== "undefined") {
+  const unlockAudio = () => {
+    const ctx = initAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume().then(() => {
+        window.removeEventListener("pointerdown", unlockAudio);
+        window.removeEventListener("keydown", unlockAudio);
+      }).catch(() => {});
+    } else {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    }
+  };
+  window.addEventListener("pointerdown", unlockAudio, { passive: true });
+  window.addEventListener("keydown", unlockAudio, { passive: true });
+}
+
+/** Satisfying tactile click sound for UI buttons */
 export function playClickSound() {
   try {
-    const ctx = getAudioContext();
+    const ctx = initAudioContext();
     if (!ctx) return;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(700, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.02);
+    osc.frequency.setValueAtTime(900, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.03);
 
-    gain.gain.setValueAtTime(0.07, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.02);
+    osc.stop(ctx.currentTime + 0.03);
   } catch {
     // Ignore audio autoplay restrictions
   }
@@ -49,24 +67,24 @@ export function playClickSound() {
 /** Futuristic soft swoop sound when sending a message */
 export function playSendSound() {
   try {
-    const ctx = getAudioContext();
+    const ctx = initAudioContext();
     if (!ctx) return;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.07);
+    osc.frequency.setValueAtTime(500, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.08);
 
-    gain.gain.setValueAtTime(0.05, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.07);
+    osc.stop(ctx.currentTime + 0.08);
   } catch {
     // Ignore
   }
@@ -75,7 +93,7 @@ export function playSendSound() {
 /** Gentle glass chime sound when AI generation finishes or preview opens */
 export function playSuccessSound() {
   try {
-    const ctx = getAudioContext();
+    const ctx = initAudioContext();
     if (!ctx) return;
 
     const osc1 = ctx.createOscillator();
@@ -88,8 +106,8 @@ export function playSuccessSound() {
     osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
     osc2.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
 
-    gain.gain.setValueAtTime(0.04, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.10, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
 
     osc1.connect(gain);
     osc2.connect(gain);
@@ -97,8 +115,8 @@ export function playSuccessSound() {
 
     osc1.start(ctx.currentTime);
     osc2.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.12);
-    osc2.stop(ctx.currentTime + 0.12);
+    osc1.stop(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.15);
   } catch {
     // Ignore
   }

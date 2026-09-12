@@ -16,6 +16,7 @@ export interface Message {
 
 interface MessageBubbleProps {
   message: Message;
+  userAvatar?: string;
   onOpenCodePreview?: (code: string) => void;
   onEditMessage?: (id: string, newText: string) => void;
   onRegenerate?: (id: string) => void;
@@ -310,6 +311,7 @@ function ParsedMessageContent({
 
 export function MessageBubble({
   message,
+  userAvatar,
   onOpenCodePreview,
   onEditMessage,
   onRegenerate,
@@ -341,6 +343,7 @@ export function MessageBubble({
   };
 
   const handleCopy = () => {
+    playClickSound();
     navigator.clipboard.writeText(cleanContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -357,17 +360,25 @@ export function MessageBubble({
     <div className={`group flex gap-2.5 my-2.5 ${isUser ? "flex-row-reverse" : "flex-row"} animate-slide-up`}>
       {/* Avatar Icon */}
       <div
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border mt-0.5 ${
+        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border overflow-hidden mt-0.5 ${
           isUser
             ? "bg-white/12 border-white/20 text-white"
             : "bg-white/[0.04] border-white/[0.08] text-white/70"
         }`}
       >
-        {isUser ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3 text-white/70" />}
+        {isUser ? (
+          userAvatar ? (
+            <img src={userAvatar} alt="User Avatar" className="w-full h-full object-cover rounded-full" />
+          ) : (
+            <User className="w-3 h-3" />
+          )
+        ) : (
+          <Sparkles className="w-3 h-3 text-white/70" />
+        )}
       </div>
 
-      {/* Bubble Container */}
-      <div className="flex flex-col gap-1 max-w-[85%]">
+      {/* Bubble Container - items-end for user keeps bubble snug next to avatar */}
+      <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? "items-end" : "items-start"}`}>
         {/* Render Attachments if Present */}
         {message.attachments && message.attachments.length > 0 && (
           <div className={`flex flex-wrap gap-2 ${isUser ? "justify-end" : "justify-start"} mb-1`}>
