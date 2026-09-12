@@ -77,6 +77,7 @@ export default function ChatPage() {
   const supabase = useMemo(() => createClient(), []);
 
   const handleClosePreview = () => {
+    playClickSound();
     previewClosedByUserRef.current = true;
     setActiveCodePreview(null);
     setIsPreviewMaximized(false);
