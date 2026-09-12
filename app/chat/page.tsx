@@ -9,7 +9,7 @@ import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { PersonaModal } from "@/components/chat/PersonaModal";
 import { DEFAULT_PERSONAS, Persona } from "@/lib/persona-types";
-import { X, Sliders } from "lucide-react";
+import { X, Sliders, Swords } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
@@ -53,6 +53,13 @@ export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState<ModelItem>(DEFAULT_MODELS[0]);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(DEFAULT_PERSONAS[0]);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+
+  // Arena Mode (Side-by-Side Model Comparison)
+  const [isArenaMode, setIsArenaMode] = useState(false);
+  const [arenaModelB, setArenaModelB] = useState<ModelItem>(
+    DEFAULT_MODELS.find((m) => m.id !== DEFAULT_MODELS[0].id) || DEFAULT_MODELS[1]
+  );
+  const [arenaMessages, setArenaMessages] = useState<Message[]>([]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -344,72 +351,130 @@ export default function ChatPage() {
       console.warn("Failed to save user chat/message to DB:", err);
     }
 
-    const assistantId = (Date.now() + 1).toString();
-    const assistantMsg: Message = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      isStreaming: true,
-    };
+    const fetchStreamForModel = async (
+      model: ModelItem,
+      setter: React.Dispatch<React.SetStateAction<Message[]>>,
+      msgId: string
+    ) => {
+      const startTime = performance.now();
+      let ttftMs: number | undefined = undefined;
+      let accumulatedContent = "";
 
-    setMessages((prev) => [...prev, assistantMsg]);
-    let accumulatedContent = "";
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+            modelId: model.id,
+            provider: model.provider,
+            customSystemPrompt: selectedPersona.systemPrompt,
+            attachments,
+            enableWebSearch,
+          }),
+        });
 
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          modelId: selectedModel.id,
-          provider: selectedModel.provider,
-          customSystemPrompt: selectedPersona.systemPrompt,
-          attachments,
-          enableWebSearch,
-        }),
-      });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP error ${response.status}`);
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error ${response.status}`);
-      }
+        if (!response.body) return "";
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
 
-      if (!response.body) return;
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+          const chunkStr = decoder.decode(value);
+          const lines = chunkStr.split("\n\n");
 
-        const chunkStr = decoder.decode(value);
-        const lines = chunkStr.split("\n\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.replace("data: ", "").trim();
+              if (dataStr === "[DONE]") break;
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.replace("data: ", "").trim();
-            if (dataStr === "[DONE]") break;
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.delta) {
+                  if (ttftMs === undefined) {
+                    ttftMs = Math.round(performance.now() - startTime);
+                  }
+                  accumulatedContent += parsed.delta;
 
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.delta) {
-                accumulatedContent += parsed.delta;
+                  const estimatedTokens = Math.max(1, Math.round(accumulatedContent.length / 3.8));
+                  const elapsedSec = Math.max(0.1, (performance.now() - startTime) / 1000);
+                  const tps = Math.round(estimatedTokens / elapsedSec);
 
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantId
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
-                  )
-                );
+                  setter((prev) =>
+                    prev.map((msg) =>
+                      msg.id === msgId
+                        ? {
+                            ...msg,
+                            content: accumulatedContent,
+                            stats: {
+                              ttftMs,
+                              totalTokens: estimatedTokens,
+                              tokensPerSec: tps,
+                              provider: model.provider,
+                              modelName: model.display_name,
+                            },
+                          }
+                        : msg
+                    )
+                  );
+                }
+              } catch {
+                // Ignore non-JSON
               }
-            } catch {
-              // Ignore non-JSON
             }
           }
         }
-      }
 
+        return accumulatedContent;
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Gagal mendapatkan respons AI";
+        setter((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? { ...msg, content: `Error: ${errorMessage}` }
+              : msg
+          )
+        );
+        return "";
+      } finally {
+        setter((prev) =>
+          prev.map((msg) => (msg.id === msgId ? { ...msg, isStreaming: false } : msg))
+        );
+      }
+    };
+
+    let accumulatedContent = "";
+    if (isArenaMode) {
+      const assistantIdA = (Date.now() + 1).toString();
+      const assistantIdB = (Date.now() + 2).toString();
+
+      const assistantMsgA: Message = { id: assistantIdA, role: "assistant", content: "", isStreaming: true };
+      const assistantMsgB: Message = { id: assistantIdB, role: "assistant", content: "", isStreaming: true };
+
+      setMessages((prev) => [...prev, assistantMsgA]);
+      setArenaMessages((prev) => [...prev, userMsg, assistantMsgB]);
+
+      const [resA] = await Promise.all([
+        fetchStreamForModel(selectedModel, setMessages, assistantIdA),
+        fetchStreamForModel(arenaModelB, setArenaMessages, assistantIdB),
+      ]);
+      accumulatedContent = resA;
+    } else {
+      const assistantId = (Date.now() + 1).toString();
+      const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", isStreaming: true };
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      accumulatedContent = await fetchStreamForModel(selectedModel, setMessages, assistantId);
+    }
+
+    try {
       // Automatically open Live Preview in landscape mode ONLY AFTER code generation finishes 100%
       if (!previewClosedByUserRef.current && accumulatedContent) {
         const cleanText = stripThinkTags(accumulatedContent);
@@ -434,21 +499,9 @@ export default function ChatPage() {
         await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", activeChatId);
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Gagal mendapatkan respons AI";
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantId
-            ? { ...msg, content: `Error: ${errorMessage}` }
-            : msg
-        )
-      );
+      console.warn("Save assistant message error:", err);
     } finally {
       setIsLoading(false);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantId ? { ...msg, isStreaming: false } : msg
-        )
-      );
     }
   };
 
@@ -528,6 +581,23 @@ export default function ChatPage() {
                 <Sliders className="w-3.5 h-3.5 text-white/60" />
                 <span className="truncate max-w-[150px] font-medium">{selectedPersona.name}</span>
               </button>
+
+              {/* Arena Mode Toggle Pill */}
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setIsArenaMode((prev) => !prev);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200 ${
+                  isArenaMode
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+                    : "bg-white/[0.05] text-white/60 hover:text-white border border-white/[0.08] hover:bg-white/[0.10]"
+                }`}
+                title={isArenaMode ? "Mode Arena Aktif (Bandingkan 2 AI Side-by-Side)" : "Aktifkan Mode Arena Bandingkan 2 AI"}
+              >
+                <Swords className={`w-3.5 h-3.5 ${isArenaMode ? "text-amber-400 animate-pulse" : "text-white/50"}`} />
+                <span>{isArenaMode ? "Mode Arena (Aktif)" : "Mode Arena"}</span>
+              </button>
             </div>
 
             {activeCodePreview && (
@@ -543,8 +613,65 @@ export default function ChatPage() {
 
           {/* Messages Stream Container */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
-            <div className="max-w-3xl w-full mx-auto space-y-2">
-              {messages.length === 0 ? (
+            <div className={`${isArenaMode ? "max-w-6xl" : "max-w-3xl"} w-full mx-auto space-y-2 h-full`}>
+              {isArenaMode ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[450px]">
+                  {/* Model A Panel */}
+                  <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-amber-400">
+                      <span>Model A: {selectedModel.display_name}</span>
+                      <span className="text-[10px] font-mono text-white/40 uppercase">{selectedModel.provider}</span>
+                    </div>
+                    <div className="space-y-2 flex-1 overflow-y-auto">
+                      {messages.map((m) => (
+                        <MessageBubble
+                          key={m.id}
+                          message={m}
+                          userAvatar={userAvatar}
+                          onOpenCodePreview={(code) => {
+                            previewClosedByUserRef.current = false;
+                            setActiveCodePreview(code);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Model B Panel */}
+                  <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-blue-400">
+                      <span>Model B: {arenaModelB.display_name}</span>
+                      <select
+                        value={arenaModelB.id}
+                        onChange={(e) => {
+                          const m = DEFAULT_MODELS.find((mod) => mod.id === e.target.value);
+                          if (m) setArenaModelB(m);
+                        }}
+                        className="bg-black/60 border border-white/15 rounded-lg text-[10px] text-white px-2 py-1 outline-none"
+                      >
+                        {DEFAULT_MODELS.map((m) => (
+                          <option key={m.id} value={m.id} className="bg-neutral-900 text-white">
+                            {m.display_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2 flex-1 overflow-y-auto">
+                      {arenaMessages.map((m) => (
+                        <MessageBubble
+                          key={m.id}
+                          message={m}
+                          userAvatar={userAvatar}
+                          onOpenCodePreview={(code) => {
+                            previewClosedByUserRef.current = false;
+                            setActiveCodePreview(code);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-5 my-auto min-h-[400px] animate-entrance-hero">
                   <div className="space-y-2">
                     <h2 className="text-3xl font-bold text-white tracking-[-0.03em]">

@@ -32,6 +32,46 @@ const CATEGORIES = [
   { tag: "local", title: "LOCAL ENGINE", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("local")) },
 ];
 
+const SLASH_COMMANDS = [
+  {
+    cmd: "/code",
+    title: "Buatkan Komponen Web",
+    desc: "Minta AI merancang komponen UI HTML/CSS/JS interaktif",
+    template: "Buatkan komponen web HTML/CSS/JS interaktif untuk ",
+  },
+  {
+    cmd: "/diagram",
+    title: "Buatkan Diagram Mermaid",
+    desc: "Rancang flowchart / diagram urutan dengan Mermaid.js",
+    template: "Buatkan diagram flowchart Mermaid.js interaktif untuk alur ",
+  },
+  {
+    cmd: "/fix",
+    title: "Debug & Perbaiki Kode",
+    desc: "Analisis bug dan berikan perbaikan kode yang bersih",
+    template: "Analisis dan perbaiki bug atau error pada kode berikut:\n```\n\n```",
+  },
+  {
+    cmd: "/summarize",
+    title: "Rangkum Poin Utama",
+    desc: "Rangkum teks panjang menjadi poin-poin penting",
+    template: "Rangkum poin-poin utama dari teks berikut dalam Bahasa Indonesia:\n",
+  },
+  {
+    cmd: "/explain",
+    title: "Jelaskan Konsep",
+    desc: "Jelaskan topik secara sederhana dan beri contoh nyata",
+    template: "Jelaskan konsep ini secara sederhana dan beri contoh nyata: ",
+  },
+  {
+    cmd: "/web",
+    title: "Cari Berita Terkini",
+    desc: "Aktifkan crawler web real-time untuk berita terkini",
+    template: "Cari berita dan informasi terkini di web tentang ",
+    enableWeb: true,
+  },
+];
+
 interface ChatInputBarProps {
   onSendMessage: (text: string, attachments?: AttachmentFile[], enableWebSearch?: boolean) => void;
   isLoading?: boolean;
@@ -45,6 +85,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
+  const [isSlashOpen, setIsSlashOpen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -190,6 +231,51 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
 
   return (
     <div className="relative">
+      {/* Quick Slash Commands Menu — opens upward */}
+      {isSlashOpen && (
+        <div
+          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated py-2 z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-72 overflow-y-auto shadow-2xl"
+          style={{ borderRadius: "20px" }}
+        >
+          <div className="flex items-center justify-between px-4 py-1.5 pb-2 text-[10px] font-semibold text-white/50 tracking-wider uppercase">
+            <span>⚡ Prompt Cepat / Slash Commands</span>
+            <button
+              type="button"
+              onClick={() => setIsSlashOpen(false)}
+              className="p-0.5 rounded text-white/40 hover:text-white"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="p-1 space-y-0.5">
+            {SLASH_COMMANDS.map((item) => (
+              <button
+                key={item.cmd}
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  setInput(item.template);
+                  if (item.enableWeb) setIsWebSearchEnabled(true);
+                  setIsSlashOpen(false);
+                  textareaRef.current?.focus();
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 hover:bg-white/[0.10] text-white/80 hover:text-white group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[11px] font-mono text-white font-bold group-hover:bg-white/20">
+                    {item.cmd}
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-white/90 text-[12px]">{item.title}</span>
+                    <span className="text-[10px] text-white/40">{item.desc}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Model Selector Dropdown — opens upward */}
       {isModelOpen && (
         <div
@@ -298,9 +384,17 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setInput(val);
+              if (val.startsWith("/")) {
+                setIsSlashOpen(true);
+              } else {
+                setIsSlashOpen(false);
+              }
+            }}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Mendengarkan suara Anda..." : "Tanyakan sesuatu atau minta buatkan komponen UI..."}
+            placeholder={isListening ? "Mendengarkan suara Anda..." : "Tanyakan sesuatu, ketik / untuk command, atau minta komponen UI..."}
             rows={1}
             disabled={isLoading}
             className={`w-full bg-transparent border-0 outline-none ring-0 focus:ring-0 resize-none text-[13px] text-white placeholder-white/30 py-1.5 max-h-40 overflow-y-auto leading-relaxed ${

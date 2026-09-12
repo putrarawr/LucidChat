@@ -1,9 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw, ExternalLink, Globe } from "lucide-react";
+import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw, ExternalLink, Globe, Zap, Activity, Hash, Cpu } from "lucide-react";
 import { AttachmentFile } from "./ChatInputBar";
 import { playClickSound } from "@/lib/sound";
+import { MermaidDiagram } from "@/components/artifact/MermaidDiagram";
+
+export interface MessageStats {
+  ttftMs?: number;
+  totalTokens?: number;
+  tokensPerSec?: number;
+  provider?: string;
+  modelName?: string;
+}
 
 export interface Message {
   id: string;
@@ -12,6 +21,7 @@ export interface Message {
   attachments?: AttachmentFile[];
   hasCode?: boolean;
   isStreaming?: boolean;
+  stats?: MessageStats;
 }
 
 interface MessageBubbleProps {
@@ -352,6 +362,10 @@ function ParsedMessageContent({
             code = part.slice(3, -3).trim();
           }
 
+          if (lang.toLowerCase() === "mermaid") {
+            return <MermaidDiagram key={index} code={code} />;
+          }
+
           return (
             <CodeTerminalBlock
               key={index}
@@ -492,6 +506,36 @@ export function MessageBubble({
             />
           )}
         </div>
+
+        {/* Real-time Performance & Token Stats Pill Bar */}
+        {!isUser && message.stats && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1 text-[10px] font-mono text-white/40 select-none">
+            {message.stats.ttftMs !== undefined && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Time-to-First-Token (Latency ms)">
+                <Zap className="w-3 h-3 text-amber-400/80" />
+                <span>{message.stats.ttftMs}ms TTFT</span>
+              </span>
+            )}
+            {message.stats.tokensPerSec !== undefined && message.stats.tokensPerSec > 0 && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Tokens per Second (Kecepatan real-time)">
+                <Activity className="w-3 h-3 text-emerald-400/80" />
+                <span>{message.stats.tokensPerSec} t/s</span>
+              </span>
+            )}
+            {message.stats.totalTokens !== undefined && message.stats.totalTokens > 0 && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Total Token Terhitung">
+                <Hash className="w-3 h-3 text-blue-400/80" />
+                <span>{message.stats.totalTokens} tokens</span>
+              </span>
+            )}
+            {message.stats.provider && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Active AI Provider">
+                <Cpu className="w-3 h-3 text-purple-400/80" />
+                <span className="capitalize">{message.stats.provider}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Action Toolbar on Hover */}
         {!message.isStreaming && !isEditing && (
