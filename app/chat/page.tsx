@@ -21,6 +21,33 @@ interface ChatRow {
   updated_at: string;
 }
 
+function generateSmartTitle(prompt: string): string {
+  const p = prompt.toLowerCase();
+  
+  if (p.includes("jailbreak") || p.includes("system instruction") || p.includes("override") || p.includes("bypass") || p.includes("hack") || p.includes("sapa halo")) {
+    return "Percobaan Security & Jailbreak";
+  }
+  if (p.includes("html") || p.includes("css") || p.includes("js") || p.includes("website") || p.includes("landing page") || p.includes("component") || p.includes("porto")) {
+    return "Pembuatan Web & Komponen HTML";
+  }
+  if (p.includes("python") || p.includes("script") || p.includes("code") || p.includes("fungsi") || p.includes("debug") || p.includes("bug")) {
+    return "Analisis Kode & Pemrograman";
+  }
+  if (p.includes("model") || p.includes("api") || p.includes("list model") || p.includes("fitur")) {
+    return "Tanya Jawab Model AI & API";
+  }
+  if (p.includes("gambar") || p.includes("foto") || p.includes("image") || p.includes("lampiran")) {
+    return "Analisis Visual & Dokumen";
+  }
+  if (p.includes("halo") || p.includes("hai") || p.includes("pagi") || p.includes("siang") || p.includes("apa kabar")) {
+    return "Percakapan Santai";
+  }
+
+  const words = prompt.trim().split(/\s+/).slice(0, 5).join(" ");
+  const cleanTitle = words.length > 35 ? words.slice(0, 32) + "..." : words;
+  return cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+}
+
 export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState<ModelItem>(DEFAULT_MODELS[0]);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(DEFAULT_PERSONAS[0]);
@@ -269,7 +296,7 @@ export default function ChatPage() {
       const { data: { user } } = await supabase.auth.getUser();
       currentUser = user;
       if (!activeChatId && user) {
-        const titleText = text.slice(0, 32) + (text.length > 32 ? "..." : "");
+        const titleText = generateSmartTitle(text);
         const { data: newChat } = await supabase
           .from("chats")
           .insert({

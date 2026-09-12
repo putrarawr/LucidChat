@@ -46,6 +46,7 @@ export function SessionList({
   const [searchQuery, setSearchQuery] = useState("");
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [deleteConfirmSession, setDeleteConfirmSession] = useState<SessionItem | null>(null);
 
   // Filter sessions by search query
   const filteredSessions = sessions.filter((s) =>
@@ -69,6 +70,13 @@ export function SessionList({
     setEditingSessionId(null);
   };
 
+  const handleConfirmDelete = () => {
+    if (deleteConfirmSession) {
+      onDeleteSession(deleteConfirmSession.id);
+      setDeleteConfirmSession(null);
+    }
+  };
+
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -77,6 +85,37 @@ export function SessionList({
           onClick={onToggleSidebar}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 md:hidden animate-fade-in"
         />
+      )}
+
+      {/* Delete Confirmation Liquid Glass Modal */}
+      {deleteConfirmSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-[#0e0e14]/90 p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <h3 className="text-base font-bold text-white tracking-tight">Hapus Percakapan?</h3>
+            </div>
+            <p className="text-xs text-white/60 leading-relaxed">
+              Apakah Anda yakin ingin menghapus percakapan <strong className="text-white">"{deleteConfirmSession.title}"</strong>? Percakapan akan dihapus permanen dari database.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeleteConfirmSession(null)}
+                className="px-4 py-2 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/10 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-500/80 hover:bg-red-500 text-white border border-red-400/30 shadow-lg transition-all"
+              >
+                Hapus Permanen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toggle Open Button when Sidebar collapsed */}
@@ -263,8 +302,8 @@ export function SessionList({
           <span className="truncate">{s.title}</span>
         </button>
 
-        {/* Hover Action Menu: Pin, Rename, Export, Delete */}
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all duration-200 shrink-0">
+        {/* Action Menu: Visible on mobile (opacity-100), smooth hover on desktop (md:opacity-0 md:group-hover:opacity-100) */}
+        <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-0.5 transition-all duration-200 shrink-0">
           {onPinSession && (
             <button
               onClick={(e) => {
@@ -306,7 +345,7 @@ export function SessionList({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDeleteSession(s.id);
+              setDeleteConfirmSession(s);
             }}
             className="p-1 text-white/30 hover:text-red-400 hover:bg-white/[0.08] rounded-lg transition-colors"
             title="Hapus Chat"
