@@ -46,7 +46,7 @@ export async function runGuardrail(message: string): Promise<{ safe: boolean; re
   if (process.env.ENABLE_LLAMA_GUARD === "true" && process.env.GROQ_API_KEY) {
     try {
       const response = await groq.chat.completions.create({
-        model: "llama-guard-3-8b",
+        model: "meta-llama/llama-prompt-guard-2-86m",
         messages: [{ role: "user", content: message }],
       });
       const verdict = response.choices[0]?.message?.content ?? "";

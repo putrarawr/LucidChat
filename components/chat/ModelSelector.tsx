@@ -2,14 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap } from "lucide-react";
-import { DEFAULT_MODELS, ModelItem } from "@/lib/model-router";
+import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 
 interface ModelSelectorProps {
   selectedModel: ModelItem;
   onSelectModel: (model: ModelItem) => void;
 }
 
-const CATEGORY_ICONS: Record<string, any> = {
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
   fast: Zap,
   routine: Zap,
   coding: Code,

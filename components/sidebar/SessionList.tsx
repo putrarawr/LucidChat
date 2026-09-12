@@ -1,42 +1,89 @@
 "use client";
 
-import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useState } from "react";
+import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, PanelLeftOpen, Search, Pin, Pencil, Download, Check, X } from "lucide-react";
 
 export interface SessionItem {
   id: string;
   title: string;
   updatedAt: string;
+  isPinned?: boolean;
 }
 
 interface SessionListProps {
   sessions: SessionItem[];
   currentSessionId?: string;
+  isOpen: boolean;
+  onToggleSidebar: () => void;
   onSelectSession: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
+  onPinSession?: (id: string) => void;
+  onRenameSession?: (id: string, newTitle: string) => void;
+  onExportSession?: (id: string) => void;
   onLogout?: () => void;
   userEmail?: string;
+  userName?: string;
+  userAvatar?: string;
 }
 
 export function SessionList({
   sessions,
   currentSessionId,
+  isOpen,
+  onToggleSidebar,
   onSelectSession,
   onNewChat,
   onDeleteSession,
+  onPinSession,
+  onRenameSession,
+  onExportSession,
   onLogout,
   userEmail,
+  userName,
+  userAvatar,
 }: SessionListProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+
+  // Filter sessions by search query
+  const filteredSessions = sessions.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const pinnedSessions = filteredSessions.filter((s) => s.isPinned);
+  const unpinnedSessions = filteredSessions.filter((s) => !s.isPinned);
+
+  const handleStartRename = (session: SessionItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditTitle(session.title);
+  };
+
+  const handleSaveRename = (id: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (editTitle.trim() && onRenameSession) {
+      onRenameSession(id, editTitle.trim());
+    }
+    setEditingSessionId(null);
+  };
 
   return (
     <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div
+          onClick={onToggleSidebar}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 md:hidden animate-fade-in"
+        />
+      )}
+
       {/* Toggle Open Button when Sidebar collapsed */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed top-4 left-4 z-40 p-2.5 liquid-glass text-white/70 hover:text-white border border-white/15"
+          onClick={onToggleSidebar}
+          className="fixed top-4 left-4 z-40 p-2.5 rounded-2xl bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/[0.15] shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
           title="Buka Sidebar"
         >
           <PanelLeftOpen className="w-4 h-4" />
@@ -45,20 +92,25 @@ export function SessionList({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-30 w-72 p-4 liquid-glass rounded-none border-r border-white/10 flex flex-col justify-between transition-transform duration-300 backdrop-blur-2xl bg-black/50 ${
+        className={`fixed top-0 left-0 bottom-0 z-30 w-72 p-4 sidebar-glass rounded-none flex flex-col justify-between transition-transform duration-300 ease-[var(--ease-glass)] ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Top Header */}
-        <div>
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
-              <span className="font-semibold text-sm tracking-tight text-white">LucidChat</span>
+        {/* Top Header & Navigation */}
+        <div className="flex flex-col min-h-0 flex-1">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] shrink-0">
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/logo.png"
+                alt="LucidChat Logo"
+                className="w-7 h-7 rounded-lg object-cover shadow-[0_0_12px_rgba(255,255,255,0.3)] border border-white/20"
+              />
+              <span className="font-semibold text-sm tracking-[-0.02em] text-white">LucidChat</span>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              onClick={onToggleSidebar}
+              className="p-1.5 text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200"
               title="Tutup Sidebar"
             >
               <PanelLeftClose className="w-4 h-4" />
@@ -68,69 +120,90 @@ export function SessionList({
           {/* New Chat Button */}
           <button
             onClick={onNewChat}
-            className="w-full mt-4 glass-pill py-2.5 px-4 flex items-center justify-center gap-2 text-xs font-semibold tracking-wide bg-white/10 hover:bg-white/20 border border-white/20 shadow-md text-white transition-all"
+            className="w-full mt-3 py-2.5 px-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-semibold tracking-wide bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] hover:border-white/[0.15] shadow-sm text-white/80 hover:text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shrink-0"
           >
             <Plus className="w-4 h-4" />
             Chat Baru
           </button>
 
-          {/* Session List */}
-          <div className="mt-6 space-y-1 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
-            <div className="text-[10px] font-semibold tracking-widest text-white/30 uppercase px-2 mb-2">
-              Riwayat Chat
-            </div>
-            {sessions.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-white/30">
-                Belum ada percakapan
-              </div>
-            ) : (
-              sessions.map((s) => {
-                const isActive = s.id === currentSessionId;
-                return (
-                  <div
-                    key={s.id}
-                    className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all ${
-                      isActive
-                        ? "bg-white/15 text-white font-medium border border-white/15"
-                        : "text-white/60 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    <button
-                      onClick={() => onSelectSession(s.id)}
-                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="truncate">{s.title}</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSession(s.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-white/40 hover:text-white hover:bg-white/10 rounded transition-all"
-                      title="Hapus Chat"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                );
-              })
+          {/* Search Filter Input */}
+          <div className="mt-3 relative shrink-0">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari percakapan..."
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-white placeholder-white/25 focus:outline-none focus:border-white/20 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
             )}
+          </div>
+
+          {/* Session List Container */}
+          <div className="mt-4 space-y-3 overflow-y-auto flex-1 pr-1">
+            {/* Pinned Sessions */}
+            {pinnedSessions.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.15em] text-white/40 uppercase px-2 mb-1">
+                  <Pin className="w-3 h-3 text-white/50" />
+                  <span>Disematkan</span>
+                </div>
+                {pinnedSessions.map((s) => renderSessionRow(s))}
+              </div>
+            )}
+
+            {/* Unpinned / Regular Sessions */}
+            <div className="space-y-1">
+              {pinnedSessions.length > 0 && (
+                <div className="text-[9px] font-semibold tracking-[0.15em] text-white/25 uppercase px-2 mb-1 pt-1">
+                  Semua Chat
+                </div>
+              )}
+              {filteredSessions.length === 0 ? (
+                <div className="px-3 py-6 text-center text-xs text-white/20">
+                  {searchQuery ? "Tidak ditemukan percakapan" : "Belum ada percakapan"}
+                </div>
+              ) : (
+                unpinnedSessions.map((s) => renderSessionRow(s))
+              )}
+            </div>
           </div>
         </div>
 
         {/* Bottom Profile / Logout */}
-        <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-white/20 border border-white/20 flex items-center justify-center text-xs font-semibold text-white">
-              {userEmail ? userEmail[0].toUpperCase() : "U"}
+        <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt={userName || "User Avatar"}
+                className="w-7 h-7 rounded-full border border-white/10 object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-white/[0.10] border border-white/[0.10] flex items-center justify-center text-[10px] font-semibold text-white/70 shrink-0">
+                {userName ? userName[0].toUpperCase() : userEmail ? userEmail[0].toUpperCase() : "U"}
+              </div>
+            )}
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-[11px] font-medium text-white/80 truncate">
+                {userName || userEmail || "Guest User"}
+              </span>
+              {userName && userEmail && (
+                <span className="text-[9px] text-white/35 truncate">{userEmail}</span>
+              )}
             </div>
-            <span className="text-xs text-white/70 truncate">{userEmail || "User"}</span>
           </div>
           {onLogout && (
             <button
               onClick={onLogout}
-              className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              className="p-1.5 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200 shrink-0 ml-1"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -140,4 +213,108 @@ export function SessionList({
       </aside>
     </>
   );
+
+  function renderSessionRow(s: SessionItem) {
+    const isActive = s.id === currentSessionId;
+    const isEditing = editingSessionId === s.id;
+
+    if (isEditing) {
+      return (
+        <form
+          key={s.id}
+          onSubmit={(e) => handleSaveRename(s.id, e)}
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-white/[0.10] border border-white/20"
+        >
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="flex-1 bg-transparent text-xs text-white focus:outline-none"
+            autoFocus
+          />
+          <button type="submit" className="p-1 text-emerald-400 hover:text-emerald-300">
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditingSessionId(null)}
+            className="p-1 text-white/40 hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </form>
+      );
+    }
+
+    return (
+      <div
+        key={s.id}
+        className={`group relative flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-all duration-200 ${
+          isActive
+            ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
+            : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+        }`}
+      >
+        <button
+          onClick={() => onSelectSession(s.id)}
+          className="flex items-center gap-2 flex-1 min-w-0 text-left pr-1"
+        >
+          <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-60" />
+          <span className="truncate">{s.title}</span>
+        </button>
+
+        {/* Hover Action Menu: Pin, Rename, Export, Delete */}
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all duration-200 shrink-0">
+          {onPinSession && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPinSession(s.id);
+              }}
+              className={`p-1 rounded-lg transition-colors ${
+                s.isPinned ? "text-amber-400 hover:text-amber-300" : "text-white/30 hover:text-white hover:bg-white/[0.08]"
+              }`}
+              title={s.isPinned ? "Lepas Sematan" : "Sematkan Chat"}
+            >
+              <Pin className="w-3 h-3" />
+            </button>
+          )}
+
+          {onRenameSession && (
+            <button
+              onClick={(e) => handleStartRename(s, e)}
+              className="p-1 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-lg transition-colors"
+              title="Ubah Judul Chat"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+
+          {onExportSession && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExportSession(s.id);
+              }}
+              className="p-1 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-lg transition-colors"
+              title="Ekspor Chat ke Markdown"
+            >
+              <Download className="w-3 h-3" />
+            </button>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteSession(s.id);
+            }}
+            className="p-1 text-white/30 hover:text-red-400 hover:bg-white/[0.08] rounded-lg transition-colors"
+            title="Hapus Chat"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 }
