@@ -60,14 +60,14 @@ body {
   position: relative;
 }
 
-/* ===== VIBRANT SMOOTH BACKGROUND MESH ===== */
+/* ===== PURE MONOCHROME LIQUID GLASS MESH ===== */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15), transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(147, 51, 234, 0.15), transparent 50%),
-              radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.10), transparent 55%);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.05), transparent 50%),
+              radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03), transparent 55%);
   z-index: 0;
   pointer-events: none;
   animation: ambientMesh 24s ease-in-out infinite alternate;
@@ -75,17 +75,20 @@ body::before {
 
 @keyframes ambientMesh {
   0% {
-    filter: hue-rotate(0deg) scale(1);
+    transform: translateY(0px) scale(1);
+    opacity: 0.7;
   }
   50% {
-    filter: hue-rotate(30deg) scale(1.06);
+    transform: translateY(-15px) scale(1.04);
+    opacity: 1;
   }
   100% {
-    filter: hue-rotate(-25deg) scale(0.97);
+    transform: translateY(10px) scale(0.97);
+    opacity: 0.8;
   }
 }
 
-/* ===== VIBRANT BACKGROUND ORBS (iOS 26 style) ===== */
+/* ===== MONOCHROME LIQUID ORBS ===== */
 .bg-orbs {
   position: fixed;
   inset: 0;
@@ -102,27 +105,27 @@ body::before {
   filter: blur(100px);
 }
 
-/* Top-right: Blue/Indigo orb */
+/* Top-right: Monochrome Silver/White orb */
 .bg-orbs::before {
   top: -10%;
   right: -8%;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(80, 120, 220, 0.30) 0%, rgba(120, 80, 200, 0.15) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 40%, transparent 70%);
   animation: orbFloat1 22s ease-in-out infinite;
 }
 
-/* Bottom-left: Teal/Cyan orb */
+/* Bottom-left: Soft Charcoal orb */
 .bg-orbs::after {
   bottom: -15%;
   left: -8%;
   width: 550px;
   height: 550px;
-  background: radial-gradient(circle, rgba(60, 180, 200, 0.22) 0%, rgba(80, 140, 220, 0.10) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 45%, transparent 70%);
   animation: orbFloat2 28s ease-in-out infinite;
 }
 
-/* Center: Subtle purple/pink orb */
+/* Center: Subtle white glass orb */
 .orb-center {
   position: fixed;
   top: 35%;
@@ -132,7 +135,7 @@ body::before {
   margin-top: -225px;
   margin-left: -225px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(160, 100, 220, 0.15) 0%, rgba(200, 120, 180, 0.08) 40%, transparent 65%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 65%);
   filter: blur(90px);
   pointer-events: none;
   z-index: 0;
@@ -147,7 +150,7 @@ body::before {
   width: 350px;
   height: 350px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(220, 120, 80, 0.18) 0%, rgba(200, 80, 140, 0.08) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 70%);
   filter: blur(90px);
   pointer-events: none;
   z-index: 0;
@@ -161,7 +164,7 @@ body::before {
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(80, 200, 160, 0.16) 0%, rgba(60, 160, 220, 0.08) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 70%);
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
