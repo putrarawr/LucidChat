@@ -9,7 +9,7 @@ import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { PersonaModal } from "@/components/chat/PersonaModal";
 import { DEFAULT_PERSONAS, Persona } from "@/lib/persona-types";
-import { X, Sliders, Swords } from "lucide-react";
+import { X, Sliders, Swords, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
@@ -83,6 +83,13 @@ export default function ChatPage() {
   const previewClosedByUserRef = useRef(false);
   const lastPreviewUpdateRef = useRef(0);
   const supabase = useMemo(() => createClient(), []);
+
+  // Detect mobile viewport on mount and load with sidebar closed by default on mobile
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  }, []);
 
   const handleClosePreview = () => {
     playClickSound();
@@ -201,6 +208,9 @@ export default function ChatPage() {
     setActiveCodePreview(null);
     setIsLoading(false);
     setArenaMessages([]);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
     try {
       const { data: msgData } = await supabase
         .from("messages")
@@ -229,6 +239,9 @@ export default function ChatPage() {
     setCurrentSessionId(undefined);
     previewClosedByUserRef.current = false;
     setActiveCodePreview(null);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
   };
 
   const handleDeleteSession = async (id: string) => {
@@ -589,8 +602,27 @@ export default function ChatPage() {
           className="flex-col h-full relative z-10 transition-[width] duration-75"
         >
           {/* Minimal Header Bar */}
-          <header className="h-14 px-6 flex items-center justify-between border-b border-white/[0.05] bg-black/20 backdrop-blur-2xl animate-entrance-header">
-            <div className="flex items-center gap-3">
+          <header className="h-14 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-black/20 backdrop-blur-2xl animate-entrance-header">
+            <div className="flex items-center gap-2.5">
+              {/* Sidebar Toggle Button (Always accessible on desktop & mobile) */}
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setIsSidebarOpen(!isSidebarOpen);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-white/70 hover:text-white transition-all shadow-sm"
+                title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+              >
+                {isSidebarOpen ? (
+                  <PanelLeftClose className="w-3.5 h-3.5 text-white/70" />
+                ) : (
+                  <PanelLeftOpen className="w-3.5 h-3.5 text-white/70" />
+                )}
+                {!isSidebarOpen && (
+                  <span className="text-[11px] font-medium text-white/80">Menu</span>
+                )}
+              </button>
+
               {/* Persona Selector Pill */}
               <button
                 onClick={() => setIsPersonaModalOpen(true)}

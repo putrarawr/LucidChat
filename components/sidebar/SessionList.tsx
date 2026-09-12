@@ -87,7 +87,7 @@ export function SessionList({
       {isOpen && (
         <div
           onClick={onToggleSidebar}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 md:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/70 backdrop-blur-md z-40 md:hidden animate-fade-in cursor-pointer"
         />
       )}
 
@@ -124,20 +124,9 @@ export function SessionList({
         </div>
       )}
 
-      {/* Toggle Open Button when Sidebar collapsed */}
-      {!isOpen && (
-        <button
-          onClick={onToggleSidebar}
-          className="fixed top-4 left-4 z-40 p-2.5 rounded-2xl bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] hover:border-white/[0.15] shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-          title="Buka Sidebar"
-        >
-          <PanelLeftOpen className="w-4 h-4" />
-        </button>
-      )}
-
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-30 w-72 p-4 sidebar-glass rounded-none flex flex-col justify-between transition-transform duration-300 ease-[var(--ease-glass)] ${
+        className={`fixed top-0 left-0 bottom-0 z-50 w-72 p-4 sidebar-glass rounded-none flex flex-col justify-between transition-transform duration-300 ease-[var(--ease-glass)] ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
