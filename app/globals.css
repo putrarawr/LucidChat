@@ -394,51 +394,65 @@ body::before {
   animation: pulseGlow 3s ease-in-out infinite;
 }
 
-/* ===== ENTRANCE ANIMATIONS ===== */
-@keyframes pageEntranceFade {
+/* ===== DISTINCT SIGNATURE ENTRANCE ANIMATIONS ===== */
+
+/* 1. Sidebar: 3D Perspective Glass Slide & Unfold from Left */
+@keyframes sidebarGlassUnfold {
   0% {
     opacity: 0;
-    transform: scale(0.98) translateY(12px);
+    transform: translateX(-100%) rotateY(-15deg);
+    filter: blur(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotateY(0deg);
+    filter: blur(0);
+  }
+}
+
+/* 2. Header Bar: Glass Drop & Shimmer from Top */
+@keyframes headerGlassDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%) scaleY(0.9);
+    filter: blur(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    filter: blur(0);
+  }
+}
+
+/* 3. Hero Text: Dramatic Glowing Spring Pop & Expand */
+@keyframes heroSpringPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.75) translateY(40px);
+    filter: blur(20px);
+    letter-spacing: -0.06em;
+  }
+  60% {
+    transform: scale(1.03) translateY(-4px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+    letter-spacing: -0.03em;
+  }
+}
+
+/* 4. Suggestion Chips: Elastic Stagger Pop-In */
+@keyframes chipPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) translateY(20px);
     filter: blur(8px);
   }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0);
-  }
-}
-
-@keyframes sidebarEntrance {
-  0% {
-    opacity: 0;
-    transform: translateX(-24px);
-    filter: blur(6px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-    filter: blur(0);
-  }
-}
-
-@keyframes headerEntrance {
-  0% {
-    opacity: 0;
-    transform: translateY(-16px);
-    filter: blur(4px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-@keyframes heroEntrance {
-  0% {
-    opacity: 0;
-    transform: scale(0.94) translateY(16px);
-    filter: blur(10px);
+  70% {
+    transform: scale(1.08);
   }
   100% {
     opacity: 1;
@@ -447,39 +461,48 @@ body::before {
   }
 }
 
-@keyframes inputEntrance {
+/* 5. Input Box: Floating Elastic Rise & Glow Expand from Bottom */
+@keyframes inputElasticRise {
   0% {
     opacity: 0;
-    transform: translateY(24px) scale(0.97);
-    filter: blur(6px);
+    transform: translateY(70px) scale(0.88);
+    filter: blur(14px);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+  65% {
+    transform: translateY(-6px) scale(1.02);
+    filter: blur(0);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
     filter: blur(0);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 }
 
-.animate-entrance-page {
-  animation: pageEntranceFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
 .animate-entrance-sidebar {
-  animation: sidebarEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: sidebarGlassUnfold 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-entrance-header {
-  animation: headerEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+  animation: headerGlassDrop 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
   opacity: 0;
 }
 
 .animate-entrance-hero {
-  animation: heroEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+  animation: heroSpringPop 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-entrance-chips {
+  animation: chipPopIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s forwards;
   opacity: 0;
 }
 
 .animate-entrance-input {
-  animation: inputEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
+  animation: inputElasticRise 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) 0.3s forwards;
   opacity: 0;
 }
 

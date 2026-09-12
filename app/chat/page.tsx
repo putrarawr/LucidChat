@@ -543,7 +543,7 @@ export default function ChatPage() {
                   </div>
 
                   {/* Quick suggestion chips */}
-                  <div className="flex flex-wrap justify-center gap-2 max-w-md mt-2">
+                  <div className="flex flex-wrap justify-center gap-2 max-w-md mt-2 animate-entrance-chips">
                     {["Jelaskan quantum computing", "Buatkan landing page", "Analisis kode Python"].map((s) => (
                       <button
                         key={s}
