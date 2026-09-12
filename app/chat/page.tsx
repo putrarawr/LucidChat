@@ -10,6 +10,7 @@ import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { PersonaModal } from "@/components/chat/PersonaModal";
 import { DEFAULT_PERSONAS, Persona } from "@/lib/persona-types";
 import { X, Sliders } from "lucide-react";
+import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
   id: string;
@@ -401,6 +402,7 @@ export default function ChatPage() {
         if (htmlMatch) {
           const extractedCode = htmlMatch[1].trim();
           if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
+            playSuccessSound();
             setActiveCodePreview(extractedCode);
           }
         }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, PanelLeftOpen, Search, Pin, Pencil, Download, Check, X } from "lucide-react";
+import { playClickSound } from "@/lib/sound";
 
 export interface SessionItem {
   id: string;
@@ -58,12 +59,14 @@ export function SessionList({
 
   const handleStartRename = (session: SessionItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    playClickSound();
     setEditingSessionId(session.id);
     setEditTitle(session.title);
   };
 
   const handleSaveRename = (id: string, e: React.FormEvent) => {
     e.preventDefault();
+    playClickSound();
     if (editTitle.trim() && onRenameSession) {
       onRenameSession(id, editTitle.trim());
     }
@@ -71,6 +74,7 @@ export function SessionList({
   };
 
   const handleConfirmDelete = () => {
+    playClickSound();
     if (deleteConfirmSession) {
       onDeleteSession(deleteConfirmSession.id);
       setDeleteConfirmSession(null);

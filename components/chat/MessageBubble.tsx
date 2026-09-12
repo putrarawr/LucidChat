@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw } from "lucide-react";
 import { AttachmentFile } from "./ChatInputBar";
+import { playClickSound } from "@/lib/sound";
 
 export interface Message {
   id: string;
@@ -89,6 +90,7 @@ function CodeTerminalBlock({
   }, [code, isExpanded]);
 
   const handleCopy = () => {
+    playClickSound();
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -119,7 +121,10 @@ function CodeTerminalBlock({
         {/* Action Buttons */}
         <div className="flex items-center gap-2 font-sans">
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => {
+              playClickSound();
+              setIsExpanded(!isExpanded);
+            }}
             className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[10px] text-white/70 hover:text-white border border-white/[0.08] transition-all"
           >
             {isExpanded ? "Ringkas" : "Perluas"}
@@ -133,7 +138,10 @@ function CodeTerminalBlock({
           </button>
           {isPreviewable && onOpenCodePreview && (
             <button
-              onClick={() => onOpenCodePreview(code)}
+              onClick={() => {
+                playClickSound();
+                onOpenCodePreview(code);
+              }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.12] hover:bg-white/[0.20] text-[10px] font-semibold text-white border border-white/[0.15] shadow-sm transition-all"
             >
               <Eye className="w-3 h-3" />

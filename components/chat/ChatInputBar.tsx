@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
+import { playClickSound, playSendSound } from "@/lib/sound";
 
 export interface AttachmentFile {
   id: string;
@@ -164,12 +165,14 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   };
 
   const removeAttachment = (id: string) => {
+    playClickSound();
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
+    playSendSound();
     onSendMessage(input.trim(), attachments);
     setInput("");
     setAttachments([]);
