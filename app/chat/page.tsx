@@ -9,7 +9,7 @@ import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { PersonaModal } from "@/components/chat/PersonaModal";
 import { DEFAULT_PERSONAS, Persona } from "@/lib/persona-types";
-import { Sparkles, X, Sliders } from "lucide-react";
+import { X, Sliders } from "lucide-react";
 
 interface ChatRow {
   id: string;
@@ -340,10 +340,10 @@ export default function ChatPage() {
                 accumulatedContent += parsed.delta;
 
                 const cleanText = stripThinkTags(accumulatedContent);
-                const htmlMatch = cleanText.match(/```html([\s\S]*?)```/i) || cleanText.match(/```xml([\s\S]*?)```/i);
+                const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
                 if (htmlMatch) {
                   const extractedCode = htmlMatch[1].trim();
-                  if (extractedCode.includes("<") && !extractedCode.includes("**Draft Code")) {
+                  if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
                     setActiveCodePreview(extractedCode);
                   }
                 }

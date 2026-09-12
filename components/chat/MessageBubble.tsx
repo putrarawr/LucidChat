@@ -31,8 +31,17 @@ const LOADING_PHRASES = [
 
 export function stripThinkTags(text: string): string {
   if (!text) return "";
-  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  let cleaned = text;
+  // 1. Remove completed <think>...</think> blocks
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  // 2. Remove unclosed <think>... if streaming
   cleaned = cleaned.replace(/<think>[\s\S]*/gi, "");
+  // 3. Remove system prompt leaks & instructions
+  cleaned = cleaned.replace(/<system_instructions>[\s\S]*?<\/system_instructions>/gi, "");
+  cleaned = cleaned.replace(/<custom_persona_instructions>[\s\S]*?<\/custom_persona_instructions>/gi, "");
+  cleaned = cleaned.replace(/<user_input>[\s\S]*?<\/user_input>/gi, "");
+  cleaned = cleaned.replace(/^system_instructions[\s\S]*?\n/gi, "");
+  cleaned = cleaned.replace(/^You are LucidChat AI Assistant[\s\S]*?\n\n/gi, "");
   return cleaned.trim();
 }
 
@@ -128,7 +137,6 @@ function CodeTerminalBlock({
 }
 
 function parseInlineMarkdown(text: string) {
-  // Split by **bold**, `inline code`, or *italic*
   const parts = text.split(/(\*\*[\s\S]*?\*\*|`[^`]+`|\*[^*]+\*)/g);
 
   return parts.map((part, index) => {
@@ -169,7 +177,6 @@ function FormattedTextSegment({ text }: { text: string }) {
   return (
     <div className="space-y-1">
       {lines.map((line, lineIndex) => {
-        // Headers
         if (line.startsWith("### ")) {
           return (
             <h4 key={lineIndex} className="text-sm font-bold text-white mt-3 mb-1 tracking-tight">
@@ -192,7 +199,6 @@ function FormattedTextSegment({ text }: { text: string }) {
           );
         }
 
-        // Bullet points (* Item or - Item)
         const isBullet = line.trim().startsWith("* ") || line.trim().startsWith("- ");
         if (isBullet) {
           const bulletText = line.trim().slice(2);
@@ -206,12 +212,10 @@ function FormattedTextSegment({ text }: { text: string }) {
           );
         }
 
-        // Empty lines
         if (!line.trim()) {
           return <div key={lineIndex} className="h-1.5" />;
         }
 
-        // Paragraph
         return (
           <div key={lineIndex} className="text-[13px] leading-[1.65] text-white/90 break-words">
             {parseInlineMarkdown(line)}
@@ -229,8 +233,14 @@ function ParsedMessageContent({
   content: string;
   onOpenCodePreview?: (code: string) => void;
 }) {
-  const cleanText = stripThinkTags(content);
-  if (!cleanText) return null;
+  let cleanText = stripThinkTags(content);
+  if (!cleanText) return <div className="text-[13px] text-white/70 italic">Halo! Ada yang bisa saya bantu hari ini?</div>;
+
+  // Auto-close unclosed code block if truncated or streaming
+  const codeBlockMatches = (cleanText.match(/```/g) || []).length;
+  if (codeBlockMatches % 2 !== 0) {
+    cleanText += "\n```";
+  }
 
   const parts = cleanText.split(/(```[\s\S]*?```)/g);
 
@@ -282,7 +292,6 @@ export function MessageBubble({
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
 
-  // Text-to-Speech (TTS Read Aloud)
   const handleToggleSpeech = () => {
     if (!window.speechSynthesis) return;
 
@@ -374,7 +383,7 @@ export function MessageBubble({
             <DynamicLoadingText />
           ) : (
             <ParsedMessageContent
-              content={cleanContent || (isUser ? "" : "(Tidak ada konten)")}
+              content={cleanContent || (isUser ? "" : "Halo! Ada yang bisa saya bantu hari ini?")}
               onOpenCodePreview={onOpenCodePreview}
             />
           )}
@@ -387,7 +396,6 @@ export function MessageBubble({
               isUser ? "justify-end" : "justify-start"
             }`}
           >
-            {/* Copy Button */}
             <button
               onClick={handleCopy}
               className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
@@ -396,7 +404,6 @@ export function MessageBubble({
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Read Aloud Button (TTS) */}
             <button
               onClick={handleToggleSpeech}
               className={`p-1 rounded-lg hover:bg-white/10 transition-colors ${
@@ -407,7 +414,6 @@ export function MessageBubble({
               {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Edit User Message Button */}
             {isUser && onEditMessage && (
               <button
                 onClick={() => setIsEditing(true)}
@@ -418,7 +424,6 @@ export function MessageBubble({
               </button>
             )}
 
-            {/* Regenerate AI Response Button */}
             {!isUser && onRegenerate && (
               <button
                 onClick={() => onRegenerate(message.id)}
