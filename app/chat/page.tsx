@@ -44,7 +44,15 @@ export default function ChatPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const previewClosedByUserRef = useRef(false);
+  const lastPreviewUpdateRef = useRef(0);
   const supabase = useMemo(() => createClient(), []);
+
+  const handleClosePreview = () => {
+    previewClosedByUserRef.current = true;
+    setActiveCodePreview(null);
+    setIsPreviewMaximized(false);
+  };
 
   // Mouse drag handler for split panel resizing
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -152,6 +160,7 @@ export default function ChatPage() {
   // Session Selection
   const handleSelectSession = async (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    previewClosedByUserRef.current = false;
     setActiveCodePreview(null);
     setIsLoading(false);
     try {
@@ -179,6 +188,7 @@ export default function ChatPage() {
   const handleNewChat = () => {
     setMessages([]);
     setCurrentSessionId(undefined);
+    previewClosedByUserRef.current = false;
     setActiveCodePreview(null);
   };
 
@@ -245,6 +255,9 @@ export default function ChatPage() {
       content: text,
       attachments,
     };
+
+    previewClosedByUserRef.current = false;
+    lastPreviewUpdateRef.current = 0;
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -339,22 +352,29 @@ export default function ChatPage() {
               if (parsed.delta) {
                 accumulatedContent += parsed.delta;
 
-                const cleanText = stripThinkTags(accumulatedContent);
-                const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
-                if (htmlMatch) {
-                  let extractedCode = htmlMatch[1].trim();
-                  if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
-                    const scriptOpen = (extractedCode.match(/<script/gi) || []).length;
-                    const scriptClose = (extractedCode.match(/<\/script>/gi) || []).length;
-                    if (scriptOpen > scriptClose) {
-                      extractedCode += "\n</script>";
+                if (!previewClosedByUserRef.current) {
+                  const cleanText = stripThinkTags(accumulatedContent);
+                  const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
+                  if (htmlMatch) {
+                    let extractedCode = htmlMatch[1].trim();
+                    if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
+                      const scriptOpen = (extractedCode.match(/<script/gi) || []).length;
+                      const scriptClose = (extractedCode.match(/<\/script>/gi) || []).length;
+                      if (scriptOpen > scriptClose) {
+                        extractedCode += "\n</script>";
+                      }
+                      const styleOpen = (extractedCode.match(/<style/gi) || []).length;
+                      const styleClose = (extractedCode.match(/<\/style>/gi) || []).length;
+                      if (styleOpen > styleClose) {
+                        extractedCode += "\n</style>";
+                      }
+
+                      const now = Date.now();
+                      if (now - lastPreviewUpdateRef.current > 400) {
+                        lastPreviewUpdateRef.current = now;
+                        setActiveCodePreview(extractedCode);
+                      }
                     }
-                    const styleOpen = (extractedCode.match(/<style/gi) || []).length;
-                    const styleClose = (extractedCode.match(/<\/style>/gi) || []).length;
-                    if (styleOpen > styleClose) {
-                      extractedCode += "\n</style>";
-                    }
-                    setActiveCodePreview(extractedCode);
                   }
                 }
 
@@ -369,6 +389,18 @@ export default function ChatPage() {
             } catch {
               // Ignore non-JSON
             }
+          }
+        }
+      }
+
+      // Final update for live preview when streaming finishes
+      if (!previewClosedByUserRef.current && accumulatedContent) {
+        const cleanText = stripThinkTags(accumulatedContent);
+        const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
+        if (htmlMatch) {
+          let extractedCode = htmlMatch[1].trim();
+          if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
+            setActiveCodePreview(extractedCode);
           }
         }
       }
@@ -480,10 +512,7 @@ export default function ChatPage() {
 
             {activeCodePreview && (
               <button
-                onClick={() => {
-                  setActiveCodePreview(null);
-                  setIsPreviewMaximized(false);
-                }}
+                onClick={handleClosePreview}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.15] text-[11px] text-white/50 hover:text-white/80 transition-all duration-200"
               >
                 <X className="w-3 h-3" />
@@ -531,7 +560,10 @@ export default function ChatPage() {
                   <MessageBubble
                     key={m.id}
                     message={m}
-                    onOpenCodePreview={(code) => setActiveCodePreview(code)}
+                    onOpenCodePreview={(code) => {
+                      previewClosedByUserRef.current = false;
+                      setActiveCodePreview(code);
+                    }}
                     onEditMessage={handleEditMessage}
                     onRegenerate={handleRegenerateResponse}
                   />
@@ -574,10 +606,7 @@ export default function ChatPage() {
           >
             <CodePreviewTabs
               codeContent={activeCodePreview}
-              onClose={() => {
-                setActiveCodePreview(null);
-                setIsPreviewMaximized(false);
-              }}
+              onClose={handleClosePreview}
               isMaximized={isPreviewMaximized}
               onToggleMaximize={() => setIsPreviewMaximized(!isPreviewMaximized)}
             />
