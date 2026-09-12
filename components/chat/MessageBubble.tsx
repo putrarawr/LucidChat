@@ -526,6 +526,9 @@ export function MessageBubble({
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Total Token Terhitung">
                 <Hash className="w-3 h-3 text-blue-400/80" />
                 <span>{message.stats.totalTokens} tokens</span>
+                {message.isStreaming && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping ml-0.5" />
+                )}
               </span>
             )}
             {message.stats.provider && (

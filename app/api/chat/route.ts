@@ -156,9 +156,16 @@ export async function POST(req: NextRequest) {
             let totalText = "";
             for await (const chunk of result.stream) {
               const text = chunk.text();
-              if (text) {
-                totalText += text;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+              const usageMetadata = chunk.usageMetadata;
+              const usage = usageMetadata ? {
+                promptTokens: usageMetadata.promptTokenCount,
+                completionTokens: usageMetadata.candidatesTokenCount,
+                totalTokens: usageMetadata.totalTokenCount,
+              } : undefined;
+
+              if (text || usage) {
+                if (text) totalText += text;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text || "", usage })}\n\n`));
               }
             }
 
@@ -183,12 +190,24 @@ export async function POST(req: NextRequest) {
           { role: "user", content: userContentPayload },
         ];
 
-        const stream = await client.chat.completions.create({
-          model: actualModelId,
-          messages: formattedMessages,
-          max_tokens: 8192,
-          stream: true,
-        });
+        let stream;
+        try {
+          stream = await client.chat.completions.create({
+            model: actualModelId,
+            messages: formattedMessages,
+            max_tokens: 8192,
+            stream: true,
+            stream_options: { include_usage: true },
+          });
+        } catch {
+          // Fallback if provider doesn't support stream_options
+          stream = await client.chat.completions.create({
+            model: actualModelId,
+            messages: formattedMessages,
+            max_tokens: 8192,
+            stream: true,
+          });
+        }
 
         const encoder = new TextEncoder();
         return new ReadableStream({
@@ -196,9 +215,16 @@ export async function POST(req: NextRequest) {
             let totalText = "";
             for await (const chunk of stream) {
               const delta = chunk.choices[0]?.delta?.content ?? "";
-              if (delta) {
-                totalText += delta;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`));
+              const chunkUsage = chunk.usage;
+              const usage = chunkUsage ? {
+                promptTokens: chunkUsage.prompt_tokens,
+                completionTokens: chunkUsage.completion_tokens,
+                totalTokens: chunkUsage.total_tokens,
+              } : undefined;
+
+              if (delta || usage) {
+                if (delta) totalText += delta;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: delta || "", usage })}\n\n`));
               }
             }
 

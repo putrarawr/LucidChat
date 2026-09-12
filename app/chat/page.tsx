@@ -383,6 +383,8 @@ export default function ChatPage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
+        let realTokensFromApi: number | undefined = undefined;
+
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -397,15 +399,22 @@ export default function ChatPage() {
 
               try {
                 const parsed = JSON.parse(dataStr);
-                if (parsed.delta) {
-                  if (ttftMs === undefined) {
+                if (parsed.delta !== undefined || parsed.usage) {
+                  if (ttftMs === undefined && parsed.delta) {
                     ttftMs = Math.round(performance.now() - startTime);
                   }
-                  accumulatedContent += parsed.delta;
 
-                  const estimatedTokens = Math.max(1, Math.round(accumulatedContent.length / 3.8));
+                  if (parsed.delta) {
+                    accumulatedContent += parsed.delta;
+                  }
+
+                  if (parsed.usage && parsed.usage.completionTokens) {
+                    realTokensFromApi = parsed.usage.completionTokens;
+                  }
+
+                  const activeTokens = realTokensFromApi ?? Math.max(1, Math.round(accumulatedContent.length / 3.7));
                   const elapsedSec = Math.max(0.1, (performance.now() - startTime) / 1000);
-                  const tps = Math.round(estimatedTokens / elapsedSec);
+                  const tps = Math.round(activeTokens / elapsedSec);
 
                   setter((prev) =>
                     prev.map((msg) =>
@@ -415,7 +424,7 @@ export default function ChatPage() {
                             content: accumulatedContent,
                             stats: {
                               ttftMs,
-                              totalTokens: estimatedTokens,
+                              totalTokens: activeTokens,
                               tokensPerSec: tps,
                               provider: model.provider,
                               modelName: model.display_name,
