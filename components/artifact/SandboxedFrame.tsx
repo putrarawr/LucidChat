@@ -19,12 +19,24 @@ export function SandboxedFrame({ htmlContent, viewportMode = "full" }: Sandboxed
     }
   };
 
+  // Inject a top-scroll script into iframe HTML so preview always renders top Hero section first
+  const processedHtml = htmlContent.includes("</body>")
+    ? htmlContent.replace("</body>", `<script>window.scrollTo(0,0);</script></body>`)
+    : htmlContent + `<script>window.scrollTo(0,0);</script>`;
+
   return (
-    <div className="w-full h-full flex items-center justify-center overflow-auto p-2 bg-black/40 backdrop-blur-md">
+    <div className="w-full h-full flex items-start justify-center overflow-auto p-2 bg-black/40 backdrop-blur-md">
       <iframe
-        srcDoc={htmlContent}
+        srcDoc={processedHtml}
         sandbox="allow-scripts"
         referrerPolicy="no-referrer"
+        onLoad={(e) => {
+          try {
+            e.currentTarget.contentWindow?.scrollTo(0, 0);
+          } catch {
+            // Ignore
+          }
+        }}
         className={`bg-white transition-all duration-300 ${getViewportStyle()}`}
         title="Code Artifact Preview"
       />
