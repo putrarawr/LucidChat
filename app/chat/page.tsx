@@ -297,26 +297,39 @@ export default function ChatPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       currentUser = user;
-      if (!activeChatId && user) {
-        const titleText = generateSmartTitle(text);
-        const { data: newChat } = await supabase
-          .from("chats")
-          .insert({
-            user_id: user.id,
-            title: titleText,
-            model_used: selectedModel.id,
-          })
-          .select()
-          .single();
 
-        if (newChat) {
-          activeChatId = newChat.id;
-          setCurrentSessionId(activeChatId);
-          setSessions((prev) => [
-            { id: newChat.id, title: newChat.title, updatedAt: newChat.updated_at },
-            ...prev,
-          ]);
+      if (!activeChatId) {
+        const titleText = generateSmartTitle(text);
+        if (user) {
+          const { data: newChat, error: insertErr } = await supabase
+            .from("chats")
+            .insert({
+              user_id: user.id,
+              title: titleText,
+              model_used: selectedModel.id,
+            })
+            .select()
+            .single();
+
+          if (newChat) {
+            activeChatId = newChat.id;
+          } else {
+            console.warn("Chat DB insert warning:", insertErr);
+            activeChatId = `chat_${Date.now()}`;
+          }
+        } else {
+          activeChatId = `chat_${Date.now()}`;
         }
+
+        const finalSessionId = activeChatId || `chat_${Date.now()}`;
+        activeChatId = finalSessionId;
+        setCurrentSessionId(finalSessionId);
+        const newSession: SessionItem = {
+          id: finalSessionId,
+          title: titleText,
+          updatedAt: new Date().toISOString(),
+        };
+        setSessions((prev) => [newSession, ...prev.filter((s) => s.id !== finalSessionId)]);
       }
 
       if (activeChatId && user) {

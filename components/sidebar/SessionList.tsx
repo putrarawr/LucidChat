@@ -93,27 +93,29 @@ export function SessionList({
 
       {/* Delete Confirmation Liquid Glass Modal */}
       {deleteConfirmSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-[#0e0e14]/90 p-5 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl animate-fade-in">
+          <div className="w-full max-w-sm md:max-w-md rounded-3xl border border-white/20 bg-[#0e0e14]/95 p-6 shadow-[0_0_80px_rgba(0,0,0,0.9)] space-y-4 relative z-[100000]">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
-                <Trash2 className="w-4 h-4" />
+              <div className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold text-white tracking-tight">Hapus Percakapan?</h3>
             </div>
-            <p className="text-xs text-white/60 leading-relaxed">
+            <p className="text-xs text-white/70 leading-relaxed">
               Apakah Anda yakin ingin menghapus percakapan <strong className="text-white">&quot;{deleteConfirmSession.title}&quot;</strong>? Percakapan akan dihapus permanen dari database.
             </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-3">
               <button
+                type="button"
                 onClick={() => setDeleteConfirmSession(null)}
-                className="px-4 py-2 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                className="px-4 py-2 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/10 transition-all font-medium"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-500/80 hover:bg-red-500 text-white border border-red-400/30 shadow-lg transition-all"
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-red-500/90 hover:bg-red-500 text-white border border-red-400/40 shadow-lg transition-all"
               >
                 Hapus Permanen
               </button>
