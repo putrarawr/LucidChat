@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw } from "lucide-react";
 import { AttachmentFile } from "./ChatInputBar";
 
