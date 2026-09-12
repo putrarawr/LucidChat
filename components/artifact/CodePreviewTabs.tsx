@@ -31,30 +31,30 @@ export function CodePreviewTabs({
   return (
     <div className="flex flex-col h-full liquid-glass-elevated overflow-hidden border border-white/12 shadow-2xl rounded-2xl">
       {/* Tab Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-black/40 backdrop-blur-xl">
+      <div className="flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 border-b border-white/10 bg-black/40 backdrop-blur-xl gap-1.5">
         {/* Left: Tab Switches */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setActiveTab("preview")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
               activeTab === "preview"
                 ? "bg-white/15 text-white shadow-sm border border-white/15"
                 : "text-white/50 hover:text-white hover:bg-white/5"
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
-            Preview
+            <span className="text-[11px] sm:text-xs">Preview</span>
           </button>
           <button
             onClick={() => setActiveTab("code")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
               activeTab === "code"
                 ? "bg-white/15 text-white shadow-sm border border-white/15"
                 : "text-white/50 hover:text-white hover:bg-white/5"
             }`}
           >
             <Code className="w-3.5 h-3.5" />
-            Code
+            <span className="text-[11px] sm:text-xs">Code</span>
           </button>
         </div>
 
@@ -101,11 +101,11 @@ export function CodePreviewTabs({
         )}
 
         {/* Right: Actions (Copy, Word Wrap, Maximize, Close) */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           {activeTab === "code" && (
             <button
               onClick={() => setWordWrap(!wordWrap)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-xl border transition-all ${
+              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium rounded-xl border transition-all ${
                 wordWrap
                   ? "bg-white/15 text-white border-white/20"
                   : "bg-white/5 text-white/50 border-white/10 hover:text-white"
@@ -113,23 +113,23 @@ export function CodePreviewTabs({
               title="Toggle Word Wrap"
             >
               <WrapText className="w-3.5 h-3.5" />
-              <span>Wrap</span>
+              <span className="hidden sm:inline">Wrap</span>
             </button>
           )}
 
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all"
             title="Copy Code"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? "Copied" : "Copy"}</span>
+            <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
           </button>
 
           {onToggleMaximize && (
             <button
               onClick={onToggleMaximize}
-              className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="hidden sm:block p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
               title={isMaximized ? "Kecilkan Panel" : "Perbesar Fullscreen"}
             >
               {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -139,7 +139,7 @@ export function CodePreviewTabs({
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="p-1.5 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl border border-white/15 transition-all shadow-sm"
               title="Tutup Preview"
             >
               <X className="w-4 h-4" />

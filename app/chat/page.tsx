@@ -84,11 +84,18 @@ export default function ChatPage() {
   const lastPreviewUpdateRef = useRef(0);
   const supabase = useMemo(() => createClient(), []);
 
-  // Detect mobile viewport on mount and load with sidebar closed by default on mobile
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile viewport on mount and handle resize
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setIsSidebarOpen(false);
-    }
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setIsSidebarOpen(false);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const handleClosePreview = () => {
@@ -592,12 +599,14 @@ export default function ChatPage() {
         {/* Chat Stream Panel */}
         <div
           style={{
-            width: activeCodePreview
+            width: isMobile
+              ? "100%"
+              : activeCodePreview
               ? isPreviewMaximized
                 ? "0%"
                 : `${100 - previewWidth}%`
               : "100%",
-            display: activeCodePreview && isPreviewMaximized ? "none" : "flex",
+            display: !isMobile && activeCodePreview && isPreviewMaximized ? "none" : "flex",
           }}
           className="flex-col h-full relative z-10 transition-[width] duration-75"
         >
@@ -833,10 +842,12 @@ export default function ChatPage() {
         {/* Code Artifact Preview Split Panel */}
         {activeCodePreview && (
           <div
-            style={{
-              width: isPreviewMaximized ? "100%" : `${previewWidth}%`,
-            }}
-            className="fixed inset-0 md:relative md:inset-auto h-full p-2 md:p-3 bg-black/80 md:bg-black/40 backdrop-blur-3xl z-40 md:z-20 transition-[width] duration-75 animate-fade-in w-full md:w-auto"
+            style={
+              isMobile
+                ? { width: "100%", left: 0, right: 0, top: 0, bottom: 0 }
+                : { width: isPreviewMaximized ? "100%" : `${previewWidth}%` }
+            }
+            className="fixed inset-0 md:relative md:inset-auto h-full h-[100dvh] md:h-full p-1 sm:p-2 md:p-3 bg-black/95 md:bg-black/40 backdrop-blur-3xl z-50 md:z-20 transition-all duration-150 animate-fade-in w-full md:w-auto"
           >
             <CodePreviewTabs
               codeContent={activeCodePreview}
