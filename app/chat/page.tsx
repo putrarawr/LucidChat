@@ -199,6 +199,7 @@ export default function ChatPage() {
     previewClosedByUserRef.current = false;
     setActiveCodePreview(null);
     setIsLoading(false);
+    setArenaMessages([]);
     try {
       const { data: msgData } = await supabase
         .from("messages")
@@ -223,6 +224,7 @@ export default function ChatPage() {
 
   const handleNewChat = () => {
     setMessages([]);
+    setArenaMessages([]);
     setCurrentSessionId(undefined);
     previewClosedByUserRef.current = false;
     setActiveCodePreview(null);
@@ -231,6 +233,7 @@ export default function ChatPage() {
   const handleDeleteSession = async (id: string) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
     if (currentSessionId === id) handleNewChat();
+    setArenaMessages([]);
     try {
       await supabase.from("chats").delete().eq("id", id);
     } catch (err) {
@@ -468,13 +471,19 @@ export default function ChatPage() {
       const assistantMsgB: Message = { id: assistantIdB, role: "assistant", content: "", isStreaming: true };
 
       setMessages((prev) => [...prev, assistantMsgA]);
-      setArenaMessages((prev) => [...prev, userMsg, assistantMsgB]);
+      setArenaMessages((prev) => {
+        const hasUserMsg = prev.some((m) => m.id === userMsg.id);
+        return hasUserMsg ? [...prev, assistantMsgB] : [...prev, userMsg, assistantMsgB];
+      });
 
-      const [resA] = await Promise.all([
+      const [resA, resB] = await Promise.all([
         fetchStreamForModel(selectedModel, setMessages, assistantIdA),
         fetchStreamForModel(arenaModelB, setArenaMessages, assistantIdB),
       ]);
-      accumulatedContent = resA;
+      
+      const resAHasHtml = resA && (resA.includes("```html") || resA.includes("```xml"));
+      const resBHasHtml = resB && (resB.includes("```html") || resB.includes("```xml"));
+      accumulatedContent = resAHasHtml ? resA : resBHasHtml ? resB : resA || resB;
     } else {
       const assistantId = (Date.now() + 1).toString();
       const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", isStreaming: true };
@@ -595,7 +604,15 @@ export default function ChatPage() {
               <button
                 onClick={() => {
                   playClickSound();
-                  setIsArenaMode((prev) => !prev);
+                  setIsArenaMode((prev) => {
+                    const next = !prev;
+                    if (next) {
+                      setArenaMessages([...messages]);
+                    } else {
+                      setArenaMessages([]);
+                    }
+                    return next;
+                  });
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200 ${
                   isArenaMode
@@ -624,7 +641,7 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className={`${isArenaMode ? "max-w-6xl" : "max-w-3xl"} w-full mx-auto space-y-2 h-full`}>
               {isArenaMode ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[450px]">
+                <div className={`grid gap-4 min-h-[450px] ${activeCodePreview ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
                   {/* Model A Panel */}
                   <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2">
                     <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-amber-400">
