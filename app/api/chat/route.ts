@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       } else {
         const client = getOpenAIClient(activeProv as Exclude<ProviderType, 'gemini'>);
 
-        const userContentPayload: any = imagePartsOpenAI.length > 0
+        const userContentPayload = imagePartsOpenAI.length > 0
           ? [{ type: "text", text: lastUserMessage }, ...imagePartsOpenAI]
           : lastUserMessage;
 

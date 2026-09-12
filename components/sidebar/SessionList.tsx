@@ -98,7 +98,7 @@ export function SessionList({
               <h3 className="text-base font-bold text-white tracking-tight">Hapus Percakapan?</h3>
             </div>
             <p className="text-xs text-white/60 leading-relaxed">
-              Apakah Anda yakin ingin menghapus percakapan <strong className="text-white">"{deleteConfirmSession.title}"</strong>? Percakapan akan dihapus permanen dari database.
+              Apakah Anda yakin ingin menghapus percakapan <strong className="text-white">&quot;{deleteConfirmSession.title}&quot;</strong>? Percakapan akan dihapus permanen dari database.
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
