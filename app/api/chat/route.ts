@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         const stream = await client.chat.completions.create({
           model: actualModelId,
           messages: formattedMessages,
-          max_tokens: 2048, // Increased from 800 to 2048 to prevent code truncation
+          max_tokens: 8192, // High token limit (8192) so long HTML/CSS/JS code completes naturally without truncation
           stream: true,
         });
 

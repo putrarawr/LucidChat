@@ -78,6 +78,15 @@ function CodeTerminalBlock({
   onOpenCodePreview?: (code: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Keep scroll at top initially so top of code (<!DOCTYPE html>) is always visible first
+    if (containerRef.current && !isExpanded) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [code, isExpanded]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
@@ -91,8 +100,10 @@ function CodeTerminalBlock({
     code.includes("<div") ||
     code.includes("<!DOCTYPE");
 
+  const lineCount = code.split("\n").length;
+
   return (
-    <div className="my-3 rounded-2xl overflow-hidden border border-white/12 bg-[#0a0a10]/90 shadow-2xl font-mono text-xs select-text w-full">
+    <div className="my-3 rounded-2xl overflow-hidden border border-white/12 bg-[#0a0a10]/95 shadow-2xl font-mono text-xs select-text w-full">
       {/* Terminal Header Bar */}
       <div className="flex items-center justify-between px-3.5 py-2 bg-white/[0.04] border-b border-white/[0.08]">
         {/* Mac OS Traffic Light Dots */}
@@ -101,12 +112,18 @@ function CodeTerminalBlock({
           <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 border border-yellow-600/40" />
           <span className="w-2.5 h-2.5 rounded-full bg-green-500/80 border border-green-600/40" />
           <span className="ml-2 text-[11px] font-sans font-medium text-white/40 tracking-wider">
-            {lang ? lang.toLowerCase() : "terminal"}
+            {lang ? lang.toLowerCase() : "terminal"} • {lineCount} baris
           </span>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 font-sans">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[10px] text-white/70 hover:text-white border border-white/[0.08] transition-all"
+          >
+            {isExpanded ? "Ringkas" : "Perluas"}
+          </button>
           <button
             onClick={handleCopy}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[10px] text-white/70 hover:text-white border border-white/[0.08] transition-all"
@@ -127,7 +144,12 @@ function CodeTerminalBlock({
       </div>
 
       {/* Terminal Code Body */}
-      <div className="p-4 max-h-96 overflow-x-auto overflow-y-auto leading-relaxed text-emerald-300/90 selection:bg-white/20">
+      <div
+        ref={containerRef}
+        className={`p-4 overflow-x-auto overflow-y-auto leading-relaxed text-emerald-300/90 selection:bg-white/20 transition-all duration-300 ${
+          isExpanded ? "max-h-[650px]" : "max-h-72"
+        }`}
+      >
         <pre className="whitespace-pre font-mono text-[12px]">
           <code>{code}</code>
         </pre>

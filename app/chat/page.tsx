@@ -342,8 +342,18 @@ export default function ChatPage() {
                 const cleanText = stripThinkTags(accumulatedContent);
                 const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
                 if (htmlMatch) {
-                  const extractedCode = htmlMatch[1].trim();
+                  let extractedCode = htmlMatch[1].trim();
                   if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
+                    const scriptOpen = (extractedCode.match(/<script/gi) || []).length;
+                    const scriptClose = (extractedCode.match(/<\/script>/gi) || []).length;
+                    if (scriptOpen > scriptClose) {
+                      extractedCode += "\n</script>";
+                    }
+                    const styleOpen = (extractedCode.match(/<style/gi) || []).length;
+                    const styleClose = (extractedCode.match(/<\/style>/gi) || []).length;
+                    if (styleOpen > styleClose) {
+                      extractedCode += "\n</style>";
+                    }
                     setActiveCodePreview(extractedCode);
                   }
                 }
