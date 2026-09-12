@@ -5,6 +5,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { runGuardrail } from "@/lib/guardrail";
 import { resolveFallback } from "@/lib/model-router";
 
+import { performWebSearch } from "@/lib/web-search";
+
 const DEFAULT_SYSTEM_PROMPT = `You are LucidChat AI Assistant, an advanced multi-provider AI application.
 
 AVAILABLE AI MODELS IN LUCIDCHAT:
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     const userId = user?.id || "demo-user-session";
 
-    const { messages, modelId, provider, customSystemPrompt, attachments } = await req.json();
+    const { messages, modelId, provider, customSystemPrompt, attachments, enableWebSearch } = await req.json();
 
     // 1. Rate Limiting Check
     const allowed = await checkRateLimit(userId);
@@ -48,6 +50,19 @@ export async function POST(req: NextRequest) {
     // Format last user message with attachments if present
     const lastUserMsgObj = messages[messages.length - 1] || { content: "" };
     let lastUserMessage = lastUserMsgObj.content || "";
+
+    // 1.5 Real-Time Web Search & News Crawling Integration
+    const shouldSearchWeb = enableWebSearch || /(berita|terbaru|terkini|skor|jadwal|harga|cuaca|news|hari ini)/i.test(lastUserMessage);
+    if (shouldSearchWeb && lastUserMessage.trim()) {
+      const searchResults = await performWebSearch(lastUserMessage);
+      if (searchResults.length > 0) {
+        let searchContext = "\n\nHASIL PENCARIAN WEB TERKINI (REAL-TIME CRAWLED DATA):\nGunakan data hasil pencarian web terverifikasi di bawah ini untuk memberikan jawaban yang paling akurat, terkini, dan sebutkan sumber link jika relevan:\n";
+        searchResults.forEach((item, idx) => {
+          searchContext += `[${idx + 1}] ${item.title}\nRingkasan: ${item.snippet}\nLink: ${item.url}\n\n`;
+        });
+        finalSystemPrompt += searchContext;
+      }
+    }
 
     const imagePartsGemini: { inlineData: { mimeType: string; data: string } }[] = [];
     const imagePartsOpenAI: { type: string; image_url: { url: string } }[] = [];

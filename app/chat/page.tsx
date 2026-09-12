@@ -277,7 +277,7 @@ export default function ChatPage() {
   };
 
   // Main Streaming AI Logic
-  const handleSendMessage = async (text: string, attachments?: AttachmentFile[]) => {
+  const handleSendMessage = async (text: string, attachments?: AttachmentFile[], enableWebSearch?: boolean) => {
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -352,6 +352,7 @@ export default function ChatPage() {
           provider: selectedModel.provider,
           customSystemPrompt: selectedPersona.systemPrompt,
           attachments,
+          enableWebSearch,
         }),
       });
 

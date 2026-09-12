@@ -32,7 +32,7 @@ const CATEGORIES = [
 ];
 
 interface ChatInputBarProps {
-  onSendMessage: (text: string, attachments?: AttachmentFile[]) => void;
+  onSendMessage: (text: string, attachments?: AttachmentFile[], enableWebSearch?: boolean) => void;
   isLoading?: boolean;
   selectedModel: ModelItem;
   onSelectModel: (model: ModelItem) => void;
@@ -43,6 +43,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -173,7 +174,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
     e?.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
     playSendSound();
-    onSendMessage(input.trim(), attachments);
+    onSendMessage(input.trim(), attachments, isWebSearchEnabled);
     setInput("");
     setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -332,6 +333,24 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
               title={isListening ? "Hentikan perekaman suara" : "Gunakan Perekam Suara (Speech-to-Text)"}
             >
               {isListening ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Web Search Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                playClickSound();
+                setIsWebSearchEnabled((prev) => !prev);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 ${
+                isWebSearchEnabled
+                  ? "bg-white/20 text-white border border-white/30 shadow-[0_0_12px_rgba(255,255,255,0.25)]"
+                  : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
+              }`}
+              title={isWebSearchEnabled ? "Pencarian Web Terkini Aktif" : "Aktifkan Pencarian Web & Crawling Berita Terkini"}
+            >
+              <Globe className={`w-3.5 h-3.5 ${isWebSearchEnabled ? "text-white animate-pulse" : "text-white/40"}`} />
+              <span className="hidden sm:inline">Cari Web</span>
             </button>
 
             {/* Model Selector Chip */}
