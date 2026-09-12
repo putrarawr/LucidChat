@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw } from "lucide-react";
+import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw, ExternalLink, Globe } from "lucide-react";
 import { AttachmentFile } from "./ChatInputBar";
 import { playClickSound } from "@/lib/sound";
 
@@ -168,9 +168,55 @@ function CodeTerminalBlock({
 }
 
 function parseInlineMarkdown(text: string) {
-  const parts = text.split(/(\*\*[\s\S]*?\*\*|`[^`]+`|\*[^*]+\*)/g);
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\)|\*\*[\s\S]*?\*\*|`[^`]+`|\*[^*]+\*|https?:\/\/[^\s<)]+)/g);
 
   return parts.map((part, index) => {
+    // Markdown link: [Title](url)
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      const label = linkMatch[1];
+      const url = linkMatch[2];
+      return (
+        <a
+          key={index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 my-0.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.18] text-white underline underline-offset-4 decoration-white/40 hover:decoration-white transition-all text-[12px] font-medium border border-white/[0.12] shadow-sm group"
+          title={`Buka ${url}`}
+        >
+          <Globe className="w-3.5 h-3.5 text-white/60 group-hover:text-white shrink-0" />
+          <span>{label}</span>
+          <ExternalLink className="w-3 h-3 text-white/50 group-hover:text-white inline shrink-0 transition-colors" />
+        </a>
+      );
+    }
+
+    // Raw HTTP / HTTPS URL
+    if (part.startsWith("http://") || part.startsWith("https://")) {
+      let displayUrl = part;
+      try {
+        const u = new URL(part);
+        displayUrl = u.hostname + (u.pathname.length > 15 ? u.pathname.slice(0, 15) + "..." : u.pathname);
+      } catch {
+        displayUrl = part.slice(0, 30);
+      }
+
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.06] hover:bg-white/[0.14] text-white/90 underline underline-offset-2 transition-all text-[12px] group"
+          title={part}
+        >
+          <span className="truncate max-w-[200px]">{displayUrl}</span>
+          <ExternalLink className="w-3 h-3 text-white/40 group-hover:text-white shrink-0" />
+        </a>
+      );
+    }
+
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       const boldText = part.slice(2, -2);
       return (

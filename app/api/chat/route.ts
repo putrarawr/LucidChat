@@ -52,14 +52,25 @@ export async function POST(req: NextRequest) {
     let lastUserMessage = lastUserMsgObj.content || "";
 
     // 1.5 Real-Time Web Search & News Crawling Integration
-    const shouldSearchWeb = enableWebSearch || /(berita|terbaru|terkini|skor|jadwal|harga|cuaca|news|hari ini)/i.test(lastUserMessage);
+    const shouldSearchWeb = enableWebSearch || /(berita|terbaru|terkini|skor|jadwal|harga|cuaca|news|hari ini|siapa|apa itu|cari|informasi|update)/i.test(lastUserMessage);
     if (shouldSearchWeb && lastUserMessage.trim()) {
       const searchResults = await performWebSearch(lastUserMessage);
       if (searchResults.length > 0) {
-        let searchContext = "\n\nHASIL PENCARIAN WEB TERKINI (REAL-TIME CRAWLED DATA):\nGunakan data hasil pencarian web terverifikasi di bawah ini untuk memberikan jawaban yang paling akurat, terkini, dan sebutkan sumber link jika relevan:\n";
+        let searchContext = "\n\nHASIL PENCARIAN WEB TERKINI REAL-TIME:\n" +
+          "Gunakan data hasil pencarian web terverifikasi di bawah ini untuk memberikan jawaban yang paling akurat dan up-to-date.\n\n" +
+          "ATURAN SITASI SUMBER (SANGAT PENTING & MANDATORI):\n" +
+          "1. Jawab pertanyaan pengguna secara rinci dan terstruktur berdasarkan fakta dari hasil pencarian web.\n" +
+          "2. Cantumkan sitasi nomor di dalam teks jawaban, contoh [1], [2] pada klaim relevan.\n" +
+          "3. Di bagian PINGGIR/AKHIR dari balasan Anda, Anda WAJIB membuat bagian khusus berjudul:\n" +
+          "### 📌 Sumber Referensi Web\n" +
+          "Tuliskan seluruh daftar sumber dalam format markdown link aktif yang bisa diklik langsung oleh pengguna, contoh:\n" +
+          "- [Judul Berita/Sumber](URL_LENGKAP) - Ringkasan fakta singkat\n\n" +
+          "DATA HASIL CRAWLING WEB TERKINI:\n";
+
         searchResults.forEach((item, idx) => {
-          searchContext += `[${idx + 1}] ${item.title}\nRingkasan: ${item.snippet}\nLink: ${item.url}\n\n`;
+          searchContext += `[${idx + 1}] ${item.title}\nDomain: ${item.domain}\nRingkasan: ${item.snippet}\nURL: ${item.url}\n\n`;
         });
+
         finalSystemPrompt += searchContext;
       }
     }
