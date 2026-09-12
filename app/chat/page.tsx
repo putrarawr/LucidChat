@@ -530,15 +530,8 @@ export default function ChatPage() {
             <div className="max-w-3xl w-full mx-auto space-y-2">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-5 my-auto min-h-[400px]">
-                  {/* Empty State Hero Logo */}
-                  <div className="relative">
-                    <div className="w-20 h-20 rounded-[24px] bg-white/[0.04] border border-white/[0.12] flex items-center justify-center p-2 shadow-[0_0_40px_rgba(255,255,255,0.06)] animate-float overflow-hidden">
-                      <img src="/logo.png" alt="LucidChat Logo" className="w-full h-full object-cover rounded-[18px]" />
-                    </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-2 rounded-full bg-white/[0.04] blur-sm" />
-                  </div>
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-bold text-white tracking-[-0.03em]">
+                    <h2 className="text-3xl font-bold text-white tracking-[-0.03em]">
                       {userName ? `Halo, ${userName.split(" ")[0]}!` : "Halo!"}
                     </h2>
                     <p className="text-xs text-white/40 max-w-sm leading-relaxed">
