@@ -24,10 +24,11 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 };
 
 const CATEGORIES = [
-  { tag: "fast", title: "FAST & ROUTINE", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("fast")) },
+  { tag: "agentic", title: "WEB CRAWLER & SEARCH AGENT", items: DEFAULT_MODELS.filter((m) => m.id === "web-crawler-agent") },
+  { tag: "fast", title: "FAST & ROUTINE", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("fast") && m.id !== "web-crawler-agent") },
   { tag: "coding", title: "CODING & AGENTIC", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("coding")) },
   { tag: "reasoning", title: "DEEP REASONING", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("reasoning")) },
-  { tag: "multilingual", title: "MULTILINGUAL", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("multilingual")) },
+  { tag: "multilingual", title: "MULTILINGUAL", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("multilingual") && m.id !== "web-crawler-agent") },
   { tag: "local", title: "LOCAL ENGINE", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("local")) },
 ];
 

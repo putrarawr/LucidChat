@@ -1,10 +1,11 @@
-// Real-Time Web Search & News Crawling Engine for LucidChat
+// Real-Time Multi-Source Web Search & News Crawling Engine for LucidChat
 
 export interface SearchResult {
   title: string;
   snippet: string;
   url: string;
   domain: string;
+  source: string;
 }
 
 function extractDomain(urlStr: string): string {
@@ -18,26 +19,68 @@ function extractDomain(urlStr: string): string {
 
 export async function performWebSearch(query: string): Promise<SearchResult[]> {
   if (!query || !query.trim()) return [];
+  const cleanQuery = query.trim();
 
+  const results: SearchResult[] = [];
+  const seenUrls = new Set<string>();
+
+  // Helper to add unique results
+  const addResult = (item: SearchResult) => {
+    if (!item.url || seenUrls.has(item.url)) return;
+    seenUrls.add(item.url);
+    results.push(item);
+  };
+
+  // 1. Google News RSS Crawler (Real-Time News Headlines & Published Articles)
   try {
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.trim())}`;
-    const res = await fetch(searchUrl, {
+    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(cleanQuery)}&hl=id-ID&gl=ID&ceid=ID:id`;
+    const rssRes = await fetch(rssUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
     });
 
-    const results: SearchResult[] = [];
+    if (rssRes.ok) {
+      const xml = await rssRes.text();
+      const itemRegex = /<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>/g;
+      let match;
+      while ((match = itemRegex.exec(xml)) !== null && results.length < 5) {
+        const rawTitle = match[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1").replace(/<[^>]+>/g, "").trim();
+        const rawLink = match[2].trim();
+        const pubDate = match[3].trim();
 
-    if (res.ok) {
-      const html = await res.text();
+        if (rawTitle && rawLink) {
+          addResult({
+            title: rawTitle,
+            snippet: `Berita dipublikasikan pada ${pubDate}. Klik sumber untuk membaca laporan lengkap.`,
+            url: rawLink,
+            domain: extractDomain(rawLink),
+            source: "Google News",
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Google News RSS Scraper Error:", err);
+  }
 
-      // Primary Scraper: Match result title block + snippet block
+  // 2. DuckDuckGo Web Article Scraper
+  try {
+    const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(cleanQuery)}`;
+    const ddgRes = await fetch(ddgUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+
+    if (ddgRes.ok) {
+      const html = await ddgRes.text();
       const primaryRegex = /<h2 class="result__title">[\s\S]*?<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a class="result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
 
       let match;
-      while ((match = primaryRegex.exec(html)) !== null && results.length < 6) {
+      while ((match = primaryRegex.exec(html)) !== null && results.length < 8) {
         let rawUrl = match[1];
         if (rawUrl.includes("uddg=")) {
           const decoded = decodeURIComponent(rawUrl.split("uddg=")[1]?.split("&")[0] || "");
@@ -49,87 +92,44 @@ export async function performWebSearch(query: string): Promise<SearchResult[]> {
         const snippet = match[3].replace(/<[^>]+>/g, "").trim();
 
         if (title && rawUrl.startsWith("http")) {
-          results.push({
+          addResult({
             title,
             snippet,
             url: rawUrl,
             domain: extractDomain(rawUrl),
-          });
-        }
-      }
-
-      // Secondary Scraper Fallback if primary regex misses
-      if (results.length === 0) {
-        const titleRegex = /<a class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-        const snippetRegex = /<a class="result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
-
-        const titles: { title: string; url: string }[] = [];
-        let tMatch;
-        while ((tMatch = titleRegex.exec(html)) !== null && titles.length < 6) {
-          let rawUrl = tMatch[1];
-          if (rawUrl.includes("uddg=")) {
-            const decoded = decodeURIComponent(rawUrl.split("uddg=")[1]?.split("&")[0] || "");
-            if (decoded) rawUrl = decoded;
-          }
-          if (rawUrl.startsWith("//")) rawUrl = "https:" + rawUrl;
-
-          const cleanTitle = tMatch[2].replace(/<[^>]+>/g, "").trim();
-          if (cleanTitle && rawUrl.startsWith("http")) {
-            titles.push({ title: cleanTitle, url: rawUrl });
-          }
-        }
-
-        const snippets: string[] = [];
-        let sMatch;
-        while ((sMatch = snippetRegex.exec(html)) !== null && snippets.length < titles.length) {
-          const cleanSnippet = sMatch[1].replace(/<[^>]+>/g, "").trim();
-          snippets.push(cleanSnippet);
-        }
-
-        for (let i = 0; i < titles.length; i++) {
-          results.push({
-            title: titles[i].title,
-            snippet: snippets[i] || "",
-            url: titles[i].url,
-            domain: extractDomain(titles[i].url),
+            source: "Web Search",
           });
         }
       }
     }
-
-    // Tertiary Fallback: Instant Answer & Related Topics API
-    if (results.length === 0) {
-      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-      const apiRes = await fetch(apiUrl);
-      if (apiRes.ok) {
-        const data = await apiRes.json();
-        if (data.AbstractText) {
-          const url = data.AbstractURL || "https://duckduckgo.com";
-          results.push({
-            title: data.Heading || "Informasi Web Terkini",
-            snippet: data.AbstractText,
-            url,
-            domain: extractDomain(url),
-          });
-        }
-        if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
-          data.RelatedTopics.slice(0, 5).forEach((topic: { Text?: string; FirstURL?: string }) => {
-            if (topic.Text && topic.FirstURL) {
-              results.push({
-                title: topic.Text.slice(0, 60) + "...",
-                snippet: topic.Text,
-                url: topic.FirstURL,
-                domain: extractDomain(topic.FirstURL),
-              });
-            }
-          });
-        }
-      }
-    }
-
-    return results;
   } catch (err) {
-    console.warn("Web Search Scraper Error:", err);
-    return [];
+    console.warn("DuckDuckGo Scraper Error:", err);
   }
+
+  // 3. Wikipedia Indonesia API (Encyclopedic Facts & Event Histories)
+  try {
+    const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1`;
+    const wikiRes = await fetch(wikiUrl);
+    if (wikiRes.ok) {
+      const data = await wikiRes.json();
+      if (data.query?.search && Array.isArray(data.query.search)) {
+        data.query.search.slice(0, 2).forEach((s: { title: string; snippet: string }) => {
+          const title = `Wikipedia: ${s.title}`;
+          const snippet = s.snippet.replace(/<[^>]+>/g, "").trim();
+          const url = `https://id.wikipedia.org/wiki/${encodeURIComponent(s.title)}`;
+          addResult({
+            title,
+            snippet,
+            url,
+            domain: "id.wikipedia.org",
+            source: "Wikipedia",
+          });
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Wikipedia API Error:", err);
+  }
+
+  return results.slice(0, 7);
 }
