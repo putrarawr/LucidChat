@@ -394,6 +394,95 @@ body::before {
   animation: pulseGlow 3s ease-in-out infinite;
 }
 
+/* ===== ENTRANCE ANIMATIONS ===== */
+@keyframes pageEntranceFade {
+  0% {
+    opacity: 0;
+    transform: scale(0.98) translateY(12px);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes sidebarEntrance {
+  0% {
+    opacity: 0;
+    transform: translateX(-24px);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes headerEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes heroEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(16px);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes inputEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-entrance-page {
+  animation: pageEntranceFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-entrance-sidebar {
+  animation: sidebarEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-entrance-header {
+  animation: headerEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+  opacity: 0;
+}
+
+.animate-entrance-hero {
+  animation: heroEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+  opacity: 0;
+}
+
+.animate-entrance-input {
+  animation: inputEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
+  opacity: 0;
+}
+
 /* Typing indicator dots */
 .typing-dot {
   display: inline-block;

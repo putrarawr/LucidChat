@@ -459,28 +459,30 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--surface-0)]">
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--surface-0)] animate-entrance-page">
       {/* Animated Background Orbs */}
       <div className="bg-orbs" />
       <div className="orb-center" />
 
       {/* Sidebar Navigation */}
-      <SessionList
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        isOpen={isSidebarOpen}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        onSelectSession={handleSelectSession}
-        onNewChat={handleNewChat}
-        onDeleteSession={handleDeleteSession}
-        onPinSession={handlePinSession}
-        onRenameSession={handleRenameSession}
-        onExportSession={handleExportSession}
-        onLogout={handleLogout}
-        userEmail={userEmail}
-        userName={userName}
-        userAvatar={userAvatar}
-      />
+      <div className="animate-entrance-sidebar">
+        <SessionList
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          isOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          onSelectSession={handleSelectSession}
+          onNewChat={handleNewChat}
+          onDeleteSession={handleDeleteSession}
+          onPinSession={handlePinSession}
+          onRenameSession={handleRenameSession}
+          onExportSession={handleExportSession}
+          onLogout={handleLogout}
+          userEmail={userEmail}
+          userName={userName}
+          userAvatar={userAvatar}
+        />
+      </div>
 
       {/* Main Container Area */}
       <div
@@ -502,7 +504,7 @@ export default function ChatPage() {
           className="flex-col h-full relative z-10 transition-[width] duration-75"
         >
           {/* Minimal Header Bar */}
-          <header className="h-14 px-6 flex items-center justify-between border-b border-white/[0.05] bg-black/20 backdrop-blur-2xl">
+          <header className="h-14 px-6 flex items-center justify-between border-b border-white/[0.05] bg-black/20 backdrop-blur-2xl animate-entrance-header">
             <div className="flex items-center gap-3">
               {/* Persona Selector Pill */}
               <button
@@ -530,7 +532,7 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="max-w-3xl w-full mx-auto space-y-2">
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-5 my-auto min-h-[400px]">
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-5 my-auto min-h-[400px] animate-entrance-hero">
                   <div className="space-y-2">
                     <h2 className="text-3xl font-bold text-white tracking-[-0.03em]">
                       {userName ? `Halo, ${userName.split(" ")[0]}!` : "Halo!"}
@@ -573,7 +575,7 @@ export default function ChatPage() {
           </div>
 
           {/* Bottom Floating Input Bar */}
-          <div className="p-4 max-w-3xl w-full mx-auto">
+          <div className="p-4 max-w-3xl w-full mx-auto animate-entrance-input">
             <ChatInputBar
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
