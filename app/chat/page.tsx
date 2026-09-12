@@ -352,32 +352,6 @@ export default function ChatPage() {
               if (parsed.delta) {
                 accumulatedContent += parsed.delta;
 
-                if (!previewClosedByUserRef.current) {
-                  const cleanText = stripThinkTags(accumulatedContent);
-                  const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
-                  if (htmlMatch) {
-                    let extractedCode = htmlMatch[1].trim();
-                    if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
-                      const scriptOpen = (extractedCode.match(/<script/gi) || []).length;
-                      const scriptClose = (extractedCode.match(/<\/script>/gi) || []).length;
-                      if (scriptOpen > scriptClose) {
-                        extractedCode += "\n</script>";
-                      }
-                      const styleOpen = (extractedCode.match(/<style/gi) || []).length;
-                      const styleClose = (extractedCode.match(/<\/style>/gi) || []).length;
-                      if (styleOpen > styleClose) {
-                        extractedCode += "\n</style>";
-                      }
-
-                      const now = Date.now();
-                      if (now - lastPreviewUpdateRef.current > 400) {
-                        lastPreviewUpdateRef.current = now;
-                        setActiveCodePreview(extractedCode);
-                      }
-                    }
-                  }
-                }
-
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === assistantId
@@ -393,7 +367,7 @@ export default function ChatPage() {
         }
       }
 
-      // Final update for live preview when streaming finishes
+      // Automatically open Live Preview in landscape mode ONLY AFTER code generation finishes 100%
       if (!previewClosedByUserRef.current && accumulatedContent) {
         const cleanText = stripThinkTags(accumulatedContent);
         const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
