@@ -398,7 +398,7 @@ export default function ChatPage() {
         const cleanText = stripThinkTags(accumulatedContent);
         const htmlMatch = cleanText.match(/```html([\s\S]*?)(?:```|$)/i) || cleanText.match(/```xml([\s\S]*?)(?:```|$)/i);
         if (htmlMatch) {
-          let extractedCode = htmlMatch[1].trim();
+          const extractedCode = htmlMatch[1].trim();
           if (extractedCode.includes("<") && extractedCode.length > 20 && !extractedCode.includes("**Draft Code")) {
             setActiveCodePreview(extractedCode);
           }
