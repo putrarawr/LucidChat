@@ -641,14 +641,14 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className={`${isArenaMode ? "max-w-6xl" : "max-w-3xl"} w-full mx-auto space-y-2 h-full`}>
               {isArenaMode ? (
-                <div className={`grid gap-4 min-h-[450px] ${activeCodePreview ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
+                <div className={`grid gap-4 min-h-[450px] w-full min-w-0 ${activeCodePreview ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
                   {/* Model A Panel */}
-                  <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-amber-400">
+                  <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2 min-w-0 w-full overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-amber-400 shrink-0">
                       <span>Model A: {selectedModel.display_name}</span>
                       <span className="text-[10px] font-mono text-white/40 uppercase">{selectedModel.provider}</span>
                     </div>
-                    <div className="space-y-2 flex-1 overflow-y-auto">
+                    <div className="space-y-2 flex-1 overflow-y-auto min-w-0 w-full overflow-x-hidden pr-1">
                       {messages.map((m) => (
                         <MessageBubble
                           key={m.id}
@@ -664,8 +664,8 @@ export default function ChatPage() {
                   </div>
 
                   {/* Model B Panel */}
-                  <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-blue-400">
+                  <div className="flex flex-col bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 space-y-2 min-w-0 w-full overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] text-xs font-bold text-blue-400 shrink-0">
                       <span>Model B: {arenaModelB.display_name}</span>
                       <select
                         value={arenaModelB.id}
@@ -682,7 +682,7 @@ export default function ChatPage() {
                         ))}
                       </select>
                     </div>
-                    <div className="space-y-2 flex-1 overflow-y-auto">
+                    <div className="space-y-2 flex-1 overflow-y-auto min-w-0 w-full overflow-x-hidden pr-1">
                       {arenaMessages.map((m) => (
                         <MessageBubble
                           key={m.id}

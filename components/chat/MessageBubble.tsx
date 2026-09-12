@@ -118,7 +118,7 @@ function CodeTerminalBlock({
   const lineCount = code.split("\n").length;
 
   return (
-    <div className="my-3 rounded-2xl overflow-hidden border border-white/12 bg-[#0a0a10]/95 shadow-2xl font-mono text-xs select-text w-full">
+    <div className="my-3 rounded-2xl overflow-hidden border border-white/12 bg-[#0a0a10]/95 shadow-2xl font-mono text-xs select-text w-full max-w-full min-w-0">
       {/* Terminal Header Bar */}
       <div className="flex items-center justify-between px-3.5 py-2 bg-white/[0.04] border-b border-white/[0.08]">
         {/* Mac OS Traffic Light Dots */}
@@ -434,7 +434,7 @@ export function MessageBubble({
   };
 
   return (
-    <div className={`group flex gap-2.5 my-2.5 ${isUser ? "flex-row-reverse" : "flex-row"} animate-slide-up`}>
+    <div className={`group flex gap-2.5 my-2.5 w-full min-w-0 ${isUser ? "flex-row-reverse" : "flex-row"} animate-slide-up`}>
       {/* Avatar Icon */}
       <div
         className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border overflow-hidden mt-0.5 ${
@@ -455,7 +455,7 @@ export function MessageBubble({
       </div>
 
       {/* Bubble Container - items-end for user keeps bubble snug next to avatar */}
-      <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`flex flex-col gap-1 min-w-0 w-full ${isUser ? "items-end max-w-[85%]" : "items-start max-w-full"}`}>
         {/* Render Attachments if Present */}
         {message.attachments && message.attachments.length > 0 && (
           <div className={`flex flex-wrap gap-2 ${isUser ? "justify-end" : "justify-start"} mb-1`}>
@@ -473,7 +473,7 @@ export function MessageBubble({
           </div>
         )}
 
-        <div className={`w-fit px-4 py-3 ${isUser ? "msg-user" : "msg-assistant"}`}>
+        <div className={`px-4 py-3 min-w-0 break-words max-w-full ${isUser ? "msg-user w-fit" : "msg-assistant w-full"}`}>
           {isEditing ? (
             <div className="space-y-2 min-w-[260px]">
               <textarea
