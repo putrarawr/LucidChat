@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, PanelLeftOpen, Search, Pin, Pencil, Download, Check, X } from "lucide-react";
+import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, Search, Pin, Pencil, Download, Check, X } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 
 export interface SessionItem {
