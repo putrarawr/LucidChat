@@ -141,6 +141,9 @@ export async function POST(req: NextRequest) {
       } else if (activeId.includes("cerebras/llama-3.3-70b") || activeId === "llama-3.3-70b") {
         activeId = "cerebras/qwen-3.8-27b";
         activeProv = "cerebras";
+      } else if (activeProv === "nvidia" || activeId.includes("nvidia")) {
+        activeId = "openrouter/nvidia/nemotron-3.5-lightning:free";
+        activeProv = "openrouter";
       }
 
       const actualModelId = activeId.includes('/') ? activeId.substring(activeId.indexOf('/') + 1) : activeId;
@@ -156,23 +159,28 @@ export async function POST(req: NextRequest) {
         return new ReadableStream({
           async start(controller) {
             let totalText = "";
-            for await (const chunk of result.stream) {
-              const text = chunk.text();
-              const usageMetadata = chunk.usageMetadata;
-              const usage = usageMetadata ? {
-                promptTokens: usageMetadata.promptTokenCount,
-                completionTokens: usageMetadata.candidatesTokenCount,
-                totalTokens: usageMetadata.totalTokenCount,
-              } : undefined;
+            try {
+              for await (const chunk of result.stream) {
+                const text = chunk.text();
+                const usageMetadata = chunk.usageMetadata;
+                const usage = usageMetadata ? {
+                  promptTokens: usageMetadata.promptTokenCount,
+                  completionTokens: usageMetadata.candidatesTokenCount,
+                  totalTokens: usageMetadata.totalTokenCount,
+                } : undefined;
 
-              if (text || usage) {
-                if (text) totalText += text;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text || "", usage })}\n\n`));
+                if (text || usage) {
+                  if (text) totalText += text;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text || "", usage })}\n\n`));
+                }
               }
-            }
 
-            if (!totalText.trim()) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: "Halo! Ada yang bisa saya bantu hari ini?" })}\n\n`));
+              if (!totalText.trim()) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: "Halo! Ada yang bisa saya bantu hari ini?" })}\n\n`));
+              }
+            } catch (err: unknown) {
+              const errorMsg = err instanceof Error ? err.message : String(err);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: `\n\n⚠️ **Error Provider Gemini**: ${errorMsg}` })}\n\n`));
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -216,41 +224,51 @@ export async function POST(req: NextRequest) {
 
         anthropicMessages.push({ role: "user", content: userContent as string & AnthropicContentPart[] });
 
-        const streamEvents = anthropic.messages.stream({
-          model: actualModelId || "claude-3-7-sonnet-20250219",
-          max_tokens: 8192,
-          system: finalSystemPrompt,
-          messages: anthropicMessages,
-        });
-
         const encoder = new TextEncoder();
         return new ReadableStream({
           async start(controller) {
             let totalText = "";
-            for await (const chunk of streamEvents) {
-              if (chunk.type === "content_block_delta" && chunk.delta && "text" in chunk.delta) {
-                const text = chunk.delta.text;
-                if (text) {
-                  totalText += text;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+            try {
+              const streamEvents = anthropic.messages.stream({
+                model: actualModelId || "claude-3-7-sonnet-20250219",
+                max_tokens: 8192,
+                system: finalSystemPrompt,
+                messages: anthropicMessages,
+              });
+
+              for await (const chunk of streamEvents) {
+                if (chunk.type === "content_block_delta" && chunk.delta && "text" in chunk.delta) {
+                  const text = chunk.delta.text;
+                  if (text) {
+                    totalText += text;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+                  }
                 }
               }
-            }
 
-            const finalMsg = await streamEvents.finalMessage();
-            if (finalMsg?.usage) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                delta: "",
-                usage: {
-                  promptTokens: finalMsg.usage.input_tokens,
-                  completionTokens: finalMsg.usage.output_tokens,
-                  totalTokens: finalMsg.usage.input_tokens + finalMsg.usage.output_tokens,
-                }
-              })}\n\n`));
-            }
+              const finalMsg = await streamEvents.finalMessage();
+              if (finalMsg?.usage) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  delta: "",
+                  usage: {
+                    promptTokens: finalMsg.usage.input_tokens,
+                    completionTokens: finalMsg.usage.output_tokens,
+                    totalTokens: finalMsg.usage.input_tokens + finalMsg.usage.output_tokens,
+                  }
+                })}\n\n`));
+              }
 
-            if (!totalText.trim()) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: "Halo! Ada yang bisa saya bantu hari ini?" })}\n\n`));
+              if (!totalText.trim()) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: "Halo! Ada yang bisa saya bantu hari ini?" })}\n\n`));
+              }
+            } catch (err: unknown) {
+              const errorMsg = err instanceof Error ? err.message : String(err);
+              console.warn("Claude API Error:", errorMsg);
+              const infoNotice = errorMsg.includes("credit balance")
+                ? "⚠️ **Pemberitahuan Saldo API Anthropic**: Kunci API Anthropic memerlukan pengisian saldo (credit balance) di dashboard Anthropic (Plans & Billing). Silakan gunakan model **Gemini 3.6 Flash**, **NVIDIA Nemotron**, atau **Qwen 3.6 (Groq)** yang siap pakai."
+                : `⚠️ **Catatan Provider Claude**: ${errorMsg}`;
+
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: infoNotice })}\n\n`));
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -293,23 +311,28 @@ export async function POST(req: NextRequest) {
         return new ReadableStream({
           async start(controller) {
             let totalText = "";
-            for await (const chunk of stream) {
-              const delta = chunk.choices[0]?.delta?.content ?? "";
-              const chunkUsage = chunk.usage;
-              const usage = chunkUsage ? {
-                promptTokens: chunkUsage.prompt_tokens,
-                completionTokens: chunkUsage.completion_tokens,
-                totalTokens: chunkUsage.total_tokens,
-              } : undefined;
+            try {
+              for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta?.content ?? "";
+                const chunkUsage = chunk.usage;
+                const usage = chunkUsage ? {
+                  promptTokens: chunkUsage.prompt_tokens,
+                  completionTokens: chunkUsage.completion_tokens,
+                  totalTokens: chunkUsage.total_tokens,
+                } : undefined;
 
-              if (delta || usage) {
-                if (delta) totalText += delta;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: delta || "", usage })}\n\n`));
+                if (delta || usage) {
+                  if (delta) totalText += delta;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: delta || "", usage })}\n\n`));
+                }
               }
-            }
 
-            if (!totalText.trim()) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: "Halo! Ada yang bisa saya bantu hari ini?" })}\n\n`));
+              if (!totalText.trim()) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: "Halo! Ada yang bisa saya bantu hari ini?" })}\n\n`));
+              }
+            } catch (err: unknown) {
+              const errorMsg = err instanceof Error ? err.message : String(err);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: `\n\n⚠️ **Error Provider**: ${errorMsg}` })}\n\n`));
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
