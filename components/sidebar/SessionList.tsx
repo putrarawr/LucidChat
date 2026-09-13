@@ -283,30 +283,29 @@ export function SessionList({
     return (
       <div
         key={s.id}
-        className={`group relative flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-all duration-200 ${
+        onClick={() => onSelectSession(s.id)}
+        className={`group relative flex items-center justify-between px-2.5 py-2.5 rounded-xl text-xs cursor-pointer transition-all duration-200 ${
           isActive
             ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
-            : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+            : "text-white/60 hover:text-white hover:bg-white/[0.06] active:bg-white/[0.10]"
         }`}
       >
-        <button
-          onClick={() => onSelectSession(s.id)}
-          className="flex items-center gap-2 flex-1 min-w-0 text-left pr-1"
-        >
-          <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-60" />
+        <div className="flex items-center gap-2 flex-1 min-w-0 text-left pr-1 pointer-events-none">
+          <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-60 text-white" />
           <span className="truncate">{s.title}</span>
-        </button>
+        </div>
 
-        {/* Action Menu: Visible on mobile (opacity-100), smooth hover on desktop (md:opacity-0 md:group-hover:opacity-100) */}
+        {/* Action Menu: Smooth visibility */}
         <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-0.5 transition-all duration-200 shrink-0">
           {onPinSession && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onPinSession(s.id);
               }}
               className={`p-1 rounded-lg transition-colors ${
-                s.isPinned ? "text-amber-400 hover:text-amber-300" : "text-white/30 hover:text-white hover:bg-white/[0.08]"
+                s.isPinned ? "text-amber-400 hover:text-amber-300" : "text-white/40 hover:text-white hover:bg-white/[0.10]"
               }`}
               title={s.isPinned ? "Lepas Sematan" : "Sematkan Chat"}
             >
@@ -316,8 +315,9 @@ export function SessionList({
 
           {onRenameSession && (
             <button
+              type="button"
               onClick={(e) => handleStartRename(s, e)}
-              className="p-1 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-lg transition-colors"
+              className="p-1 text-white/40 hover:text-white hover:bg-white/[0.10] rounded-lg transition-colors"
               title="Ubah Judul Chat"
             >
               <Pencil className="w-3 h-3" />
@@ -326,11 +326,12 @@ export function SessionList({
 
           {onExportSession && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onExportSession(s.id);
               }}
-              className="p-1 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-lg transition-colors"
+              className="p-1 text-white/40 hover:text-white hover:bg-white/[0.10] rounded-lg transition-colors"
               title="Ekspor Chat ke Markdown"
             >
               <Download className="w-3 h-3" />
@@ -338,11 +339,12 @@ export function SessionList({
           )}
 
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setDeleteConfirmSession(s);
             }}
-            className="p-1 text-white/30 hover:text-red-400 hover:bg-white/[0.08] rounded-lg transition-colors"
+            className="p-1 text-white/40 hover:text-red-400 hover:bg-white/[0.10] rounded-lg transition-colors"
             title="Hapus Chat"
           >
             <Trash2 className="w-3 h-3" />

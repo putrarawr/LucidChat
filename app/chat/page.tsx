@@ -564,13 +564,13 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--surface-0)] animate-entrance-page">
+    <div className="flex h-[100dvh] h-screen w-screen overflow-hidden bg-[var(--surface-0)] animate-entrance-page">
       {/* Animated Background Orbs */}
       <div className="bg-orbs" />
       <div className="orb-center" />
 
       {/* Sidebar Navigation */}
-      <div className="animate-entrance-sidebar">
+      <div className="animate-entrance-sidebar z-50 relative">
         <SessionList
           sessions={sessions}
           currentSessionId={currentSessionId}
@@ -608,10 +608,10 @@ export default function ChatPage() {
               : "100%",
             display: !isMobile && activeCodePreview && isPreviewMaximized ? "none" : "flex",
           }}
-          className="flex-col h-full relative z-10 transition-[width] duration-75"
+          className="flex flex-col h-full w-full relative z-10 transition-[width] duration-75 overflow-hidden"
         >
           {/* Minimal Header Bar */}
-          <header className="h-14 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-black/20 backdrop-blur-2xl animate-entrance-header">
+          <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-[#0c0c12]/90 backdrop-blur-2xl animate-entrance-header z-30">
             <div className="flex items-center gap-2.5">
               {/* Sidebar Toggle Button (Always accessible on desktop & mobile) */}
               <button

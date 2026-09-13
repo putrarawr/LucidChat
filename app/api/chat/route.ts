@@ -263,12 +263,35 @@ export async function POST(req: NextRequest) {
               }
             } catch (err: unknown) {
               const errorMsg = err instanceof Error ? err.message : String(err);
-              console.warn("Claude API Error:", errorMsg);
-              const infoNotice = errorMsg.includes("credit balance")
-                ? "⚠️ **Pemberitahuan Saldo API Anthropic**: Kunci API Anthropic memerlukan pengisian saldo (credit balance) di dashboard Anthropic (Plans & Billing). Silakan gunakan model **Gemini 3.6 Flash**, **NVIDIA Nemotron**, atau **Qwen 3.6 (Groq)** yang siap pakai."
-                : `⚠️ **Catatan Provider Claude**: ${errorMsg}`;
-
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: infoNotice })}\n\n`));
+              console.warn("Claude Native API failed, routing to OpenRouter Claude...", errorMsg);
+              try {
+                const client = getOpenAIClient("openrouter");
+                const userContentPayload = imagePartsOpenAI.length > 0
+                  ? [{ type: "text", text: lastUserMessage }, ...imagePartsOpenAI]
+                  : lastUserMessage;
+                const formattedMessages = [
+                  { role: "system", content: finalSystemPrompt },
+                  ...messages.slice(0, -1).map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
+                  { role: "user", content: userContentPayload },
+                ];
+                const stream = await client.chat.completions.create({
+                  model: "anthropic/claude-3-haiku",
+                  messages: formattedMessages,
+                  max_tokens: 8192,
+                  stream: true,
+                });
+                for await (const chunk of stream) {
+                  const delta = chunk.choices[0]?.delta?.content ?? "";
+                  if (delta) {
+                    totalText += delta;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`));
+                  }
+                }
+              } catch (orErr: unknown) {
+                const orErrorMsg = orErr instanceof Error ? orErr.message : String(orErr);
+                const infoNotice = `⚠️ **Pemberitahuan Claude Provider**: API Anthropic tidak dapat diakses (${errorMsg} / ${orErrorMsg}). Silakan beralih ke model **Gemini 3.6 Flash** atau **NVIDIA Nemotron**.`;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: infoNotice })}\n\n`));
+              }
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
