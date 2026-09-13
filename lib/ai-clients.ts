@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 
-export type ProviderType = 'groq' | 'openrouter' | 'deepseek' | 'cerebras' | 'ollama' | 'gemini';
+export type ProviderType = 'groq' | 'openrouter' | 'deepseek' | 'cerebras' | 'ollama' | 'gemini' | 'nvidia' | 'claude';
 
 // OpenAI-Compatible Providers Clients
 export const groq = new OpenAI({
@@ -24,6 +25,11 @@ export const cerebras = new OpenAI({
   baseURL: "https://api.cerebras.ai/v1",
 });
 
+export const nvidia = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY || "dummy-nvidia-key",
+  baseURL: "https://integrate.api.nvidia.com/v1",
+});
+
 export const ollama = new OpenAI({
   apiKey: "ollama",
   baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
@@ -32,13 +38,20 @@ export const ollama = new OpenAI({
 // Google Gemini Client
 export const googleAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || "dummy-gemini-key");
 
-export function getOpenAIClient(provider: Exclude<ProviderType, 'gemini'>): OpenAI {
-  const clientMap: Record<Exclude<ProviderType, 'gemini'>, OpenAI> = {
+// Anthropic Claude Client
+export const anthropic = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || "dummy-claude-key",
+});
+
+export function getOpenAIClient(provider: Exclude<ProviderType, 'gemini' | 'claude'>): OpenAI {
+  const clientMap: Record<Exclude<ProviderType, 'gemini' | 'claude'>, OpenAI> = {
     groq,
     openrouter,
     deepseek,
     cerebras,
+    nvidia,
     ollama,
   };
   return clientMap[provider];
 }
+
