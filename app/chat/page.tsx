@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { MessageBubble, Message, stripThinkTags } from "@/components/chat/MessageBubble";
@@ -50,6 +51,9 @@ function generateSmartTitle(prompt: string): string {
 }
 
 export default function ChatPage() {
+  const params = useParams();
+  const urlChatId = params?.chatId as string | undefined;
+
   const [selectedModel, setSelectedModel] = useState<ModelItem>(DEFAULT_MODELS[0]);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(DEFAULT_PERSONAS[0]);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
@@ -215,8 +219,11 @@ export default function ChatPage() {
     setActiveCodePreview(null);
     setIsLoading(false);
     setArenaMessages([]);
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setIsSidebarOpen(false);
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+      if (window.location.pathname !== `/chat/${sessionId}`) {
+        window.history.pushState(null, "", `/chat/${sessionId}`);
+      }
     }
     try {
       const { data: msgData } = await supabase
@@ -240,14 +247,24 @@ export default function ChatPage() {
     }
   };
 
+  // Automatically load session if urlChatId parameter changes or page opens via /chat/[chatId]
+  useEffect(() => {
+    if (urlChatId && urlChatId !== currentSessionId) {
+      handleSelectSession(urlChatId);
+    }
+  }, [urlChatId]);
+
   const handleNewChat = () => {
     setMessages([]);
     setArenaMessages([]);
     setCurrentSessionId(undefined);
     previewClosedByUserRef.current = false;
     setActiveCodePreview(null);
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setIsSidebarOpen(false);
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+      if (window.location.pathname !== "/chat") {
+        window.history.pushState(null, "", "/chat");
+      }
     }
   };
 
@@ -355,6 +372,9 @@ export default function ChatPage() {
         const finalSessionId = activeChatId || `chat_${Date.now()}`;
         activeChatId = finalSessionId;
         setCurrentSessionId(finalSessionId);
+        if (typeof window !== "undefined" && window.location.pathname !== `/chat/${finalSessionId}`) {
+          window.history.pushState(null, "", `/chat/${finalSessionId}`);
+        }
         const newSession: SessionItem = {
           id: finalSessionId,
           title: titleText,
