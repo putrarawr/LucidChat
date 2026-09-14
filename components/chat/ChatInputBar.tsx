@@ -98,11 +98,30 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [isSlashOpen, setIsSlashOpen] = useState(false);
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const slashRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Derive slash query and filter commands in real-time
+  const slashQuery = input.startsWith("/") ? input.slice(1).toLowerCase().trim() : "";
+  const filteredSlashCommands = SLASH_COMMANDS.filter((item) => {
+    if (!slashQuery) return true;
+    const cmdWithoutSlash = item.cmd.replace("/", "").toLowerCase();
+    return (
+      cmdWithoutSlash.includes(slashQuery) ||
+      item.cmd.toLowerCase().includes(slashQuery) ||
+      item.title.toLowerCase().includes(slashQuery) ||
+      item.desc.toLowerCase().includes(slashQuery)
+    );
+  });
+
+  // Reset slash command index when query changes
+  useEffect(() => {
+    setSlashSelectedIndex(0);
+  }, [input]);
 
   // Auto resize textarea
   useEffect(() => {
@@ -264,6 +283,35 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isSlashOpen && filteredSlashCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashSelectedIndex((prev) => (prev + 1) % filteredSlashCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashSelectedIndex((prev) => (prev - 1 + filteredSlashCommands.length) % filteredSlashCommands.length);
+        return;
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+        e.preventDefault();
+        const selectedCmd = filteredSlashCommands[slashSelectedIndex] || filteredSlashCommands[0];
+        if (selectedCmd) {
+          playClickSound();
+          setInput(selectedCmd.template);
+          if (selectedCmd.enableWeb) setIsWebSearchEnabled(true);
+          setIsSlashOpen(false);
+          textareaRef.current?.focus();
+          return;
+        }
+      }
+      if (e.key === "Escape") {
+        setIsSlashOpen(false);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -272,7 +320,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
 
   return (
     <div className="relative">
-      {/* Quick Slash Commands Menu — opens upward */}
+      {/* Quick Slash Commands Menu — opens upward with real-time filtering & arrow navigation */}
       {isSlashOpen && (
         <div
           ref={slashRef}
@@ -290,30 +338,46 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
             </button>
           </div>
           <div className="p-1 space-y-0.5">
-            {SLASH_COMMANDS.map((item) => (
-              <button
-                key={item.cmd}
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setInput(item.template);
-                  if (item.enableWeb) setIsWebSearchEnabled(true);
-                  setIsSlashOpen(false);
-                  textareaRef.current?.focus();
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 hover:bg-white/[0.10] text-white/80 hover:text-white group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2 py-0.5 rounded-lg bg-white/10 text-[11px] font-mono text-white font-bold group-hover:bg-white/20">
-                    {item.cmd}
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-white/90 text-[12px]">{item.title}</span>
-                    <span className="text-[10px] text-white/40">{item.desc}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
+            {filteredSlashCommands.length === 0 ? (
+              <div className="px-4 py-3 text-center text-xs text-white/40">
+                Tidak ada command cocok dengan &quot;/{slashQuery}&quot;
+              </div>
+            ) : (
+              filteredSlashCommands.map((item, idx) => {
+                const isSelected = idx === slashSelectedIndex;
+                return (
+                  <button
+                    key={item.cmd}
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      setInput(item.template);
+                      if (item.enableWeb) setIsWebSearchEnabled(true);
+                      setIsSlashOpen(false);
+                      textareaRef.current?.focus();
+                    }}
+                    onMouseEnter={() => setSlashSelectedIndex(idx)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-150 ${
+                      isSelected
+                        ? "bg-white/20 text-white shadow-sm border border-white/20"
+                        : "hover:bg-white/[0.10] text-white/80 hover:text-white"
+                    } group`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={`px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold ${
+                        isSelected ? "bg-white/30 text-white" : "bg-white/10 text-white group-hover:bg-white/20"
+                      }`}>
+                        {item.cmd}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-white/90 text-[12px]">{item.title}</span>
+                        <span className="text-[10px] text-white/40">{item.desc}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -436,7 +500,13 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
               const val = e.target.value;
               setInput(val);
               if (val.startsWith("/")) {
-                setIsSlashOpen(true);
+                const firstWord = val.split(" ")[0];
+                const matchingCmd = SLASH_COMMANDS.find((c) => c.cmd === firstWord);
+                if (matchingCmd && val.length > firstWord.length) {
+                  setIsSlashOpen(false);
+                } else {
+                  setIsSlashOpen(true);
+                }
               } else {
                 setIsSlashOpen(false);
               }
