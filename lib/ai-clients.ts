@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 
-export type ProviderType = 'groq' | 'openrouter' | 'deepseek' | 'cerebras' | 'ollama' | 'gemini' | 'nvidia' | 'claude';
+export type ProviderType = 'groq' | 'openrouter' | 'deepseek' | 'cerebras' | 'ollama' | 'gemini' | 'nvidia' | 'claude' | 'kimi' | 'openai' | 'bazaarlink' | 'requestly';
 
 // OpenAI-Compatible Providers Clients
 export const groq = new OpenAI({
@@ -35,6 +35,26 @@ export const ollama = new OpenAI({
   baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
 });
 
+export const kimi = new OpenAI({
+  apiKey: process.env.KIMI_API_KEY || "dummy-kimi-key",
+  baseURL: "https://api.moonshot.cn/v1",
+});
+
+export const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "dummy-openai-key",
+  baseURL: "https://api.openai.com/v1",
+});
+
+export const bazaarlink = new OpenAI({
+  apiKey: process.env.BAZAARLINK_API_KEY || "dummy-bazaarlink-key",
+  baseURL: "https://api.bazaarlink.com/v1",
+});
+
+export const requestly = new OpenAI({
+  apiKey: process.env.REQUESTLY_API_KEY || "dummy-requestly-key",
+  baseURL: "https://api.requestly.ai/v1",
+});
+
 // Google Gemini Client
 export const googleAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || "dummy-gemini-key");
 
@@ -51,6 +71,10 @@ export function getOpenAIClient(provider: Exclude<ProviderType, 'gemini' | 'clau
     cerebras,
     nvidia,
     ollama,
+    kimi,
+    openai,
+    bazaarlink,
+    requestly,
   };
   return clientMap[provider];
 }

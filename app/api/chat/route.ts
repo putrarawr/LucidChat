@@ -147,19 +147,10 @@ export async function POST(req: NextRequest) {
       if (activeId === "web-crawler-agent") {
         activeId = "groq/qwen/qwen3.6-27b";
         activeProv = "groq";
-      } else if (activeId.includes("llama-3.3-70b-versatile")) {
-        activeId = "groq/qwen/qwen3.6-27b";
-        activeProv = "groq";
       } else if (activeId.includes("gemini-2.0-flash") || activeId.includes("gemini-2.5-flash")) {
         activeId = "gemini/gemini-3.6-flash";
         activeProv = "gemini";
-      } else if (activeId.includes("deepseek-reasoner")) {
-        activeId = "openrouter/qwen/qwen-2.5-coder-32b-instruct";
-        activeProv = "openrouter";
-      } else if (activeId.includes("cerebras/llama-3.3-70b") || activeId === "llama-3.3-70b") {
-        activeId = "cerebras/qwen-3.8-27b";
-        activeProv = "cerebras";
-      } else if (activeProv === "nvidia" || activeId.includes("nvidia")) {
+      } else if (activeProv === "nvidia" || (activeId.includes("nvidia") && activeProv !== "openrouter")) {
         activeId = "openrouter/nvidia/nemotron-3.5-lightning:free";
         activeProv = "openrouter";
       }

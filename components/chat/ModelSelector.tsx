@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap } from "lucide-react";
+import { ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, Search, X } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 
 interface ModelSelectorProps {
@@ -21,6 +21,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 
 export function ModelSelector({ selectedModel, onSelectModel }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,46 +56,98 @@ export function ModelSelector({ selectedModel, onSelectModel }: ModelSelectorPro
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-72 liquid-glass-elevated py-2 z-50 animate-glass-appear border border-white/20 divide-y divide-white/10 max-h-96 overflow-y-auto">
-          {categories.map((cat) => {
-            if (cat.items.length === 0) return null;
-            const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
+        <div className="absolute top-full left-0 mt-2 w-80 liquid-glass-elevated z-50 animate-glass-appear border border-white/20 divide-y divide-white/10 max-h-96 overflow-y-auto shadow-2xl rounded-2xl">
+          {/* Search Header */}
+          <div className="p-2.5 border-b border-white/10 sticky top-0 bg-[#0c0c14]/95 backdrop-blur-xl z-10">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari model AI..."
+                className="w-full bg-white/[0.08] border border-white/15 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:border-white/30 transition-all"
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
 
-            return (
-              <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
-                <div className="px-3 py-1 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-white/40 uppercase">
-                  <Icon className="w-3 h-3" />
-                  <span>{cat.title}</span>
-                </div>
-                <div className="space-y-0.5 px-1">
-                  {cat.items.map((m) => {
-                    const isSelected = m.id === selectedModel.id;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => {
-                          onSelectModel(m);
-                          setIsOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
-                          isSelected
-                            ? "bg-white/15 text-white font-medium border border-white/15"
-                            : "text-white/70 hover:text-white hover:bg-white/10"
-                        }`}
-                      >
-                        <span className="truncate">{m.display_name}</span>
-                        {m.is_free && (
-                          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 border border-white/10">
-                            Free
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="py-1.5">
+            {categories.every((cat) => {
+              const matched = cat.items.filter((m) => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase().trim();
+                return (
+                  m.display_name.toLowerCase().includes(q) ||
+                  m.id.toLowerCase().includes(q) ||
+                  m.provider.toLowerCase().includes(q)
+                );
+              });
+              return matched.length === 0;
+            }) && searchQuery.trim() ? (
+              <div className="px-4 py-4 text-center text-xs text-white/40">
+                Model AI tidak ditemukan untuk &quot;{searchQuery}&quot;
               </div>
-            );
-          })}
+            ) : (
+              categories.map((cat) => {
+                const matchedItems = cat.items.filter((m) => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase().trim();
+                  return (
+                    m.display_name.toLowerCase().includes(q) ||
+                    m.id.toLowerCase().includes(q) ||
+                    m.provider.toLowerCase().includes(q)
+                  );
+                });
+
+                if (matchedItems.length === 0) return null;
+                const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
+
+                return (
+                  <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
+                    <div className="px-3 py-1 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-white/40 uppercase">
+                      <Icon className="w-3 h-3" />
+                      <span>{cat.title}</span>
+                    </div>
+                    <div className="space-y-0.5 px-1">
+                      {matchedItems.map((m) => {
+                        const isSelected = m.id === selectedModel.id;
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              onSelectModel(m);
+                              setIsOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                              isSelected
+                                ? "bg-white/15 text-white font-medium border border-white/15"
+                                : "text-white/70 hover:text-white hover:bg-white/10"
+                            }`}
+                          >
+                            <span className="truncate">{m.display_name}</span>
+                            {m.is_free && (
+                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 border border-white/10 ml-1 shrink-0">
+                                Free
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>

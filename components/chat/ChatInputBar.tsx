@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2 } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { playClickSound, playSendSound } from "@/lib/sound";
 
@@ -94,6 +94,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
@@ -386,66 +387,119 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
       {isModelOpen && (
         <div
           ref={dropdownRef}
-          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated py-2 z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-80 overflow-y-auto shadow-2xl"
+          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-96 overflow-y-auto shadow-2xl"
           style={{ borderRadius: "20px" }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 pb-3">
-            <span className="text-xs font-semibold text-white/60 tracking-wide">Pilih Model AI</span>
-            <button
-              type="button"
-              onClick={() => setIsModelOpen(false)}
-              className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+          {/* Header with Search Filter Bar */}
+          <div className="p-3 border-b border-white/[0.08] space-y-2 sticky top-0 bg-[#0c0c14]/95 backdrop-blur-xl z-10">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-semibold text-white/70 tracking-wide">Pilih Model AI</span>
+              <button
+                type="button"
+                onClick={() => setIsModelOpen(false)}
+                className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                type="text"
+                value={modelSearchQuery}
+                onChange={(e) => setModelSearchQuery(e.target.value)}
+                placeholder="Cari model AI (Gemini, Kimi, GPT-4o, Claude...)..."
+                className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:border-white/30 transition-all"
+                autoFocus
+              />
+              {modelSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setModelSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {CATEGORIES.map((cat) => {
-            if (cat.items.length === 0) return null;
-            const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
-
-            return (
-              <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
-                <div className="px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
-                  <Icon className="w-3 h-3" />
-                  <span>{cat.title}</span>
-                </div>
-                <div className="space-y-0.5 px-2">
-                  {cat.items.map((m) => {
-                    const isSelected = m.id === selectedModel.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => {
-                          onSelectModel(m);
-                          setIsModelOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition-all duration-200 ${
-                          isSelected
-                            ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
-                            : "text-white/65 hover:text-white hover:bg-white/[0.06]"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isSelected && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] shrink-0" />
-                          )}
-                          <span className="truncate">{m.display_name}</span>
-                        </div>
-                        {m.is_free && (
-                          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 border border-white/[0.06] ml-2 shrink-0">
-                            Free
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="py-2">
+            {CATEGORIES.every((cat) => {
+              const matched = cat.items.filter((m) => {
+                if (!modelSearchQuery.trim()) return true;
+                const q = modelSearchQuery.toLowerCase().trim();
+                return (
+                  m.display_name.toLowerCase().includes(q) ||
+                  m.id.toLowerCase().includes(q) ||
+                  m.provider.toLowerCase().includes(q) ||
+                  m.capability_tags.some((t) => t.toLowerCase().includes(q))
+                );
+              });
+              return matched.length === 0;
+            }) && modelSearchQuery.trim() ? (
+              <div className="px-4 py-6 text-center text-xs text-white/40">
+                Model AI tidak ditemukan untuk &quot;{modelSearchQuery}&quot;
               </div>
-            );
-          })}
+            ) : (
+              CATEGORIES.map((cat) => {
+                const matchedItems = cat.items.filter((m) => {
+                  if (!modelSearchQuery.trim()) return true;
+                  const q = modelSearchQuery.toLowerCase().trim();
+                  return (
+                    m.display_name.toLowerCase().includes(q) ||
+                    m.id.toLowerCase().includes(q) ||
+                    m.provider.toLowerCase().includes(q) ||
+                    m.capability_tags.some((t) => t.toLowerCase().includes(q))
+                  );
+                });
+
+                if (matchedItems.length === 0) return null;
+                const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
+
+                return (
+                  <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
+                    <div className="px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
+                      <Icon className="w-3 h-3" />
+                      <span>{cat.title}</span>
+                    </div>
+                    <div className="space-y-0.5 px-2">
+                      {matchedItems.map((m) => {
+                        const isSelected = m.id === selectedModel.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              onSelectModel(m);
+                              setIsModelOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 ${
+                              isSelected
+                                ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
+                                : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isSelected && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] shrink-0" />
+                              )}
+                              <span className="truncate">{m.display_name}</span>
+                            </div>
+                            {m.is_free && (
+                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 border border-white/[0.06] ml-2 shrink-0">
+                                Free
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
