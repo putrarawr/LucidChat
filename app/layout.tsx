@@ -76,7 +76,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "google32c848f3e7e7b9ea",
+    google: "C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs",
   },
 };
 
@@ -116,7 +116,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <meta name="google-site-verification" content="google32c848f3e7e7b9ea" />
+        <meta name="google-site-verification" content="C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs" />
         
         {/* GEO-Targeting Metadata */}
         <meta name="geo.region" content="ID-JK" />
