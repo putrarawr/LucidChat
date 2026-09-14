@@ -104,7 +104,7 @@ export function ChatInputBar({
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState<"combo" | "single">("combo");
+  const [pickerTab, setPickerTab] = useState<"combo" | "single">("single");
   const [modelSearchQuery, setModelSearchQuery] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -116,6 +116,19 @@ export function ChatInputBar({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const slashRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wasAutoWebSearchRef = useRef(false);
+
+  // Toggle model dropdown & ensure default open tab is always "Model Spesifik" (Tab Kiri)
+  const handleToggleModelOpen = () => {
+    setIsModelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setPickerTab("single");
+        setModelSearchQuery("");
+      }
+      return next;
+    });
+  };
 
   // Derive slash query and filter commands in real-time
   const slashQuery = input.startsWith("/") ? input.slice(1).toLowerCase().trim() : "";
@@ -159,43 +172,33 @@ export function ChatInputBar({
 
   // Web Speech API Integration for Voice STT Input
   const handleToggleVoice = () => {
+    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+      alert("Fitur Speech-to-Text tidak didukung pada browser Anda. Gunakan Google Chrome atau Edge.");
+      return;
+    }
+
     if (isListening) {
       setIsListening(false);
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Browser Anda tidak mendukung Voice Input (Speech Recognition).");
-      return;
-    }
-
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+
       const recognition = new SpeechRecognition();
       recognition.lang = "id-ID";
-      recognition.continuous = false;
       recognition.interimResults = false;
 
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
-        }
-        setIsListening(false);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
+        setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
       };
 
       recognition.start();
@@ -208,20 +211,13 @@ export function ChatInputBar({
   // Prompt Auto-Enhancer API call
   const handleEnhancePrompt = async () => {
     if (!input.trim() || isEnhancing) return;
-    playClickSound();
+
     setIsEnhancing(true);
     try {
-      const res = await fetch("/api/enhance-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input }),
-      });
-      const data = await res.json();
-      if (data.enhancedPrompt) {
-        setInput(data.enhancedPrompt);
-      }
-    } catch (err) {
-      console.warn("Enhance prompt error:", err);
+      const enhancedText = `Tolong perjelas dan jawab secara komprehensif, terstruktur, dan mendalam pertanyaan berikut:\n\n"${input.trim()}"`;
+      setInput(enhancedText);
+    } catch {
+      // Fallback silent
     } finally {
       setIsEnhancing(false);
     }
@@ -229,48 +225,31 @@ export function ChatInputBar({
 
   // Handle File Upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
+    files.forEach((file) => {
       const isImage = file.type.startsWith("image/");
       const reader = new FileReader();
 
+      reader.onload = (evt) => {
+        const content = evt.target?.result as string;
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: file.name,
+            type: isImage ? "image" : "file",
+            content,
+            mimeType: file.type,
+            isScanned: true,
+          },
+        ]);
+      };
+
       if (isImage) {
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          if (result) {
-            setAttachments((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(),
-                name: file.name,
-                type: "image",
-                content: result,
-                mimeType: file.type,
-                isScanned: true,
-              },
-            ]);
-          }
-        };
         reader.readAsDataURL(file);
       } else {
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          if (result) {
-            setAttachments((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(),
-                name: file.name,
-                type: "file",
-                content: result,
-                mimeType: file.type,
-                isScanned: true,
-              },
-            ]);
-          }
-        };
         reader.readAsText(file);
       }
     });
@@ -319,6 +298,10 @@ export function ChatInputBar({
     }
     if (mode.forceWebSearch) {
       setIsWebSearchEnabled(true);
+      wasAutoWebSearchRef.current = true;
+    } else if (wasAutoWebSearchRef.current) {
+      setIsWebSearchEnabled(false);
+      wasAutoWebSearchRef.current = false;
     }
     setIsModelOpen(false);
   };
@@ -371,15 +354,14 @@ export function ChatInputBar({
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto px-2 md:px-4">
+    <div className="relative w-full max-w-4xl mx-auto px-1.5 sm:px-4">
       {/* Quick Slash Commands Menu — opens upward with real-time filtering & arrow navigation */}
       {isSlashOpen && filteredSlashCommands.length > 0 && (
         <div
           ref={slashRef}
-          className="absolute bottom-full left-4 right-4 mb-2 liquid-glass-elevated py-2 z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-72 overflow-y-auto shadow-2xl"
-          style={{ borderRadius: "20px" }}
+          className="absolute bottom-full left-2 right-2 sm:left-4 sm:right-4 mb-2 bg-[#121216] border border-white/15 py-2 z-50 animate-slide-up divide-y divide-white/10 max-h-72 overflow-y-auto shadow-2xl rounded-2xl"
         >
-          <div className="flex items-center justify-between px-4 py-1.5 pb-2 text-[10px] font-semibold text-white/50 tracking-wider uppercase">
+          <div className="flex items-center justify-between px-3 sm:px-4 py-1.5 pb-2 text-[10px] font-semibold text-white/50 tracking-wider uppercase">
             <span>⚡ Prompt Cepat / Slash Commands</span>
             <button
               type="button"
@@ -426,10 +408,10 @@ export function ChatInputBar({
       {isModelOpen && (
         <div
           ref={dropdownRef}
-          className="absolute bottom-full left-0 right-0 mb-2 bg-[#121216] border border-white/15 divide-y divide-white/10 max-h-[420px] overflow-y-auto shadow-2xl rounded-2xl z-50 animate-slide-up"
+          className="absolute bottom-full left-0 right-0 mb-2 bg-[#121216] border border-white/15 divide-y divide-white/10 max-h-[75vh] md:max-h-[420px] overflow-y-auto shadow-2xl rounded-2xl z-50 animate-slide-up w-full"
         >
           {/* Header with 2 Tabs: Kiri = Model Spesifik, Kanan = Lucid Combo */}
-          <div className="p-3 border-b border-white/10 space-y-3 sticky top-0 bg-[#121216] backdrop-blur-xl z-10">
+          <div className="p-2.5 sm:p-3 border-b border-white/10 space-y-2.5 sm:space-y-3 sticky top-0 bg-[#121216] backdrop-blur-xl z-10">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-white/80" />
@@ -499,40 +481,40 @@ export function ChatInputBar({
 
           {/* TAB 2: LUCID COMBO (ALL-IN-ONE & SPECIALIZED MODES) */}
           {pickerTab === "combo" ? (
-            <div className="p-3 space-y-2.5">
-              <div className="px-1 text-[11px] text-white/40">
+            <div className="p-2.5 sm:p-3 space-y-2 sm:space-y-2.5">
+              <div className="px-1 text-[10px] sm:text-[11px] text-white/40">
                 Mode Lucid Combo menggabungkan model AI terbaik, instruksi spesialis, dan fitur crawler otomatis.
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 {LUCID_MODES.map((mode) => {
-                  const isSelected = selectedLucidMode?.id === mode.id;
+                  const isSelected = selectedLucidMode?.id === mode.id && mode.id !== "lucid-all-in-one";
                   return (
                     <div
                       key={mode.id}
                       onClick={() => handleSelectCombo(mode)}
-                      className={`group p-3 rounded-xl border cursor-pointer transition-all duration-200 flex items-start justify-between gap-3 ${
+                      className={`group p-2.5 sm:p-3 rounded-xl border cursor-pointer transition-all duration-200 flex items-start justify-between gap-2.5 sm:gap-3 ${
                         isSelected
                           ? "bg-white/15 border-white/40 shadow-md"
                           : "bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-white/20"
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-white/10 border border-white/15 text-white shrink-0 shadow-sm">
+                      <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-white/10 border border-white/15 text-white shrink-0 shadow-sm mt-0.5">
                           {renderModeIcon(mode.icon)}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-semibold text-white">{mode.name}</h4>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] border border-white/10 text-white/60 font-mono">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                            <h4 className="text-xs font-semibold text-white truncate">{mode.name}</h4>
+                            <span className="text-[9px] px-1.5 sm:px-2 py-0.5 rounded-full bg-white/[0.08] border border-white/10 text-white/60 font-mono">
                               {mode.subtitle}
                             </span>
                           </div>
-                          <p className="text-[11px] text-white/50 mt-1 leading-relaxed">{mode.description}</p>
+                          <p className="text-[10px] sm:text-[11px] text-white/50 mt-1 leading-relaxed line-clamp-2">{mode.description}</p>
                         </div>
                       </div>
                       {isSelected && (
                         <div className="p-1 rounded-full bg-white text-black shrink-0 mt-0.5 shadow-md">
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </div>
                       )}
                     </div>
@@ -577,7 +559,7 @@ export function ChatInputBar({
 
                   return (
                     <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
-                      <div className="px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
+                      <div className="px-3 sm:px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
                         <Icon className="w-3 h-3" />
                         <span>{cat.title}</span>
                       </div>
@@ -593,9 +575,13 @@ export function ChatInputBar({
                                 if (onSelectLucidMode) {
                                   onSelectLucidMode(LUCID_MODES[0]);
                                 }
+                                if (wasAutoWebSearchRef.current) {
+                                  setIsWebSearchEnabled(false);
+                                  wasAutoWebSearchRef.current = false;
+                                }
                                 setIsModelOpen(false);
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 ${
+                              className={`w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-[13px] flex items-center justify-between transition-all duration-200 ${
                                 isSelected
                                   ? "bg-white/15 text-white font-medium border border-white/20 shadow-sm"
                                   : "text-white/65 hover:text-white hover:bg-white/[0.06]"
@@ -639,7 +625,7 @@ export function ChatInputBar({
 
         {/* Attachment Chips Bar */}
         {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-4 pt-3 relative z-10">
+          <div className="flex flex-wrap gap-2 px-3 sm:px-4 pt-3 relative z-10">
             {attachments.map((a) => (
               <div
                 key={a.id}
@@ -668,7 +654,7 @@ export function ChatInputBar({
         )}
 
         {/* Textarea Row */}
-        <div className="flex items-end gap-2 px-4 pt-3 pb-1 relative z-10">
+        <div className="flex items-end gap-2 px-3 sm:px-4 pt-3 pb-1 relative z-10">
           <textarea
             ref={textareaRef}
             value={input}
@@ -689,13 +675,13 @@ export function ChatInputBar({
         </div>
 
         {/* Bottom Action Row: Attach + Voice + Prompt Enhancer + Web Search + Model Selector + Send */}
-        <div className="flex items-center justify-between px-3 pb-2.5 pt-0.5 relative z-10">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 px-2.5 sm:px-3 pb-2.5 pt-0.5 relative z-10">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
             {/* Attachment Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-full hover:bg-white/[0.10] text-white/50 hover:text-white transition-all duration-200"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-white/[0.10] text-white/50 hover:text-white transition-all duration-200"
               title="Lampirkan Gambar atau File Teks/Kode (Auto-Scan)"
             >
               <Paperclip className="w-4 h-4" />
@@ -705,7 +691,7 @@ export function ChatInputBar({
             <button
               type="button"
               onClick={handleToggleVoice}
-              className={`p-2 rounded-full transition-all duration-200 ${
+              className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
                 isListening
                   ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
                   : "hover:bg-white/[0.10] text-white/50 hover:text-white"
@@ -721,7 +707,7 @@ export function ChatInputBar({
                 type="button"
                 onClick={handleEnhancePrompt}
                 disabled={isEnhancing}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 hover:bg-white/20 text-[11px] font-medium transition-all duration-200 shadow-sm"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 hover:bg-white/20 text-[10px] sm:text-[11px] font-medium transition-all duration-200 shadow-sm"
                 title="Sempurnakan & Perjelas Prompt Secara Otomatis dengan AI"
               >
                 <Wand2 className={`w-3.5 h-3.5 ${isEnhancing ? "animate-spin" : ""}`} />
@@ -736,7 +722,7 @@ export function ChatInputBar({
                 playClickSound();
                 setIsWebSearchEnabled((prev) => !prev);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-medium transition-all duration-200 ${
                 isWebSearchEnabled
                   ? "bg-white/20 text-white border border-white/30 shadow-[0_0_12px_rgba(255,255,255,0.25)]"
                   : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
@@ -744,20 +730,20 @@ export function ChatInputBar({
               title={isWebSearchEnabled ? "Pencarian Web Terkini Aktif" : "Aktifkan Pencarian Web & Crawling Berita Terkini"}
             >
               <Globe className={`w-3.5 h-3.5 ${isWebSearchEnabled ? "text-white animate-pulse" : "text-white/40"}`} />
-              <span className="hidden sm:inline">Cari Web</span>
+              <span className="hidden xs:inline sm:inline">Cari Web</span>
             </button>
 
             {/* Unified Model & Lucid Combo Trigger Chip */}
             <button
               type="button"
-              onClick={() => setIsModelOpen(!isModelOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-xs text-white transition-all duration-200 ml-1 shadow-sm"
+              onClick={handleToggleModelOpen}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-[10px] sm:text-xs text-white transition-all duration-200 ml-0.5 sm:ml-1 shadow-sm max-w-[150px] sm:max-w-[220px]"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
-              <span className="max-w-[140px] md:max-w-[180px] truncate font-medium text-[11px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.5)] shrink-0" />
+              <span className="truncate font-medium text-[10px] sm:text-[11px]">
                 {selectedLucidMode && selectedLucidMode.id !== "lucid-all-in-one" ? selectedLucidMode.name : selectedModel.display_name}
               </span>
-              <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 ${isModelOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 shrink-0 ${isModelOpen ? "rotate-180" : ""}`} />
             </button>
           </div>
 
@@ -765,7 +751,7 @@ export function ChatInputBar({
           <button
             type="submit"
             disabled={(!input.trim() && attachments.length === 0) || isLoading}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-250 ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-250 shrink-0 ${
               (input.trim() || attachments.length > 0) && !isLoading
                 ? "bg-white text-black shadow-[0_0_16px_rgba(255,255,255,0.35)] hover:shadow-[0_0_24px_rgba(255,255,255,0.45)] hover:scale-105 active:scale-95"
                 : "bg-white/[0.06] text-white/25 border border-white/[0.06] cursor-not-allowed"

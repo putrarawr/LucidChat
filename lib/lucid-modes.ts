@@ -17,7 +17,7 @@ export const LUCID_MODES: LucidMode[] = [
     subtitle: "Hybrid General Intelligence",
     description: "Mode serba bisa menggabungkan Gemini 3.6, GPT-4o Mini & DeepSeek V3 untuk percakapan umum, analisis, dan ideasi.",
     icon: "Sparkles",
-    defaultModelId: "gemini/gemini-3.6-flash",
+    defaultModelId: "",
     forceWebSearch: false,
     badgeGradient: "from-zinc-200 to-zinc-400 text-black",
     systemPrompt: "Anda adalah Lucid AI dalam mode All-in-One (General Hybrid). Berikan jawaban yang serba bisa, cerdas, ramah, dan solutif.",
