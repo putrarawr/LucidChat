@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const userId = user?.id || "demo-user-session";
 
-    const { messages, modelId, provider, customSystemPrompt, attachments, enableWebSearch } = await req.json();
+    const { messages, modelId, provider, lucidMode, customSystemPrompt, attachments, enableWebSearch } = await req.json();
 
     // 1. Rate Limiting Check
     const allowed = await checkRateLimit(userId);
@@ -43,10 +43,13 @@ export async function POST(req: NextRequest) {
       return new Response("Rate limit tercapai. Silakan coba lagi dalam 1 menit.", { status: 429 });
     }
 
-    // Combine system instructions with custom persona prompt if provided
+    // Combine system instructions with custom Lucid Mode guidelines if provided
     let finalSystemPrompt = getDynamicSystemPrompt();
+    if (lucidMode) {
+      finalSystemPrompt += `\n\nACTIVE LUCID MODE: ${String(lucidMode).toUpperCase()}`;
+    }
     if (customSystemPrompt && customSystemPrompt.trim()) {
-      finalSystemPrompt += `\n\nCustom Persona Guidelines:\n${customSystemPrompt.trim()}`;
+      finalSystemPrompt += `\n\nLucid Mode Guidelines:\n${customSystemPrompt.trim()}`;
     }
 
     // Format last user message with attachments if present

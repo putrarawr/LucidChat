@@ -8,9 +8,8 @@ import { MessageBubble, Message, stripThinkTags } from "@/components/chat/Messag
 import { ChatInputBar, AttachmentFile } from "@/components/chat/ChatInputBar";
 import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
-import { PersonaModal } from "@/components/chat/PersonaModal";
-import { DEFAULT_PERSONAS, Persona } from "@/lib/persona-types";
-import { X, Sliders, Swords, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
+import { X, Swords, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
@@ -55,8 +54,7 @@ export default function ChatPage() {
   const urlChatId = params?.chatId as string | undefined;
 
   const [selectedModel, setSelectedModel] = useState<ModelItem>(DEFAULT_MODELS[0]);
-  const [selectedPersona, setSelectedPersona] = useState<Persona>(DEFAULT_PERSONAS[0]);
-  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [selectedLucidMode, setSelectedLucidMode] = useState<LucidMode>(LUCID_MODES[0]);
 
   // Arena Mode (Side-by-Side Model Comparison)
   const [isArenaMode, setIsArenaMode] = useState(false);
@@ -412,9 +410,10 @@ export default function ChatPage() {
             messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
             modelId: model.id,
             provider: model.provider,
-            customSystemPrompt: selectedPersona.systemPrompt,
+            lucidMode: selectedLucidMode.id,
+            customSystemPrompt: selectedLucidMode.systemPrompt,
             attachments,
-            enableWebSearch,
+            enableWebSearch: enableWebSearch || selectedLucidMode.forceWebSearch,
           }),
         });
 
@@ -652,15 +651,14 @@ export default function ChatPage() {
                 )}
               </button>
 
-              {/* Persona Selector Pill */}
-              <button
-                onClick={() => setIsPersonaModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-[11px] text-white/70 hover:text-white transition-all shadow-sm"
-                title="Ganti AI Persona & System Prompt"
+              {/* Lucid Mode Display Pill */}
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] text-white/90 shadow-sm"
+                title={`Mode Lucid Aktif: ${selectedLucidMode.name}`}
               >
-                <Sliders className="w-3.5 h-3.5 text-white/60" />
-                <span className="truncate max-w-[150px] font-medium">{selectedPersona.name}</span>
-              </button>
+                <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${selectedLucidMode.badgeGradient} shadow-[0_0_8px_rgba(168,85,247,0.7)]`} />
+                <span className="truncate max-w-[150px] font-semibold text-white">{selectedLucidMode.name}</span>
+              </div>
 
               {/* Arena Mode Toggle Pill */}
               <button
@@ -843,6 +841,8 @@ export default function ChatPage() {
               isLoading={isLoading}
               selectedModel={selectedModel}
               onSelectModel={setSelectedModel}
+              selectedLucidMode={selectedLucidMode}
+              onSelectLucidMode={setSelectedLucidMode}
             />
           </div>
         </div>
@@ -879,13 +879,7 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Persona Selection Modal */}
-      <PersonaModal
-        isOpen={isPersonaModalOpen}
-        onClose={() => setIsPersonaModalOpen(false)}
-        selectedPersona={selectedPersona}
-        onSelectPersona={setSelectedPersona}
-      />
+
     </div>
   );
 }

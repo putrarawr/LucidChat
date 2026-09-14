@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
+import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
 
 export interface AttachmentFile {
@@ -88,12 +89,22 @@ interface ChatInputBarProps {
   isLoading?: boolean;
   selectedModel: ModelItem;
   onSelectModel: (model: ModelItem) => void;
+  selectedLucidMode?: LucidMode;
+  onSelectLucidMode?: (mode: LucidMode) => void;
 }
 
-export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelectModel }: ChatInputBarProps) {
+export function ChatInputBar({
+  onSendMessage,
+  isLoading,
+  selectedModel,
+  onSelectModel,
+  selectedLucidMode = LUCID_MODES[0],
+  onSelectLucidMode,
+}: ChatInputBarProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<"combo" | "single">("combo");
   const [modelSearchQuery, setModelSearchQuery] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -272,6 +283,18 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const handleSelectSlashCommand = (cmdItem: typeof SLASH_COMMANDS[0]) => {
+    playClickSound();
+    setInput(cmdItem.template);
+    if (cmdItem.enableWeb) {
+      setIsWebSearchEnabled(true);
+    }
+    setIsSlashOpen(false);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
@@ -281,6 +304,38 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
     setInput("");
     setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+  };
+
+  const handleSelectCombo = (mode: LucidMode) => {
+    playClickSound();
+    if (onSelectLucidMode) {
+      onSelectLucidMode(mode);
+    }
+    if (mode.defaultModelId) {
+      const targetModel = DEFAULT_MODELS.find((m) => m.id === mode.defaultModelId);
+      if (targetModel) {
+        onSelectModel(targetModel);
+      }
+    }
+    if (mode.forceWebSearch) {
+      setIsWebSearchEnabled(true);
+    }
+    setIsModelOpen(false);
+  };
+
+  const renderModeIcon = (iconName: string) => {
+    switch (iconName) {
+      case "Code2":
+        return <Code2 className="w-4 h-4" />;
+      case "Globe":
+        return <Globe className="w-4 h-4" />;
+      case "Brain":
+        return <Brain className="w-4 h-4" />;
+      case "PenTool":
+        return <PenTool className="w-4 h-4" />;
+      default:
+        return <Sparkles className="w-4 h-4" />;
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -299,11 +354,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
         e.preventDefault();
         const selectedCmd = filteredSlashCommands[slashSelectedIndex] || filteredSlashCommands[0];
         if (selectedCmd) {
-          playClickSound();
-          setInput(selectedCmd.template);
-          if (selectedCmd.enableWeb) setIsWebSearchEnabled(true);
-          setIsSlashOpen(false);
-          textareaRef.current?.focus();
+          handleSelectSlashCommand(selectedCmd);
           return;
         }
       }
@@ -320,12 +371,12 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-full max-w-4xl mx-auto px-2 md:px-4">
       {/* Quick Slash Commands Menu — opens upward with real-time filtering & arrow navigation */}
-      {isSlashOpen && (
+      {isSlashOpen && filteredSlashCommands.length > 0 && (
         <div
           ref={slashRef}
-          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated py-2 z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-72 overflow-y-auto shadow-2xl"
+          className="absolute bottom-full left-4 right-4 mb-2 liquid-glass-elevated py-2 z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-72 overflow-y-auto shadow-2xl"
           style={{ borderRadius: "20px" }}
         >
           <div className="flex items-center justify-between px-4 py-1.5 pb-2 text-[10px] font-semibold text-white/50 tracking-wider uppercase">
@@ -339,61 +390,52 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
             </button>
           </div>
           <div className="p-1 space-y-0.5">
-            {filteredSlashCommands.length === 0 ? (
-              <div className="px-4 py-3 text-center text-xs text-white/40">
-                Tidak ada command cocok dengan &quot;/{slashQuery}&quot;
-              </div>
-            ) : (
-              filteredSlashCommands.map((item, idx) => {
-                const isSelected = idx === slashSelectedIndex;
-                return (
-                  <button
-                    key={item.cmd}
-                    type="button"
-                    onClick={() => {
-                      playClickSound();
-                      setInput(item.template);
-                      if (item.enableWeb) setIsWebSearchEnabled(true);
-                      setIsSlashOpen(false);
-                      textareaRef.current?.focus();
-                    }}
-                    onMouseEnter={() => setSlashSelectedIndex(idx)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-150 ${
-                      isSelected
-                        ? "bg-white/20 text-white shadow-sm border border-white/20"
-                        : "hover:bg-white/[0.10] text-white/80 hover:text-white"
-                    } group`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className={`px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold ${
-                        isSelected ? "bg-white/30 text-white" : "bg-white/10 text-white group-hover:bg-white/20"
-                      }`}>
-                        {item.cmd}
-                      </span>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-white/90 text-[12px]">{item.title}</span>
-                        <span className="text-[10px] text-white/40">{item.desc}</span>
-                      </div>
+            {filteredSlashCommands.map((item, idx) => {
+              const isSelected = idx === slashSelectedIndex;
+              return (
+                <button
+                  key={item.cmd}
+                  type="button"
+                  onClick={() => handleSelectSlashCommand(item)}
+                  onMouseEnter={() => setSlashSelectedIndex(idx)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-150 ${
+                    isSelected
+                      ? "bg-white/20 text-white shadow-sm border border-white/20"
+                      : "hover:bg-white/[0.10] text-white/80 hover:text-white"
+                  } group`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold ${
+                      isSelected ? "bg-white/30 text-white" : "bg-white/10 text-white group-hover:bg-white/20"
+                    }`}>
+                      {item.cmd}
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-white/90 text-[12px]">{item.title}</span>
+                      <span className="text-[10px] text-white/40">{item.desc}</span>
                     </div>
-                  </button>
-                );
-              })
-            )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Model Selector Dropdown — opens upward */}
+      {/* Model & Lucid Combo Selector Dropdown — opens upward */}
       {isModelOpen && (
         <div
           ref={dropdownRef}
-          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated z-50 animate-slide-up border border-white/[0.12] divide-y divide-white/[0.06] max-h-96 overflow-y-auto shadow-2xl"
-          style={{ borderRadius: "20px" }}
+          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated z-50 animate-slide-up border border-white/[0.14] divide-y divide-white/[0.06] max-h-[420px] overflow-y-auto shadow-2xl"
+          style={{ borderRadius: "24px" }}
         >
-          {/* Header with Search Filter Bar */}
-          <div className="p-3 border-b border-white/[0.08] space-y-2 sticky top-0 bg-[#0c0c14]/95 backdrop-blur-xl z-10">
+          {/* Header with 2 Tabs: Kiri = Model Spesifik, Kanan = Lucid Combo */}
+          <div className="p-3 border-b border-white/[0.08] space-y-3 sticky top-0 bg-[#0c0c14]/95 backdrop-blur-xl z-10">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-semibold text-white/70 tracking-wide">Pilih Model AI</span>
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold text-white tracking-wide">Pilih Model & Preset AI</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsModelOpen(false)}
@@ -402,48 +444,108 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-              <input
-                type="text"
-                value={modelSearchQuery}
-                onChange={(e) => setModelSearchQuery(e.target.value)}
-                placeholder="Cari model AI (Gemini, Kimi, GPT-4o, Claude...)..."
-                className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:border-white/30 transition-all"
-                autoFocus
-              />
-              {modelSearchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setModelSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
+
+            {/* 2 Tab Switcher */}
+            <div className="grid grid-cols-2 p-1 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setPickerTab("single")}
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  pickerTab === "single"
+                    ? "bg-white/[0.14] text-white shadow-sm font-semibold border border-white/[0.12]"
+                    : "text-white/40 hover:text-white/80"
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Model Spesifik</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickerTab("combo")}
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  pickerTab === "combo"
+                    ? "bg-gradient-to-r from-purple-500/30 to-indigo-500/30 text-white shadow-sm font-semibold border border-purple-500/40"
+                    : "text-white/40 hover:text-white/80"
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Lucid Combo</span>
+              </button>
             </div>
+
+            {/* Search Input for Single Model Tab */}
+            {pickerTab === "single" && (
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="text"
+                  value={modelSearchQuery}
+                  onChange={(e) => setModelSearchQuery(e.target.value)}
+                  placeholder="Cari model AI (Gemini, Kimi, GPT-4o, Claude, DeepSeek...)..."
+                  className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:border-white/30 transition-all"
+                  autoFocus
+                />
+                {modelSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setModelSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="py-2">
-            {CATEGORIES.every((cat) => {
-              const matched = cat.items.filter((m) => {
-                if (!modelSearchQuery.trim()) return true;
-                const q = modelSearchQuery.toLowerCase().trim();
-                return (
-                  m.display_name.toLowerCase().includes(q) ||
-                  m.id.toLowerCase().includes(q) ||
-                  m.provider.toLowerCase().includes(q) ||
-                  m.capability_tags.some((t) => t.toLowerCase().includes(q))
-                );
-              });
-              return matched.length === 0;
-            }) && modelSearchQuery.trim() ? (
-              <div className="px-4 py-6 text-center text-xs text-white/40">
-                Model AI tidak ditemukan untuk &quot;{modelSearchQuery}&quot;
+          {/* TAB 2: LUCID COMBO (ALL-IN-ONE & SPECIALIZED MODES) */}
+          {pickerTab === "combo" ? (
+            <div className="p-3 space-y-2.5">
+              <div className="px-1 text-[11px] text-white/40">
+                Mode Lucid Combo menggabungkan model AI terbaik, instruksi spesialis, dan fitur crawler otomatis.
               </div>
-            ) : (
-              CATEGORIES.map((cat) => {
-                const matchedItems = cat.items.filter((m) => {
+              <div className="space-y-2">
+                {LUCID_MODES.map((mode) => {
+                  const isSelected = selectedLucidMode?.id === mode.id;
+                  return (
+                    <div
+                      key={mode.id}
+                      onClick={() => handleSelectCombo(mode)}
+                      className={`group p-3 rounded-2xl border cursor-pointer transition-all duration-200 flex items-start justify-between gap-3 ${
+                        isSelected
+                          ? "bg-white/[0.12] border-purple-500/50 shadow-lg shadow-purple-500/10"
+                          : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.14]"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-xl bg-gradient-to-br ${mode.badgeGradient} text-white shrink-0 shadow-md`}>
+                          {renderModeIcon(mode.icon)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-semibold text-white">{mode.name}</h4>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] border border-white/[0.1] text-white/60 font-mono">
+                              {mode.subtitle}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-white/50 mt-1 leading-relaxed">{mode.description}</p>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="p-1 rounded-full bg-purple-500 text-white shrink-0 mt-0.5 shadow-md">
+                          <Check className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* TAB 1: SINGLE MODEL LIST */
+            <div className="py-2">
+              {CATEGORIES.every((cat) => {
+                const matched = cat.items.filter((m) => {
                   if (!modelSearchQuery.trim()) return true;
                   const q = modelSearchQuery.toLowerCase().trim();
                   return (
@@ -453,53 +555,71 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
                     m.capability_tags.some((t) => t.toLowerCase().includes(q))
                   );
                 });
+                return matched.length === 0;
+              }) && modelSearchQuery.trim() ? (
+                <div className="px-4 py-6 text-center text-xs text-white/40">
+                  Model AI tidak ditemukan untuk &quot;{modelSearchQuery}&quot;
+                </div>
+              ) : (
+                CATEGORIES.map((cat) => {
+                  const matchedItems = cat.items.filter((m) => {
+                    if (!modelSearchQuery.trim()) return true;
+                    const q = modelSearchQuery.toLowerCase().trim();
+                    return (
+                      m.display_name.toLowerCase().includes(q) ||
+                      m.id.toLowerCase().includes(q) ||
+                      m.provider.toLowerCase().includes(q) ||
+                      m.capability_tags.some((t) => t.toLowerCase().includes(q))
+                    );
+                  });
 
-                if (matchedItems.length === 0) return null;
-                const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
+                  if (matchedItems.length === 0) return null;
+                  const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
 
-                return (
-                  <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
-                    <div className="px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
-                      <Icon className="w-3 h-3" />
-                      <span>{cat.title}</span>
-                    </div>
-                    <div className="space-y-0.5 px-2">
-                      {matchedItems.map((m) => {
-                        const isSelected = m.id === selectedModel.id;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              onSelectModel(m);
-                              setIsModelOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 ${
-                              isSelected
-                                ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
-                                : "text-white/65 hover:text-white hover:bg-white/[0.06]"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {isSelected && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] shrink-0" />
+                  return (
+                    <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
+                      <div className="px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
+                        <Icon className="w-3 h-3" />
+                        <span>{cat.title}</span>
+                      </div>
+                      <div className="space-y-0.5 px-2">
+                        {matchedItems.map((m) => {
+                          const isSelected = m.id === selectedModel.id && pickerTab === "single";
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                onSelectModel(m);
+                                setIsModelOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 ${
+                                isSelected
+                                  ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
+                                  : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                {isSelected && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] shrink-0" />
+                                )}
+                                <span className="truncate">{m.display_name}</span>
+                              </div>
+                              {m.is_free && (
+                                <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 border border-white/[0.06] ml-2 shrink-0">
+                                  Free
+                                </span>
                               )}
-                              <span className="truncate">{m.display_name}</span>
-                            </div>
-                            {m.is_free && (
-                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 border border-white/[0.06] ml-2 shrink-0">
-                                Free
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -575,7 +695,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
           />
         </div>
 
-        {/* Bottom Action Row: Attach + Voice + Model Selector + Prompt Enhancer + Send */}
+        {/* Bottom Action Row: Attach + Voice + Prompt Enhancer + Web Search + Model Selector + Send */}
         <div className="flex items-center justify-between px-3 pb-2.5 pt-0.5 relative z-10">
           <div className="flex items-center gap-1.5">
             {/* Attachment Button */}
@@ -634,15 +754,15 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
               <span className="hidden sm:inline">Cari Web</span>
             </button>
 
-            {/* Model Selector Chip */}
+            {/* Unified Model & Lucid Combo Trigger Chip */}
             <button
               type="button"
               onClick={() => setIsModelOpen(!isModelOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-xs text-white/60 hover:text-white/80 transition-all duration-200 ml-1"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-xs text-white transition-all duration-200 ml-1 shadow-sm"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
-              <span className="max-w-[150px] md:max-w-[180px] truncate font-medium text-[11px]">
-                {selectedModel.display_name}
+              <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${selectedLucidMode?.badgeGradient || "from-purple-500 to-indigo-500"} shadow-[0_0_8px_rgba(168,85,247,0.7)]`} />
+              <span className="max-w-[140px] md:max-w-[180px] truncate font-medium text-[11px]">
+                {selectedLucidMode && selectedLucidMode.name !== "Lucid All-in-One" ? selectedLucidMode.name : selectedModel.display_name}
               </span>
               <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 ${isModelOpen ? "rotate-180" : ""}`} />
             </button>
