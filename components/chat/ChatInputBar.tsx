@@ -89,8 +89,8 @@ interface ChatInputBarProps {
   isLoading?: boolean;
   selectedModel: ModelItem;
   onSelectModel: (model: ModelItem) => void;
-  selectedLucidMode?: LucidMode;
-  onSelectLucidMode?: (mode: LucidMode) => void;
+  selectedLucidMode?: LucidMode | null;
+  onSelectLucidMode?: (mode: LucidMode | null) => void;
 }
 
 export function ChatInputBar({
@@ -98,7 +98,7 @@ export function ChatInputBar({
   isLoading,
   selectedModel,
   onSelectModel,
-  selectedLucidMode = LUCID_MODES[0],
+  selectedLucidMode = null,
   onSelectLucidMode,
 }: ChatInputBarProps) {
   const [input, setInput] = useState("");
@@ -487,7 +487,7 @@ export function ChatInputBar({
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 {LUCID_MODES.map((mode) => {
-                  const isSelected = selectedLucidMode?.id === mode.id && mode.id !== "lucid-all-in-one";
+                  const isSelected = selectedLucidMode?.id === mode.id;
                   return (
                     <div
                       key={mode.id}
@@ -565,7 +565,7 @@ export function ChatInputBar({
                       </div>
                       <div className="space-y-0.5 px-2">
                         {matchedItems.map((m) => {
-                          const isSelected = m.id === selectedModel.id && (pickerTab === "single" || selectedLucidMode?.id === "lucid-all-in-one");
+                          const isSelected = !selectedLucidMode && m.id === selectedModel.id;
                           return (
                             <button
                               key={m.id}
@@ -573,7 +573,7 @@ export function ChatInputBar({
                               onClick={() => {
                                 onSelectModel(m);
                                 if (onSelectLucidMode) {
-                                  onSelectLucidMode(LUCID_MODES[0]);
+                                  onSelectLucidMode(null);
                                 }
                                 if (wasAutoWebSearchRef.current) {
                                   setIsWebSearchEnabled(false);
@@ -741,7 +741,7 @@ export function ChatInputBar({
             >
               <span className="w-1.5 h-1.5 rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.5)] shrink-0" />
               <span className="truncate font-medium text-[10px] sm:text-[11px]">
-                {selectedLucidMode && selectedLucidMode.id !== "lucid-all-in-one" ? selectedLucidMode.name : selectedModel.display_name}
+                {selectedLucidMode ? selectedLucidMode.name : selectedModel.display_name}
               </span>
               <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 shrink-0 ${isModelOpen ? "rotate-180" : ""}`} />
             </button>

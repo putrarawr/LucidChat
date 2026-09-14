@@ -45,8 +45,18 @@ export async function POST(req: NextRequest) {
 
     // Combine system instructions with custom Lucid Mode guidelines if provided
     let finalSystemPrompt = getDynamicSystemPrompt();
-    if (lucidMode) {
-      finalSystemPrompt += `\n\nACTIVE LUCID MODE: ${String(lucidMode).toUpperCase()}`;
+    if (lucidMode && lucidMode !== "single-model") {
+      finalSystemPrompt += `\n\n======================================================\n` +
+        `SISTEM MULTI-AI COLLABORATIVE ENSEMBLE (LUCID COMBO: ${String(lucidMode).toUpperCase()})\n` +
+        `Sistem Anda bertindak sebagai gabungan kecerdasan kolektif (Hybrid Multi-AI Engine) yang memadukan keunggulan beberapa model AI terbaik:\n` +
+        `- Gemini 3.6 Flash (Analisis konteks luas & sintesis informasi multi-perspektif)\n` +
+        `- Qwen 2.5 Coder / Groq Qwen (Arsitektur sistem, komponen HTML/CSS/JS, dan pemecahan masalah teknis)\n` +
+        `- DeepSeek R1 / Logic Engine (Penalaran langkah-demi-langkah & penalaran logika)\n` +
+        `- GPT-4o Mini / Claude (Struktur narasi, tata bahasa Indonesia presisi, dan komprehensivitas)\n\n` +
+        `INSTRUKSI KOLABORASI AI:\n` +
+        `1. Berikan jawaban terpadu yang memadukan analisis teknis mendalam, kode berkualitas tinggi, dan kejelasan bahasa.\n` +
+        `2. DILARANG memotong atau meringkas jawaban secara tidak wajar. Jawablah secara lengkap, terstruktur, dan akurat.\n` +
+        `======================================================`;
     }
     if (customSystemPrompt && customSystemPrompt.trim()) {
       finalSystemPrompt += `\n\nLucid Mode Guidelines:\n${customSystemPrompt.trim()}`;
@@ -378,8 +388,25 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Multi-Provider Fallback Chain Execution
+    let primaryModelId = modelId;
+    let primaryProvider = provider as ProviderType;
+
+    if (lucidMode === "lucid-programming") {
+      primaryModelId = "openrouter/qwen/qwen-2.5-coder-32b-instruct";
+      primaryProvider = "openrouter";
+    } else if (lucidMode === "lucid-deepsearch") {
+      primaryModelId = "groq/qwen/qwen3.6-27b";
+      primaryProvider = "groq";
+    } else if (lucidMode === "lucid-reasoning") {
+      primaryModelId = "groq/qwen/qwen3.6-27b";
+      primaryProvider = "groq";
+    } else if (lucidMode === "lucid-all-in-one") {
+      primaryModelId = "gemini/gemini-3.6-flash";
+      primaryProvider = "gemini";
+    }
+
     const candidateChain: { id: string; provider: ProviderType }[] = [
-      { id: modelId, provider: provider as ProviderType },
+      { id: primaryModelId, provider: primaryProvider },
       { id: "groq/qwen/qwen3.6-27b", provider: "groq" },
       { id: "openrouter/qwen/qwen-2.5-coder-32b-instruct", provider: "openrouter" },
       { id: "cerebras/qwen-3.8-27b", provider: "cerebras" },

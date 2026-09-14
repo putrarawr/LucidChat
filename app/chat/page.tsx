@@ -54,7 +54,7 @@ export default function ChatPage() {
   const urlChatId = params?.chatId as string | undefined;
 
   const [selectedModel, setSelectedModel] = useState<ModelItem>(DEFAULT_MODELS[0]);
-  const [selectedLucidMode, setSelectedLucidMode] = useState<LucidMode>(LUCID_MODES[0]);
+  const [selectedLucidMode, setSelectedLucidMode] = useState<LucidMode | null>(LUCID_MODES[0]);
 
   // Arena Mode (Side-by-Side Model Comparison)
   const [isArenaMode, setIsArenaMode] = useState(false);
@@ -410,10 +410,10 @@ export default function ChatPage() {
             messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
             modelId: model.id,
             provider: model.provider,
-            lucidMode: selectedLucidMode.id,
-            customSystemPrompt: selectedLucidMode.systemPrompt,
+            lucidMode: selectedLucidMode ? selectedLucidMode.id : "single-model",
+            customSystemPrompt: selectedLucidMode ? selectedLucidMode.systemPrompt : "",
             attachments,
-            enableWebSearch: enableWebSearch || selectedLucidMode.forceWebSearch,
+            enableWebSearch: enableWebSearch || (selectedLucidMode?.forceWebSearch ?? false),
           }),
         });
 
