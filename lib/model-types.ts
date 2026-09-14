@@ -12,20 +12,20 @@ export interface ModelItem {
 
 export const DEFAULT_MODELS: ModelItem[] = [
   {
-    id: "web-crawler-agent",
-    provider: "groq",
-    display_name: "Web Crawler Agent (Multi-Source)",
-    capability_tags: ["agentic", "multilingual", "routine"],
-    context_length: 128000,
-    is_free: true,
-    status: "active",
-  },
-  {
     id: "gemini/gemini-3.6-flash",
     provider: "gemini",
     display_name: "Gemini 3.6 Flash",
     capability_tags: ["fast", "routine", "multilingual"],
     context_length: 1048576,
+    is_free: true,
+    status: "active",
+  },
+  {
+    id: "web-crawler-agent",
+    provider: "groq",
+    display_name: "Web Crawler Agent (Multi-Source)",
+    capability_tags: ["agentic", "multilingual", "routine"],
+    context_length: 128000,
     is_free: true,
     status: "active",
   },

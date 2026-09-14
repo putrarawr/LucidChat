@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2 } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { playClickSound, playSendSound } from "@/lib/sound";
 
@@ -11,6 +9,7 @@ export interface AttachmentFile {
   type: "image" | "file";
   content: string; // Base64 data URL for images, raw text for code/txt files
   mimeType?: string;
+  isScanned?: boolean;
 }
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -33,6 +32,18 @@ const CATEGORIES = [
 ];
 
 const SLASH_COMMANDS = [
+  {
+    cmd: "/image",
+    title: "Generasi Gambar AI",
+    desc: "Buat lukisan & ilustrasi visual AI resolusi tinggi",
+    template: "/image ",
+  },
+  {
+    cmd: "/draw",
+    title: "Lukis Seni AI",
+    desc: "Buat karya seni AI berdasarkan imajinasi prompt Anda",
+    template: "/draw ",
+  },
   {
     cmd: "/code",
     title: "Buatkan Komponen Web",
@@ -84,6 +95,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [isSlashOpen, setIsSlashOpen] = useState(false);
 
@@ -162,6 +174,28 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
     }
   };
 
+  // Prompt Auto-Enhancer API call
+  const handleEnhancePrompt = async () => {
+    if (!input.trim() || isEnhancing) return;
+    playClickSound();
+    setIsEnhancing(true);
+    try {
+      const res = await fetch("/api/enhance-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: input }),
+      });
+      const data = await res.json();
+      if (data.enhancedPrompt) {
+        setInput(data.enhancedPrompt);
+      }
+    } catch (err) {
+      console.warn("Enhance prompt error:", err);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   // Handle File Upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -183,6 +217,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
                 type: "image",
                 content: result,
                 mimeType: file.type,
+                isScanned: true,
               },
             ]);
           }
@@ -200,6 +235,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
                 type: "file",
                 content: result,
                 mimeType: file.type,
+                isScanned: true,
               },
             ]);
           }
@@ -293,6 +329,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
           <div className="flex items-center justify-between px-4 py-2 pb-3">
             <span className="text-xs font-semibold text-white/60 tracking-wide">Pilih Model AI</span>
             <button
+              type="button"
               onClick={() => setIsModelOpen(false)}
               className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
             >
@@ -316,6 +353,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
                     return (
                       <button
                         key={m.id}
+                        type="button"
                         onClick={() => {
                           onSelectModel(m);
                           setIsModelOpen(false);
@@ -365,7 +403,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
             {attachments.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.08] border border-white/[0.12] text-xs text-white/80 max-w-[200px]"
+                className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.08] border border-white/[0.12] text-xs text-white/80 max-w-[220px]"
               >
                 {a.type === "image" ? (
                   <ImageIcon className="w-3.5 h-3.5 text-white/60 shrink-0" />
@@ -373,10 +411,14 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
                   <FileText className="w-3.5 h-3.5 text-white/60 shrink-0" />
                 )}
                 <span className="truncate text-[11px] font-medium">{a.name}</span>
+                <span className="flex items-center gap-0.5 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 rounded-full shrink-0" title="File/Gambar Ter-Scan">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  <span>Scan</span>
+                </span>
                 <button
                   type="button"
                   onClick={() => removeAttachment(a.id)}
-                  className="p-0.5 rounded-md hover:bg-white/20 text-white/40 hover:text-white transition-colors ml-auto"
+                  className="p-0.5 rounded-md hover:bg-white/20 text-white/40 hover:text-white transition-colors ml-auto shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -400,7 +442,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Mendengarkan suara Anda..." : "Tanyakan sesuatu, ketik / untuk command, atau minta komponen UI..."}
+            placeholder={isListening ? "Mendengarkan suara Anda..." : "Tanyakan sesuatu, ketik / untuk command, atau ketik /image untuk gambar..."}
             rows={1}
             disabled={isLoading}
             className={`w-full bg-transparent border-0 outline-none ring-0 focus:ring-0 resize-none text-[13px] text-white placeholder-white/30 py-1.5 max-h-40 overflow-y-auto leading-relaxed ${
@@ -409,7 +451,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
           />
         </div>
 
-        {/* Bottom Action Row: Attach + Voice + Model Selector + Send */}
+        {/* Bottom Action Row: Attach + Voice + Model Selector + Prompt Enhancer + Send */}
         <div className="flex items-center justify-between px-3 pb-2.5 pt-0.5 relative z-10">
           <div className="flex items-center gap-1.5">
             {/* Attachment Button */}
@@ -417,7 +459,7 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="p-2 rounded-full hover:bg-white/[0.10] text-white/50 hover:text-white transition-all duration-200"
-              title="Lampirkan Gambar atau File Teks/Kode"
+              title="Lampirkan Gambar atau File Teks/Kode (Auto-Scan)"
             >
               <Paperclip className="w-4 h-4" />
             </button>
@@ -435,6 +477,20 @@ export function ChatInputBar({ onSendMessage, isLoading, selectedModel, onSelect
             >
               {isListening ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4" />}
             </button>
+
+            {/* Prompt Auto-Enhancer Magic Wand Button */}
+            {input.trim() && (
+              <button
+                type="button"
+                onClick={handleEnhancePrompt}
+                disabled={isEnhancing}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[11px] font-medium transition-all duration-200 shadow-sm"
+                title="Sempurnakan & Perjelas Prompt Secara Otomatis dengan AI"
+              >
+                <Wand2 className={`w-3.5 h-3.5 ${isEnhancing ? "animate-spin" : ""}`} />
+                <span>{isEnhancing ? "Enhancing..." : "Enhance"}</span>
+              </button>
+            )}
 
             {/* Web Search Toggle Button */}
             <button

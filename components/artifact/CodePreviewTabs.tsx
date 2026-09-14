@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Code, Eye, X, Copy, Check, Monitor, Tablet, Smartphone, Maximize2, Minimize2, WrapText } from "lucide-react";
+import { Code, Eye, X, Copy, Check, Monitor, Tablet, Smartphone, Maximize2, Minimize2, WrapText, Download, Loader2 } from "lucide-react";
+import JSZip from "jszip";
 import { SandboxedFrame } from "./SandboxedFrame";
 
 interface CodePreviewTabsProps {
@@ -21,11 +22,63 @@ export function CodePreviewTabs({
   const [viewportMode, setViewportMode] = useState<"full" | "desktop" | "tablet" | "mobile">("full");
   const [wordWrap, setWordWrap] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(codeContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadZip = async () => {
+    try {
+      setDownloadingZip(true);
+      const zip = new JSZip();
+
+      let css = "";
+      let js = "";
+
+      const styleMatches = [...codeContent.matchAll(/<style[\s\S]*?>([\s\S]*?)<\/style>/gi)];
+      if (styleMatches.length > 0) {
+        css = styleMatches.map((m) => m[1].trim()).join("\n\n");
+      }
+
+      const scriptMatches = [...codeContent.matchAll(/<script(?![^>]*\bsrc=)[\s\S]*?>([\s\S]*?)<\/script>/gi)];
+      if (scriptMatches.length > 0) {
+        js = scriptMatches.map((m) => m[1].trim()).join("\n\n");
+      }
+
+      if (css || js) {
+        let cleanHtml = codeContent;
+        if (css) {
+          cleanHtml = cleanHtml.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '<link rel="stylesheet" href="styles.css" />');
+          zip.file("styles.css", css);
+        }
+        if (js) {
+          cleanHtml = cleanHtml.replace(/<script(?![^>]*\bsrc=)[\s\S]*?>[\s\S]*?<\/script>/gi, '<script src="script.js"></script>');
+          zip.file("script.js", js);
+        }
+        zip.file("index.html", cleanHtml);
+      } else {
+        zip.file("index.html", codeContent);
+      }
+
+      zip.file("README.md", "# LucidChat Exported Web Project\n\nDouble-click `index.html` to view in browser.");
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lucidchat-project-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate zip project:", err);
+    } finally {
+      setDownloadingZip(false);
+    }
   };
 
   return (
@@ -100,7 +153,7 @@ export function CodePreviewTabs({
           </div>
         )}
 
-        {/* Right: Actions (Copy, Word Wrap, Maximize, Close) */}
+        {/* Right: Actions (Copy, Download ZIP, Word Wrap, Maximize, Close) */}
         <div className="flex items-center gap-1 sm:gap-1.5">
           {activeTab === "code" && (
             <button
@@ -116,6 +169,16 @@ export function CodePreviewTabs({
               <span className="hidden sm:inline">Wrap</span>
             </button>
           )}
+
+          <button
+            onClick={handleDownloadZip}
+            disabled={downloadingZip}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-purple-300 hover:text-purple-100 bg-purple-500/10 hover:bg-purple-500/20 rounded-xl border border-purple-500/20 transition-all disabled:opacity-50"
+            title="Download Full Project (.ZIP)"
+          >
+            {downloadingZip ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Export ZIP</span>
+          </button>
 
           <button
             onClick={handleCopy}

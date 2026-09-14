@@ -5,6 +5,7 @@ import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw, 
 import { AttachmentFile } from "./ChatInputBar";
 import { playClickSound } from "@/lib/sound";
 import { MermaidDiagram } from "@/components/artifact/MermaidDiagram";
+import { ImageArtifact } from "@/components/artifact/ImageArtifact";
 
 export interface MessageStats {
   ttftMs?: number;
@@ -377,6 +378,20 @@ function ParsedMessageContent({
         }
 
         if (!part.trim()) return null;
+
+        // Check if text segment contains an AI generated image tag
+        const imageMatch = part.match(/!\[.*?\]\((https:\/\/image\.pollinations\.ai\/prompt\/.*?)\)/);
+        if (imageMatch && imageMatch[1]) {
+          const rawPrompt = imageMatch[1].split('/prompt/')[1]?.split('?')[0] || "";
+          const decodedPrompt = decodeURIComponent(rawPrompt);
+          const remainingText = part.replace(/!\[.*?\]\(https:\/\/image\.pollinations\.ai\/prompt\/.*?\)/g, "").trim();
+          return (
+            <div key={index} className="space-y-2">
+              {remainingText && <FormattedTextSegment text={remainingText} />}
+              <ImageArtifact prompt={decodedPrompt || "AI Generated Artwork"} imageUrl={imageMatch[1]} />
+            </div>
+          );
+        }
 
         return (
           <FormattedTextSegment key={index} text={part} />

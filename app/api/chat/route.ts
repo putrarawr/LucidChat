@@ -53,6 +53,25 @@ export async function POST(req: NextRequest) {
     const lastUserMsgObj = messages[messages.length - 1] || { content: "" };
     let lastUserMessage = lastUserMsgObj.content || "";
 
+    // 1.2 Instant AI Image Generation Handler (/image, /draw)
+    if (/^\/(image|draw)/i.test(lastUserMessage.trim())) {
+      const promptText = lastUserMessage.trim().replace(/^\/(image|draw)\s*/i, "").trim() || "lukisan karya seni digital pemandangan indah masa depan 8k";
+      const cleanPrompt = encodeURIComponent(promptText);
+      const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true`;
+      const imageMarkdown = `Berikut adalah karya gambar AI hasil generasi untuk prompt **"${promptText}"**:\n\n![AI Generated Image](${imageUrl})`;
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: imageMarkdown })}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    }
+
     // 1.5 Real-Time Web Search & Multi-Source News Crawling Integration
     const isWebCrawlerAgent = modelId === "web-crawler-agent";
     const shouldSearchWeb = enableWebSearch || isWebCrawlerAgent || /(berita|terbaru|terkini|skor|jadwal|harga|cuaca|news|hari ini|siapa|apa itu|cari|informasi|update|kondisi)/i.test(lastUserMessage);
