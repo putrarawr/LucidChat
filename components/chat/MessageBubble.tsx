@@ -189,13 +189,13 @@ function parseInlineMarkdown(text: string) {
     if (citationMatch) {
       const num = citationMatch[1];
       return (
-        <sup
+        <span
           key={index}
-          className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 rounded-md bg-white/10 hover:bg-white/20 text-[10px] font-semibold text-white/90 border border-white/15 select-none transition-all cursor-pointer"
+          className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 mx-0.5 rounded-full bg-white/15 hover:bg-white/30 text-[10px] font-bold font-mono text-white border border-white/25 select-none transition-all align-middle shadow-xs cursor-pointer text-center"
           title={`Sumber Referensi Berita #${num}`}
         >
           {num}
-        </sup>
+        </span>
       );
     }
 
@@ -282,31 +282,29 @@ function FormattedTextSegment({ text }: { text: string }) {
   return (
     <div className="space-y-1">
       {lines.map((line, lineIndex) => {
-        if (line.startsWith("### ")) {
+        const trimmed = line.trim();
+        const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+
+        if (headingMatch) {
+          const level = headingMatch[1].length;
+          const headingText = headingMatch[2];
+
+          let fontClass = "text-sm font-bold text-white mt-3 mb-1 tracking-tight";
+          if (level === 1) fontClass = "text-lg font-bold text-white mt-4 mb-2 tracking-tight";
+          if (level === 2) fontClass = "text-base font-bold text-white mt-3.5 mb-1.5 tracking-tight";
+          if (level === 3) fontClass = "text-sm font-bold text-white mt-3 mb-1 tracking-tight";
+          if (level >= 4) fontClass = "text-xs font-semibold text-white/90 mt-2.5 mb-1 tracking-wider";
+
           return (
-            <h4 key={lineIndex} className="text-sm font-bold text-white mt-3 mb-1 tracking-tight">
-              {parseInlineMarkdown(line.slice(4))}
-            </h4>
-          );
-        }
-        if (line.startsWith("## ")) {
-          return (
-            <h3 key={lineIndex} className="text-base font-bold text-white mt-3 mb-1 tracking-tight">
-              {parseInlineMarkdown(line.slice(3))}
-            </h3>
-          );
-        }
-        if (line.startsWith("# ")) {
-          return (
-            <h2 key={lineIndex} className="text-lg font-bold text-white mt-3 mb-1 tracking-tight">
-              {parseInlineMarkdown(line.slice(2))}
-            </h2>
+            <div key={lineIndex} className={fontClass}>
+              {parseInlineMarkdown(headingText)}
+            </div>
           );
         }
 
-        const isBullet = line.trim().startsWith("* ") || line.trim().startsWith("- ");
+        const isBullet = trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ");
         if (isBullet) {
-          const bulletText = line.trim().slice(2);
+          const bulletText = trimmed.replace(/^[*•-]\s+/, "");
           return (
             <div key={lineIndex} className="flex items-start gap-2 pl-2 my-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0 mt-2" />
@@ -317,7 +315,7 @@ function FormattedTextSegment({ text }: { text: string }) {
           );
         }
 
-        if (!line.trim()) {
+        if (!trimmed) {
           return <div key={lineIndex} className="h-1.5" />;
         }
 
