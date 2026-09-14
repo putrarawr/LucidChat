@@ -651,14 +651,7 @@ export default function ChatPage() {
                 )}
               </button>
 
-              {/* Lucid Mode Display Pill */}
-              <div
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] text-white/90 shadow-sm"
-                title={`Mode Lucid Aktif: ${selectedLucidMode.name}`}
-              >
-                <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${selectedLucidMode.badgeGradient} shadow-[0_0_8px_rgba(168,85,247,0.7)]`} />
-                <span className="truncate max-w-[150px] font-semibold text-white">{selectedLucidMode.name}</span>
-              </div>
+
 
               {/* Arena Mode Toggle Pill */}
               <button

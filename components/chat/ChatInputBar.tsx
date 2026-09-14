@@ -426,14 +426,13 @@ export function ChatInputBar({
       {isModelOpen && (
         <div
           ref={dropdownRef}
-          className="absolute bottom-full left-0 right-0 mb-2 liquid-glass-elevated z-50 animate-slide-up border border-white/[0.14] divide-y divide-white/[0.06] max-h-[420px] overflow-y-auto shadow-2xl"
-          style={{ borderRadius: "24px" }}
+          className="absolute bottom-full left-0 right-0 mb-2 bg-[#121216] border border-white/15 divide-y divide-white/10 max-h-[420px] overflow-y-auto shadow-2xl rounded-2xl z-50 animate-slide-up"
         >
           {/* Header with 2 Tabs: Kiri = Model Spesifik, Kanan = Lucid Combo */}
-          <div className="p-3 border-b border-white/[0.08] space-y-3 sticky top-0 bg-[#0c0c14]/95 backdrop-blur-xl z-10">
+          <div className="p-3 border-b border-white/10 space-y-3 sticky top-0 bg-[#121216] backdrop-blur-xl z-10">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-purple-400" />
+                <Layers className="w-4 h-4 text-white/80" />
                 <span className="text-xs font-semibold text-white tracking-wide">Pilih Model & Preset AI</span>
               </div>
               <button
@@ -446,17 +445,17 @@ export function ChatInputBar({
             </div>
 
             {/* 2 Tab Switcher */}
-            <div className="grid grid-cols-2 p-1 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs font-medium">
+            <div className="grid grid-cols-2 p-1 rounded-xl bg-white/[0.05] border border-white/10 text-xs font-medium">
               <button
                 type="button"
                 onClick={() => setPickerTab("single")}
                 className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                   pickerTab === "single"
-                    ? "bg-white/[0.14] text-white shadow-sm font-semibold border border-white/[0.12]"
+                    ? "bg-white/20 text-white shadow-sm font-semibold border border-white/20"
                     : "text-white/40 hover:text-white/80"
                 }`}
               >
-                <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                <Cpu className="w-3.5 h-3.5 text-white/80" />
                 <span>Model Spesifik</span>
               </button>
               <button
@@ -464,11 +463,11 @@ export function ChatInputBar({
                 onClick={() => setPickerTab("combo")}
                 className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                   pickerTab === "combo"
-                    ? "bg-gradient-to-r from-purple-500/30 to-indigo-500/30 text-white shadow-sm font-semibold border border-purple-500/40"
+                    ? "bg-white/20 text-white shadow-sm font-semibold border border-white/20"
                     : "text-white/40 hover:text-white/80"
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <Sparkles className="w-3.5 h-3.5 text-white/80" />
                 <span>Lucid Combo</span>
               </button>
             </div>
@@ -482,7 +481,7 @@ export function ChatInputBar({
                   value={modelSearchQuery}
                   onChange={(e) => setModelSearchQuery(e.target.value)}
                   placeholder="Cari model AI (Gemini, Kimi, GPT-4o, Claude, DeepSeek...)..."
-                  className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:border-white/30 transition-all"
+                  className="w-full bg-white/[0.07] border border-white/15 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:border-white/30 transition-all"
                   autoFocus
                 />
                 {modelSearchQuery && (
@@ -511,20 +510,20 @@ export function ChatInputBar({
                     <div
                       key={mode.id}
                       onClick={() => handleSelectCombo(mode)}
-                      className={`group p-3 rounded-2xl border cursor-pointer transition-all duration-200 flex items-start justify-between gap-3 ${
+                      className={`group p-3 rounded-xl border cursor-pointer transition-all duration-200 flex items-start justify-between gap-3 ${
                         isSelected
-                          ? "bg-white/[0.12] border-purple-500/50 shadow-lg shadow-purple-500/10"
-                          : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.14]"
+                          ? "bg-white/15 border-white/40 shadow-md"
+                          : "bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-white/20"
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-xl bg-gradient-to-br ${mode.badgeGradient} text-white shrink-0 shadow-md`}>
+                        <div className="p-2 rounded-lg bg-white/10 border border-white/15 text-white shrink-0 shadow-sm">
                           {renderModeIcon(mode.icon)}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-xs font-semibold text-white">{mode.name}</h4>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] border border-white/[0.1] text-white/60 font-mono">
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] border border-white/10 text-white/60 font-mono">
                               {mode.subtitle}
                             </span>
                           </div>
@@ -532,7 +531,7 @@ export function ChatInputBar({
                         </div>
                       </div>
                       {isSelected && (
-                        <div className="p-1 rounded-full bg-purple-500 text-white shrink-0 mt-0.5 shadow-md">
+                        <div className="p-1 rounded-full bg-white text-black shrink-0 mt-0.5 shadow-md">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                       )}
@@ -595,7 +594,7 @@ export function ChatInputBar({
                               }}
                               className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all duration-200 ${
                                 isSelected
-                                  ? "bg-white/[0.12] text-white font-medium border border-white/[0.12] shadow-sm"
+                                  ? "bg-white/15 text-white font-medium border border-white/20 shadow-sm"
                                   : "text-white/65 hover:text-white hover:bg-white/[0.06]"
                               }`}
                             >
@@ -674,24 +673,15 @@ export function ChatInputBar({
               const val = e.target.value;
               setInput(val);
               if (val.startsWith("/")) {
-                const firstWord = val.split(" ")[0];
-                const matchingCmd = SLASH_COMMANDS.find((c) => c.cmd === firstWord);
-                if (matchingCmd && val.length > firstWord.length) {
-                  setIsSlashOpen(false);
-                } else {
-                  setIsSlashOpen(true);
-                }
+                setIsSlashOpen(true);
               } else {
                 setIsSlashOpen(false);
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Mendengarkan suara Anda..." : "Tanyakan sesuatu, ketik / untuk command, atau ketik /image untuk gambar..."}
+            placeholder="Tanyakan sesuatu atau ketik '/' untuk perintah AI..."
             rows={1}
-            disabled={isLoading}
-            className={`w-full bg-transparent border-0 outline-none ring-0 focus:ring-0 resize-none text-[13px] text-white placeholder-white/30 py-1.5 max-h-40 overflow-y-auto leading-relaxed ${
-              isListening ? "placeholder-red-400/70" : ""
-            }`}
+            className="w-full bg-transparent text-white text-sm placeholder-white/30 outline-none resize-none min-h-[38px] max-h-[160px] py-1.5 scrollbar-thin"
           />
         </div>
 
@@ -728,7 +718,7 @@ export function ChatInputBar({
                 type="button"
                 onClick={handleEnhancePrompt}
                 disabled={isEnhancing}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[11px] font-medium transition-all duration-200 shadow-sm"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 hover:bg-white/20 text-[11px] font-medium transition-all duration-200 shadow-sm"
                 title="Sempurnakan & Perjelas Prompt Secara Otomatis dengan AI"
               >
                 <Wand2 className={`w-3.5 h-3.5 ${isEnhancing ? "animate-spin" : ""}`} />
@@ -760,7 +750,7 @@ export function ChatInputBar({
               onClick={() => setIsModelOpen(!isModelOpen)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-xs text-white transition-all duration-200 ml-1 shadow-sm"
             >
-              <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${selectedLucidMode?.badgeGradient || "from-purple-500 to-indigo-500"} shadow-[0_0_8px_rgba(168,85,247,0.7)]`} />
+              <span className="w-1.5 h-1.5 rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
               <span className="max-w-[140px] md:max-w-[180px] truncate font-medium text-[11px]">
                 {selectedLucidMode && selectedLucidMode.name !== "Lucid All-in-One" ? selectedLucidMode.name : selectedModel.display_name}
               </span>

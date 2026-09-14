@@ -19,7 +19,7 @@ export const LUCID_MODES: LucidMode[] = [
     icon: "Sparkles",
     defaultModelId: "gemini/gemini-3.6-flash",
     forceWebSearch: false,
-    badgeGradient: "from-purple-500 via-indigo-500 to-cyan-400",
+    badgeGradient: "from-zinc-200 to-zinc-400 text-black",
     systemPrompt: "Anda adalah Lucid AI dalam mode All-in-One (General Hybrid). Berikan jawaban yang serba bisa, cerdas, ramah, dan solutif.",
   },
   {
@@ -30,7 +30,7 @@ export const LUCID_MODES: LucidMode[] = [
     icon: "Code2",
     defaultModelId: "openrouter/qwen/qwen-2.5-coder-32b-instruct",
     forceWebSearch: false,
-    badgeGradient: "from-emerald-400 via-teal-500 to-cyan-500",
+    badgeGradient: "from-zinc-100 to-zinc-300 text-black",
     systemPrompt: `Anda adalah Lucid AI dalam mode Lucid Programming. Spesialisasi Anda adalah Software Architecture, Web Development, dan Code Debugging.
     ATURAN KODE UNTUK WEB:
     1. Jika diminta membuat komponen web atau landing page, gabungkan SEMUA HTML, CSS, dan JS ke dalam SATU blok kode \`\`\`html lengkap.
@@ -44,7 +44,7 @@ export const LUCID_MODES: LucidMode[] = [
     icon: "Globe",
     defaultModelId: "web-crawler-agent",
     forceWebSearch: true,
-    badgeGradient: "from-blue-500 via-indigo-500 to-violet-500",
+    badgeGradient: "from-zinc-300 to-zinc-500 text-black",
     systemPrompt: `Anda adalah Lucid AI dalam mode DeepSearch. Spesialisasi Anda adalah Riset Mendalam Real-Time & Sintesis Berita Multi-Sumber.
     ATURAN RISET:
     1. Gunakan hasil pencarian web real-time untuk memberikan jawaban factual terbaru.
@@ -58,7 +58,7 @@ export const LUCID_MODES: LucidMode[] = [
     icon: "Brain",
     defaultModelId: "deepseek/deepseek-reasoner",
     forceWebSearch: false,
-    badgeGradient: "from-amber-400 via-orange-500 to-rose-500",
+    badgeGradient: "from-zinc-400 to-zinc-600 text-white",
     systemPrompt: `Anda adalah Lucid AI dalam mode Lucid Reasoning. Spesialisasi Anda adalah Penalaran Logika Mendalam, Matematika, dan Problem Solving Kompleks.
     1. Uraikan pemikiran langkah-demi-langkah (step-by-step reasoning) dengan sangat rinci.
     2. Gunakan notasi matematis dan bukti logis yang ketat.`,
@@ -71,7 +71,7 @@ export const LUCID_MODES: LucidMode[] = [
     icon: "PenTool",
     defaultModelId: "openai/gpt-4o-mini",
     forceWebSearch: false,
-    badgeGradient: "from-pink-500 via-rose-500 to-amber-500",
+    badgeGradient: "from-zinc-200 to-zinc-400 text-black",
     systemPrompt: `Anda adalah Lucid AI dalam mode Lucid Creative. Spesialisasi Anda adalah Penulisan Kreatif, Copywriting Pemasaran, dan Storytelling.
     1. Gunakan bahasa yang persuasif, kaya kosakata, dan menggugah emosi.
     2. Berikan berbagai sudut pandang ideasi kreatif untuk membantu pengguna.`,
