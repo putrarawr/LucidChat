@@ -9,7 +9,8 @@ import { ChatInputBar, AttachmentFile } from "@/components/chat/ChatInputBar";
 import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
-import { X, Swords, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { SettingsModal } from "@/components/settings/SettingsModal";
+import { X, Swords, PanelLeftOpen, PanelLeftClose, Settings } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
@@ -73,6 +74,8 @@ export default function ChatPage() {
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [userName, setUserName] = useState<string | undefined>();
   const [userAvatar, setUserAvatar] = useState<string | undefined>();
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string | undefined>();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Resizable split panel states
@@ -411,7 +414,7 @@ export default function ChatPage() {
             modelId: model.id,
             provider: model.provider,
             lucidMode: selectedLucidMode ? selectedLucidMode.id : "single-model",
-            customSystemPrompt: selectedLucidMode ? selectedLucidMode.systemPrompt : "",
+            customSystemPrompt: [selectedLucidMode?.systemPrompt, customSystemPrompt].filter(Boolean).join("\n\n"),
             attachments,
             enableWebSearch: enableWebSearch || (selectedLucidMode?.forceWebSearch ?? false),
           }),
@@ -601,6 +604,7 @@ export default function ChatPage() {
           onPinSession={handlePinSession}
           onRenameSession={handleRenameSession}
           onExportSession={handleExportSession}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           onLogout={handleLogout}
           userEmail={userEmail}
           userName={userName}
@@ -651,7 +655,19 @@ export default function ChatPage() {
                 )}
               </button>
 
-
+              {/* Settings Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  setIsSettingsOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-white/70 hover:text-white text-[11px] font-medium transition-all shadow-sm"
+                title="Pengaturan Aplikasi & Profil"
+              >
+                <Settings className="w-3.5 h-3.5 text-white/60" />
+                <span className="hidden sm:inline">Pengaturan</span>
+              </button>
 
               {/* Arena Mode Toggle Pill */}
               <button
@@ -872,7 +888,17 @@ export default function ChatPage() {
         )}
       </div>
 
-
+      {/* Settings Modal Component */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        userName={userName}
+        onUpdateUserName={setUserName}
+        userAvatar={userAvatar}
+        onUpdateUserAvatar={setUserAvatar}
+        customSystemPrompt={customSystemPrompt}
+        onUpdateCustomSystemPrompt={setCustomSystemPrompt}
+      />
     </div>
   );
 }

@@ -38,9 +38,15 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", unlockAudio, { passive: true });
 }
 
+export function isSoundEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem("lucidchat_sound_enabled") !== "false";
+}
+
 /** Satisfying tactile click sound for UI buttons */
 export function playClickSound() {
   try {
+    if (!isSoundEnabled()) return;
     const ctx = initAudioContext();
     if (!ctx) return;
 
@@ -67,6 +73,7 @@ export function playClickSound() {
 /** Futuristic soft swoop sound when sending a message */
 export function playSendSound() {
   try {
+    if (!isSoundEnabled()) return;
     const ctx = initAudioContext();
     if (!ctx) return;
 
@@ -93,6 +100,7 @@ export function playSendSound() {
 /** Gentle glass chime sound when AI generation finishes or preview opens */
 export function playSuccessSound() {
   try {
+    if (!isSoundEnabled()) return;
     const ctx = initAudioContext();
     if (!ctx) return;
 

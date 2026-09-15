@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, Search, Pin, Pencil, Download, Check, X } from "lucide-react";
+import { Plus, MessageSquare, Trash2, LogOut, PanelLeftClose, Search, Pin, Pencil, Download, Check, X, Settings } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 
 export interface SessionItem {
@@ -22,6 +22,7 @@ interface SessionListProps {
   onPinSession?: (id: string) => void;
   onRenameSession?: (id: string, newTitle: string) => void;
   onExportSession?: (id: string) => void;
+  onOpenSettings?: () => void;
   onLogout?: () => void;
   userEmail?: string;
   userName?: string;
@@ -39,6 +40,7 @@ export function SessionList({
   onPinSession,
   onRenameSession,
   onExportSession,
+  onOpenSettings,
   onLogout,
   userEmail,
   userName,
@@ -234,15 +236,31 @@ export function SessionList({
               )}
             </div>
           </div>
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              className="p-1.5 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200 shrink-0 ml-1"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
+          <div className="flex items-center gap-1 shrink-0 ml-1">
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  onOpenSettings();
+                }}
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200"
+                title="Pengaturan Aplikasi & Profil"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="p-1.5 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </aside>
     </>
