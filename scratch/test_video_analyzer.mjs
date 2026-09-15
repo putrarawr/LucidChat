@@ -1,21 +1,40 @@
-import { detectVideoUrls, analyzeVideoUrl, formatVideoContextForAI } from "../lib/video-analyzer.ts";
+// Test fetching OpenGraph tags with Social Crawler User-Agent
+async function testSocialCrawler(url) {
+  console.log("=== Testing Social Crawler User-Agent ===", url);
+  const userAgents = [
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+    "Twitterbot/1.0",
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+  ];
 
-async function testMain() {
-  const samplePrompt = "Coba tolong jelaskan isi dan analisis video tiktok ini dong https://vt.tiktok.com/ZSN3vYpQe/ sama youtube ini https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+  for (const ua of userAgents) {
+    console.log("\nUser-Agent:", ua);
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": ua,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+        },
+      });
+      console.log("Status:", res.status);
+      const html = await res.text();
+      console.log("HTML Length:", html.length);
 
-  const detected = detectVideoUrls(samplePrompt);
-  console.log("Detected Videos:", detected);
+      const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["'](.*?)["']/i)?.[1] ||
+                      html.match(/<meta[^>]*content=["'](.*?)["'][^>]*property=["']og:image["']/i)?.[1];
+      const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["'](.*?)["']/i)?.[1] ||
+                      html.match(/<meta[^>]*content=["'](.*?)["'][^>]*property=["']og:title["']/i)?.[1];
+      const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["'](.*?)["']/i)?.[1] ||
+                     html.match(/<meta[^>]*content=["'](.*?)["'][^>]*property=["']og:description["']/i)?.[1];
 
-  const results = [];
-  for (const item of detected) {
-    console.log(`\nAnalyzing ${item.platform}: ${item.url}...`);
-    const res = await analyzeVideoUrl(item.url, item.platform);
-    results.push(res);
+      console.log("og:title:", ogTitle);
+      console.log("og:image (Portrait Thumbnail):", ogImage);
+      console.log("og:description:", ogDesc);
+    } catch (e) {
+      console.log("Error:", e.message);
+    }
   }
-
-  const formattedContext = formatVideoContextForAI(results);
-  console.log("\n================ FORMATTED SYSTEM PROMPT CONTEXT ================");
-  console.log(formattedContext);
 }
 
-testMain();
+testSocialCrawler("https://www.tiktok.com/@scout2015/video/6718335390841097477");
