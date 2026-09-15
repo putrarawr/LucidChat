@@ -816,35 +816,10 @@ export function ChatInputBar({
           />
         </div>
 
-        {/* Bottom Action Row: Attach + Voice + Prompt Enhancer + Web Search + Model Selector + Send */}
+        {/* Bottom Action Row: Controls on Left, File/Mic/HandsFree/Send on Right */}
         <div className="flex flex-wrap items-center justify-between gap-1.5 px-2.5 sm:px-3 pb-2.5 pt-0.5 relative z-10">
+          {/* Left Toolbar Items: Enhancer, Web Search, Mode Arena, Model Selector */}
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-            {/* Attachment Button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 sm:p-2 rounded-full hover:bg-white/[0.10] text-white/50 hover:text-white transition-all duration-200"
-              title="Lampirkan Gambar atau File Teks/Kode (Auto-Scan)"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
-
-            {/* Voice Input Button */}
-            <button
-              type="button"
-              onClick={handleToggleVoice}
-              className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
-                isListening
-                  ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
-                  : "hover:bg-white/[0.10] text-white/50 hover:text-white"
-              }`}
-              title={isListening ? "Hentikan perekaman suara" : "Gunakan Perekam Suara (Speech-to-Text)"}
-            >
-              {isListening ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4" />}
-            </button>
-
-
-
             {/* Prompt Auto-Enhancer Magic Wand Button */}
             {input.trim() && (
               <button
@@ -915,45 +890,72 @@ export function ChatInputBar({
             </button>
           </div>
 
-          {/* Hands-Free Voice Call Button (Placed to the left of Send/Enter) */}
-          <button
-            type="button"
-            onClick={() => {
-              playClickSound();
-              if (onToggleHandsFreeMode) {
-                onToggleHandsFreeMode();
-              }
-            }}
-            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 ${
-              isHandsFreeMode
-                ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/50 shadow-[0_0_18px_rgba(16,185,129,0.4)] animate-pulse"
-                : "bg-white/[0.06] text-white/60 border border-white/[0.08] hover:bg-white/[0.12] hover:text-white"
-            }`}
-            title={isHandsFreeMode ? "Tutup Panggilan Suara AI" : "Mulai Panggilan Suara Hands-Free"}
-          >
-            <Headphones className={`w-4 h-4 ${isHandsFreeMode ? "text-emerald-400" : ""}`} />
-          </button>
+          {/* Right Toolbar Items: File Attachment, Mic Voice Input, Hands-Free Voice Call, Send */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
+            {/* Attachment Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-white/[0.10] text-white/50 hover:text-white transition-all duration-200"
+              title="Lampirkan Gambar atau File Teks/Kode/PDF/Excel (Auto-Scan)"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
 
-          {/* Send Button */}
-          <button
-            type="submit"
-            disabled={(!input.trim() && attachments.length === 0) || isLoading}
-            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-250 shrink-0 ${
-              (input.trim() || attachments.length > 0) && !isLoading
-                ? "bg-white text-black shadow-[0_0_16px_rgba(255,255,255,0.35)] hover:shadow-[0_0_24px_rgba(255,255,255,0.45)] hover:scale-105 active:scale-95"
-                : "bg-white/[0.06] text-white/25 border border-white/[0.06] cursor-not-allowed"
-            }`}
-          >
-            {isLoading ? (
-              <div className="flex gap-0.5 items-center">
-                <span className="typing-dot" style={{ width: 3, height: 3 }} />
-                <span className="typing-dot" style={{ width: 3, height: 3 }} />
-                <span className="typing-dot" style={{ width: 3, height: 3 }} />
-              </div>
-            ) : (
-              <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-            )}
-          </button>
+            {/* Voice Input Button */}
+            <button
+              type="button"
+              onClick={handleToggleVoice}
+              className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
+                isListening
+                  ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
+                  : "hover:bg-white/[0.10] text-white/50 hover:text-white"
+              }`}
+              title={isListening ? "Hentikan perekaman suara" : "Gunakan Perekam Suara (Speech-to-Text)"}
+            >
+              {isListening ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Hands-Free Voice Call Button */}
+            <button
+              type="button"
+              onClick={() => {
+                playClickSound();
+                if (onToggleHandsFreeMode) {
+                  onToggleHandsFreeMode();
+                }
+              }}
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 ${
+                isHandsFreeMode
+                  ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/50 shadow-[0_0_18px_rgba(16,185,129,0.4)] animate-pulse"
+                  : "bg-white/[0.06] text-white/60 border border-white/[0.08] hover:bg-white/[0.12] hover:text-white"
+              }`}
+              title={isHandsFreeMode ? "Tutup Panggilan Suara AI" : "Mulai Panggilan Suara Hands-Free"}
+            >
+              <Headphones className={`w-4 h-4 ${isHandsFreeMode ? "text-emerald-400" : ""}`} />
+            </button>
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={(!input.trim() && attachments.length === 0) || isLoading}
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-250 shrink-0 ${
+                (input.trim() || attachments.length > 0) && !isLoading
+                  ? "bg-white text-black shadow-[0_0_16px_rgba(255,255,255,0.35)] hover:shadow-[0_0_24px_rgba(255,255,255,0.45)] hover:scale-105 active:scale-95"
+                  : "bg-white/[0.06] text-white/25 border border-white/[0.06] cursor-not-allowed"
+              }`}
+            >
+              {isLoading ? (
+                <div className="flex gap-0.5 items-center">
+                  <span className="typing-dot" style={{ width: 3, height: 3 }} />
+                  <span className="typing-dot" style={{ width: 3, height: 3 }} />
+                  <span className="typing-dot" style={{ width: 3, height: 3 }} />
+                </div>
+              ) : (
+                <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </div>
