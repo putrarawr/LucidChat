@@ -307,7 +307,11 @@ export function formatVideoContextForAI(results: VideoAnalysisResult[]): string 
     const v = results[idx];
     promptContext += `--- VIDEO #${idx + 1} [PLATFORM: ${v.platform.toUpperCase()}] ---\n`;
     promptContext += `URL: ${v.url}\n`;
-    if (v.thumbnail) promptContext += `URL Gambar Cover Potrait/Thumbnail: ${v.thumbnail}\n`;
+    if (v.thumbnail) {
+      // Clean thumbnail URL to prevent raw unescaped markdown breaks
+      const cleanThumb = v.thumbnail.replace(/\s+/g, "%20");
+      promptContext += `URL Gambar Cover Potrait/Thumbnail: ${cleanThumb}\n`;
+    }
     if (v.title) promptContext += `Judul / Caption Video: "${v.title}"\n`;
     if (v.author) promptContext += `Kreator / Uploader: ${v.author}\n`;
     if (v.description) promptContext += `Deskripsi Video: "${v.description}"\n`;
@@ -324,10 +328,8 @@ export function formatVideoContextForAI(results: VideoAnalysisResult[]): string 
   }
 
   promptContext += `INSTRUKSI PENTING ANALISIS VIDEO UNTUK AI (MANDATORI):\n` +
-    `1. PREVIEW GAMBAR COVER POTRAIT (WAKTU PERTAMA KALI MEMBALAS):\n` +
-    `   Jika ketersediaan "URL Gambar Cover Potrait/Thumbnail" tercantum di atas, tampilkan preview gambar cover potrait video tersebut di bagian paling atas balasan Anda dengan format markdown:\n` +
-    `   ![Cover Video](URL_THUMBNAIL)\n` +
-    `   beserta info singkat uploader dan judul VT.\n\n` +
+    `1. PREVIEW COVER & INFO VIDEO:\n` +
+    `   Jika ketersediaan URL Gambar Cover tercantum di atas, tampilkan info uploader, judul VT, dan preview cover jika memungkinkan.\n\n` +
     `2. RANGKUMAN ISI KONTEN VIDEO:\n` +
     `   Berikan penjelasan yang SANGAT JELAS, LENGKAP, dan MENDALAM tentang isi video, poin-poin percakapan, dan pesan utama yang disampaikan kreator.\n\n` +
     `3. RANGKUMAN KOMENTAR & REAKSI NETIZEN VT (MANDATORI):\n` +
