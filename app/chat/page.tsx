@@ -8,7 +8,7 @@ import { MessageBubble, Message, stripThinkTags } from "@/components/chat/Messag
 import { ChatInputBar, AttachmentFile } from "@/components/chat/ChatInputBar";
 import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
-import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
+import { LucidMode } from "@/lib/lucid-modes";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { VoiceCallModal } from "@/components/chat/VoiceCallModal";
 import { X, PanelLeftOpen, Check } from "lucide-react";

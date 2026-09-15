@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords, Headphones, Loader2 } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords, Headphones, Loader2, UploadCloud } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
@@ -173,12 +173,28 @@ export function ChatInputBar({
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [isSlashOpen, setIsSlashOpen] = useState(false);
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const slashRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const wasAutoWebSearchRef = useRef(false);
+
+  // Close attachment popover on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(e.target as Node)) {
+        setIsAttachmentMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Toggle model dropdown & ensure default open tab is always "Model Spesifik" (Tab Kiri)
   const handleToggleModelOpen = () => {
@@ -285,12 +301,11 @@ export function ChatInputBar({
     }
   };
 
-  // Handle File Upload (Supports Image, PDF, Excel .xlsx/.csv, Word .docx, Code, Text)
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  // Process File Uploads (Supports Image Base64 & PDF, Excel .xlsx/.csv, Word .docx, Code, Text Auto-Scan)
+  const processFiles = (fileList: File[]) => {
+    if (!fileList || fileList.length === 0) return;
 
-    files.forEach(async (file) => {
+    fileList.forEach(async (file) => {
       const isImage = file.type.startsWith("image/");
       const fileId = `att-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
@@ -314,7 +329,6 @@ export function ChatInputBar({
         reader.readAsDataURL(file);
       } else {
         // Document parsing (PDF, Excel, Word, Text, Code)
-        // Add loading placeholder chip
         setAttachments((prev) => [
           ...prev,
           {
@@ -356,7 +370,6 @@ export function ChatInputBar({
           }
         } catch (err: unknown) {
           console.error("Document parse error:", err);
-          // Fallback reading as text if client-side fallback works
           const reader = new FileReader();
           reader.onload = (evt) => {
             const content = evt.target?.result as string;
@@ -379,6 +392,38 @@ export function ChatInputBar({
     });
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (docInputRef.current) docInputRef.current.value = "";
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    processFiles(files);
+  };
+
+  // Drag and Drop Event Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) {
+      playClickSound();
+      processFiles(files);
+    }
   };
 
   const removeAttachment = (id: string) => {
@@ -746,14 +791,47 @@ export function ChatInputBar({
         </div>
       )}
 
-      {/* Main Input Container */}
-      <form onSubmit={handleSubmit} className="glass-input-container">
-        {/* Hidden File Input */}
+      {/* Main Input Container with Drag and Drop Support */}
+      <form
+        onSubmit={handleSubmit}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className="glass-input-container relative overflow-hidden"
+      >
+        {/* Drag and Drop Visual Overlay */}
+        {isDraggingOver && (
+          <div className="absolute inset-0 z-50 bg-[#090912]/95 backdrop-blur-md border-2 border-dashed border-emerald-400/60 rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 mb-2 animate-bounce shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+              <UploadCloud className="w-7 h-7" />
+            </div>
+            <p className="text-sm font-semibold text-white tracking-wide">Lepaskan File atau Foto di Sini</p>
+            <p className="text-xs text-white/50 mt-1">Item akan otomatis dipindai (Auto-Scan) & dianalisis oleh AI</p>
+          </div>
+        )}
+
+        {/* Hidden File Inputs for General, Image-Only, and Doc-Only */}
         <input
           ref={fileInputRef}
           type="file"
           multiple
           accept="image/*,.pdf,.xlsx,.xls,.docx,.csv,.txt,.md,.js,.ts,.tsx,.json,.py,.html,.css"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <input
+          ref={docInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.xlsx,.xls,.docx,.csv,.txt,.md,.js,.ts,.tsx,.json,.py,.html,.css"
           onChange={handleFileChange}
           className="hidden"
         />
@@ -810,7 +888,7 @@ export function ChatInputBar({
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Tanyakan sesuatu atau ketik '/' untuk perintah AI..."
+            placeholder="Tanyakan sesuatu atau ketik '/' untuk perintah AI... (Bisa drag & drop file/foto)"
             rows={1}
             className="w-full bg-transparent text-white text-sm placeholder-white/30 outline-none resize-none min-h-[38px] max-h-[160px] py-1.5 scrollbar-thin"
           />
@@ -890,17 +968,69 @@ export function ChatInputBar({
             </button>
           </div>
 
-          {/* Right Toolbar Items: File Attachment, Mic Voice Input, Hands-Free Voice Call, Send */}
+          {/* Right Toolbar Items: File Attachment Choice, Mic Voice Input, Hands-Free Voice Call, Send */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
-            {/* Attachment Button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 sm:p-2 rounded-full hover:bg-white/[0.10] text-white/50 hover:text-white transition-all duration-200"
-              title="Lampirkan Gambar atau File Teks/Kode/PDF/Excel (Auto-Scan)"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
+            {/* Attachment Button with Choice Popover (Foto vs Dokumen) */}
+            <div className="relative" ref={attachmentMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  setIsAttachmentMenuOpen((prev) => !prev);
+                }}
+                className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
+                  isAttachmentMenuOpen
+                    ? "bg-white/20 text-white border border-white/20 shadow-sm"
+                    : "hover:bg-white/[0.10] text-white/50 hover:text-white"
+                }`}
+                title="Lampirkan File atau Foto (Auto-Scan)"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+
+              {/* Attachment Popover Menu */}
+              {isAttachmentMenuOpen && (
+                <div className="absolute bottom-full right-0 mb-2 w-56 bg-[#121218] border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-slide-up flex flex-col gap-1 backdrop-blur-xl">
+                  <p className="text-[10px] font-semibold tracking-wider text-white/40 uppercase px-2 py-1">Pilih Lampiran</p>
+
+                  {/* Option 1: Foto / Gambar */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAttachmentMenuOpen(false);
+                      imageInputRef.current?.click();
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.08] transition-all text-left group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 group-hover:scale-105 transition-transform shrink-0">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-white/90 group-hover:text-white">Foto / Gambar</span>
+                      <span className="text-[9px] text-white/40">PNG, JPG, WebP, GIF</span>
+                    </div>
+                  </button>
+
+                  {/* Option 2: Dokumen & File */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAttachmentMenuOpen(false);
+                      docInputRef.current?.click();
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.08] transition-all text-left group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 group-hover:scale-105 transition-transform shrink-0">
+                      <FileText className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-white/90 group-hover:text-white">Dokumen & File</span>
+                      <span className="text-[9px] text-white/40">PDF, Excel, Word, CSV, Kode</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Voice Input Button */}
             <button
