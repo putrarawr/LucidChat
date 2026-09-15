@@ -10,7 +10,7 @@ import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { SettingsModal } from "@/components/settings/SettingsModal";
-import { X, Swords, PanelLeftOpen, PanelLeftClose, Settings, Check } from "lucide-react";
+import { X, PanelLeftOpen, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
@@ -660,8 +660,8 @@ export default function ChatPage() {
           }}
           className="flex flex-col h-full w-full relative z-10 transition-[width] duration-75 overflow-hidden"
         >
-          {/* Minimal Header Bar */}
-          <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-[#0c0c12]/90 backdrop-blur-2xl animate-entrance-header z-30">
+          {/* Minimal Clean Header Bar */}
+          <header className="h-12 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-[#0c0c12]/90 backdrop-blur-2xl animate-entrance-header z-30">
             <div className="flex items-center gap-2.5">
               {/* Sidebar Open Button (Shown only when sidebar is closed) */}
               {!isSidebarOpen && (
@@ -677,45 +677,6 @@ export default function ChatPage() {
                   <span className="text-[11px] font-medium text-white/80">Menu</span>
                 </button>
               )}
-
-              {/* Settings Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setIsSettingsOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-white/70 hover:text-white text-[11px] font-medium transition-all shadow-sm"
-                title="Pengaturan Aplikasi & Profil"
-              >
-                <Settings className="w-3.5 h-3.5 text-white/60" />
-                <span className="hidden sm:inline">Pengaturan</span>
-              </button>
-
-              {/* Arena Mode Toggle Pill */}
-              <button
-                onClick={() => {
-                  playClickSound();
-                  setIsArenaMode((prev) => {
-                    const next = !prev;
-                    if (next) {
-                      setArenaMessages([...messages]);
-                    } else {
-                      setArenaMessages([]);
-                    }
-                    return next;
-                  });
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200 ${
-                  isArenaMode
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
-                    : "bg-white/[0.05] text-white/60 hover:text-white border border-white/[0.08] hover:bg-white/[0.10]"
-                }`}
-                title={isArenaMode ? "Mode Arena Aktif (Bandingkan 2 AI Side-by-Side)" : "Aktifkan Mode Arena Bandingkan 2 AI"}
-              >
-                <Swords className={`w-3.5 h-3.5 ${isArenaMode ? "text-amber-400 animate-pulse" : "text-white/50"}`} />
-                <span>{isArenaMode ? "Mode Arena (Aktif)" : "Mode Arena"}</span>
-              </button>
             </div>
 
             {activeCodePreview && (
@@ -867,7 +828,7 @@ export default function ChatPage() {
           </div>
 
           {/* Bottom Floating Input Bar */}
-          <div className="p-4 max-w-3xl w-full mx-auto animate-entrance-input">
+          <div className={`p-4 ${isArenaMode ? "max-w-5xl" : "max-w-3xl"} w-full mx-auto animate-entrance-input`}>
             <ChatInputBar
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
@@ -875,6 +836,18 @@ export default function ChatPage() {
               onSelectModel={setSelectedModel}
               selectedLucidMode={selectedLucidMode}
               onSelectLucidMode={setSelectedLucidMode}
+              isArenaMode={isArenaMode}
+              onToggleArenaMode={() => {
+                setIsArenaMode((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setArenaMessages([...messages]);
+                  } else {
+                    setArenaMessages([]);
+                  }
+                  return next;
+                });
+              }}
             />
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
@@ -118,9 +118,9 @@ const SLASH_COMMANDS = [
   },
   {
     cmd: "/summarize",
-    title: "Rangkum Poin Utama",
-    desc: "Rangkum teks panjang menjadi poin-poin penting",
-    template: "Rangkum poin-poin utama dari teks berikut dalam Bahasa Indonesia:\n",
+    title: "Ringkas Teks & Dokumen",
+    desc: "Buat poin-poin ikhtisar penting dari dokumen panjang",
+    template: "Ringkas teks berikut menjadi poin-poin utama yang jelas dan padat:\n",
   },
   {
     cmd: "/explain",
@@ -144,6 +144,8 @@ interface ChatInputBarProps {
   onSelectModel: (model: ModelItem) => void;
   selectedLucidMode?: LucidMode | null;
   onSelectLucidMode?: (mode: LucidMode | null) => void;
+  isArenaMode?: boolean;
+  onToggleArenaMode?: () => void;
 }
 
 export function ChatInputBar({
@@ -153,6 +155,8 @@ export function ChatInputBar({
   onSelectModel,
   selectedLucidMode = null,
   onSelectLucidMode,
+  isArenaMode = false,
+  onToggleArenaMode,
 }: ChatInputBarProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
@@ -796,6 +800,26 @@ export function ChatInputBar({
               <Globe className={`w-3.5 h-3.5 ${isWebSearchEnabled ? "text-white animate-pulse" : "text-white/40"}`} />
               <span className="hidden xs:inline sm:inline">Cari Web</span>
             </button>
+
+            {/* Mode Arena Button */}
+            {onToggleArenaMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  onToggleArenaMode();
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold transition-all duration-200 ${
+                  isArenaMode
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+                    : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
+                }`}
+                title={isArenaMode ? "Mode Arena Aktif (Bandingkan 2 AI Side-by-Side)" : "Aktifkan Mode Arena Bandingkan 2 AI"}
+              >
+                <Swords className={`w-3.5 h-3.5 ${isArenaMode ? "text-amber-400 animate-pulse" : "text-white/40"}`} />
+                <span className="hidden xs:inline sm:inline">{isArenaMode ? "Mode Arena (Aktif)" : "Mode Arena"}</span>
+              </button>
+            )}
 
             {/* Unified Model & Lucid Combo Trigger Chip */}
             <button
