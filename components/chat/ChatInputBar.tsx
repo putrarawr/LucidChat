@@ -843,25 +843,7 @@ export function ChatInputBar({
               {isListening ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4" />}
             </button>
 
-            {/* Hands-free Voice Mode Toggle Button */}
-            <button
-              type="button"
-              onClick={() => {
-                playClickSound();
-                if (onToggleHandsFreeMode) {
-                  onToggleHandsFreeMode();
-                }
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold transition-all duration-200 ${
-                isHandsFreeMode
-                  ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse"
-                  : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
-              }`}
-              title={isHandsFreeMode ? "Nonaktifkan Mode Hands-Free" : "Aktifkan Mode Hands-Free (Bicara & Dengar Tanpa Ketik)"}
-            >
-              <Headphones className={`w-3.5 h-3.5 ${isHandsFreeMode ? "text-emerald-400" : "text-white/40"}`} />
-              <span className="hidden sm:inline">{isHandsFreeMode ? "Hands-Free On" : "Hands-Free"}</span>
-            </button>
+
 
             {/* Prompt Auto-Enhancer Magic Wand Button */}
             {input.trim() && (
@@ -932,6 +914,25 @@ export function ChatInputBar({
               <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 shrink-0 ${isModelOpen ? "rotate-180" : ""}`} />
             </button>
           </div>
+
+          {/* Hands-Free Voice Call Button (Placed to the left of Send/Enter) */}
+          <button
+            type="button"
+            onClick={() => {
+              playClickSound();
+              if (onToggleHandsFreeMode) {
+                onToggleHandsFreeMode();
+              }
+            }}
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 ${
+              isHandsFreeMode
+                ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/50 shadow-[0_0_18px_rgba(16,185,129,0.4)] animate-pulse"
+                : "bg-white/[0.06] text-white/60 border border-white/[0.08] hover:bg-white/[0.12] hover:text-white"
+            }`}
+            title={isHandsFreeMode ? "Tutup Panggilan Suara AI" : "Mulai Panggilan Suara Hands-Free"}
+          >
+            <Headphones className={`w-4 h-4 ${isHandsFreeMode ? "text-emerald-400" : ""}`} />
+          </button>
 
           {/* Send Button */}
           <button

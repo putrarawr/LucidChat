@@ -10,6 +10,7 @@ import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import { VoiceCallModal } from "@/components/chat/VoiceCallModal";
 import { X, PanelLeftOpen, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
@@ -79,6 +80,8 @@ export default function ChatPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
 
   // Resizable split panel states
   const [previewWidth, setPreviewWidth] = useState(50);
@@ -589,7 +592,7 @@ export default function ChatPage() {
       }
 
       // Auto-TTS for Hands-Free mode
-      if (isHandsFreeMode && finalCleanContent && typeof window !== "undefined" && window.speechSynthesis) {
+      if (isHandsFreeMode && !isSpeakerMuted && finalCleanContent && typeof window !== "undefined" && window.speechSynthesis) {
         try {
           window.speechSynthesis.cancel();
           const cleanSpeechText = finalCleanContent.replace(/```[\s\S]*?```/g, "").replace(/[*#_~`]/g, "");
@@ -915,6 +918,22 @@ export default function ChatPage() {
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 3000);
         }}
+      />
+
+      {/* Immersive Hands-Free Voice Call Screen Modal */}
+      <VoiceCallModal
+        isOpen={isHandsFreeMode}
+        onClose={() => setIsHandsFreeMode(false)}
+        selectedModel={selectedModel}
+        isListening={false}
+        isLoading={isLoading}
+        isSpeaking={typeof window !== "undefined" && window.speechSynthesis ? window.speechSynthesis.speaking : false}
+        userTranscript={messages.filter((m) => m.role === "user").slice(-1)[0]?.content || ""}
+        aiResponse={messages.filter((m) => m.role === "assistant").slice(-1)[0]?.content ? stripThinkTags(messages.filter((m) => m.role === "assistant").slice(-1)[0].content) : ""}
+        onToggleMic={() => setIsMicMuted((prev) => !prev)}
+        onToggleSpeaker={() => setIsSpeakerMuted((prev) => !prev)}
+        isMicMuted={isMicMuted}
+        isSpeakerMuted={isSpeakerMuted}
       />
 
       {/* Floating Toast Success Notification */}
