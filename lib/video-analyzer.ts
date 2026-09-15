@@ -1,5 +1,5 @@
 // Real-Time Multi-Platform Video Content & Transcript Analyzer Engine for LucidChat
-import { performWebSearch, SearchResult } from "./web-search";
+import { performWebSearch } from "./web-search";
 
 export interface VideoAnalysisResult {
   url: string;
@@ -10,6 +10,11 @@ export interface VideoAnalysisResult {
   transcript: string;
   description: string;
   additionalContext: string[];
+}
+
+interface CaptionTrack {
+  languageCode?: string;
+  baseUrl?: string;
 }
 
 // 1. Detect video URLs in user text prompt
@@ -94,8 +99,8 @@ async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisResult> {
         if (captionsMatch) {
           const tracks = JSON.parse(captionsMatch[1]);
           if (Array.isArray(tracks) && tracks.length > 0) {
-            const chosenTrack = tracks.find((t: any) => t.languageCode === "id") ||
-                                tracks.find((t: any) => t.languageCode === "en") ||
+            const chosenTrack = tracks.find((t: CaptionTrack) => t.languageCode === "id") ||
+                                tracks.find((t: CaptionTrack) => t.languageCode === "en") ||
                                 tracks[0];
             if (chosenTrack?.baseUrl) {
               const subRes = await fetch(chosenTrack.baseUrl);
@@ -233,8 +238,8 @@ async function analyzeTikTokVideo(url: string): Promise<VideoAnalysisResult> {
 // 4. Fetch details for Instagram / Twitter / General Web Videos
 async function analyzeGeneralVideo(url: string, platform: "Instagram" | "Twitter" | "WebVideo"): Promise<VideoAnalysisResult> {
   let title = "";
-  let author = "";
-  let thumbnail = "";
+  const author = "";
+  const thumbnail = "";
   let description = "";
   const additionalContext: string[] = [];
 
