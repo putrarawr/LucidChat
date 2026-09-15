@@ -149,7 +149,7 @@ export default function HeroScene() {
     pointLight.position.set(3, 3, 5);
     scene.add(pointLight);
 
-    const pointLight2 = new THREE.PointLight(0x8888ff, 0.8, 15);
+    const pointLight2 = new THREE.PointLight(0xffffff, 0.5, 15);
     pointLight2.position.set(-4, -2, 3);
     scene.add(pointLight2);
 
