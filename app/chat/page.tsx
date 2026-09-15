@@ -663,24 +663,20 @@ export default function ChatPage() {
           {/* Minimal Header Bar */}
           <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-[#0c0c12]/90 backdrop-blur-2xl animate-entrance-header z-30">
             <div className="flex items-center gap-2.5">
-              {/* Sidebar Toggle Button (Always accessible on desktop & mobile) */}
-              <button
-                onClick={() => {
-                  playClickSound();
-                  setIsSidebarOpen(!isSidebarOpen);
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-white/70 hover:text-white transition-all shadow-sm"
-                title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
-              >
-                {isSidebarOpen ? (
-                  <PanelLeftClose className="w-3.5 h-3.5 text-white/70" />
-                ) : (
+              {/* Sidebar Open Button (Shown only when sidebar is closed) */}
+              {!isSidebarOpen && (
+                <button
+                  onClick={() => {
+                    playClickSound();
+                    setIsSidebarOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-white/70 hover:text-white transition-all shadow-sm"
+                  title="Buka Sidebar"
+                >
                   <PanelLeftOpen className="w-3.5 h-3.5 text-white/70" />
-                )}
-                {!isSidebarOpen && (
                   <span className="text-[11px] font-medium text-white/80">Menu</span>
-                )}
-              </button>
+                </button>
+              )}
 
               {/* Settings Button */}
               <button
