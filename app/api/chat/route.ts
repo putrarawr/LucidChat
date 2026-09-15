@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { runGuardrail } from "@/lib/guardrail";
 import { performWebSearch } from "@/lib/web-search";
+import { detectVideoUrls, analyzeVideoUrl, formatVideoContextForAI } from "@/lib/video-analyzer";
 import { DEFAULT_MODELS } from "@/lib/model-types";
 
 function getDynamicSystemPrompt() {
@@ -83,6 +84,22 @@ export async function POST(req: NextRequest) {
       return new Response(stream, {
         headers: { "Content-Type": "text/event-stream" },
       });
+    }
+
+    // 1.4 Real-Time Video Content & Transcript Analyzer (TikTok, YouTube, Instagram, Twitter/X, Web Video)
+    const detectedVideos = detectVideoUrls(lastUserMessage);
+    if (detectedVideos.length > 0) {
+      try {
+        const videoResults = await Promise.all(
+          detectedVideos.map((v) => analyzeVideoUrl(v.url, v.platform))
+        );
+        const videoPromptContext = formatVideoContextForAI(videoResults);
+        if (videoPromptContext) {
+          finalSystemPrompt += videoPromptContext;
+        }
+      } catch (videoErr) {
+        console.warn("Video Analysis Engine Error:", videoErr);
+      }
     }
 
     // 1.5 Real-Time Web Search & Multi-Source News Crawling Integration
