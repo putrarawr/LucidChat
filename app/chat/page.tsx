@@ -78,6 +78,7 @@ export default function ChatPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
 
   // Resizable split panel states
   const [previewWidth, setPreviewWidth] = useState(50);
@@ -586,6 +587,20 @@ export default function ChatPage() {
         });
         await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", activeChatId);
       }
+
+      // Auto-TTS for Hands-Free mode
+      if (isHandsFreeMode && finalCleanContent && typeof window !== "undefined" && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const cleanSpeechText = finalCleanContent.replace(/```[\s\S]*?```/g, "").replace(/[*#_~`]/g, "");
+          const utterance = new SpeechSynthesisUtterance(cleanSpeechText.substring(0, 500));
+          utterance.lang = "id-ID";
+          utterance.rate = 1.0;
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          // Fallback silent
+        }
+      }
     } catch (err: unknown) {
       console.warn("Save assistant message error:", err);
     } finally {
@@ -848,6 +863,8 @@ export default function ChatPage() {
                   return next;
                 });
               }}
+              isHandsFreeMode={isHandsFreeMode}
+              onToggleHandsFreeMode={() => setIsHandsFreeMode((prev) => !prev)}
             />
           </div>
         </div>

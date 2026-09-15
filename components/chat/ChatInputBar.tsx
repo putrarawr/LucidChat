@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords, Headphones, Loader2 } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
@@ -9,9 +9,10 @@ export interface AttachmentFile {
   id: string;
   name: string;
   type: "image" | "file";
-  content: string; // Base64 data URL for images, raw text for code/txt files
+  content: string; // Base64 data URL for images, raw text for code/txt files/PDF/Excel
   mimeType?: string;
   isScanned?: boolean;
+  isParsing?: boolean;
 }
 
 const BRAND_CATEGORIES = [
@@ -146,6 +147,8 @@ interface ChatInputBarProps {
   onSelectLucidMode?: (mode: LucidMode | null) => void;
   isArenaMode?: boolean;
   onToggleArenaMode?: () => void;
+  isHandsFreeMode?: boolean;
+  onToggleHandsFreeMode?: () => void;
 }
 
 export function ChatInputBar({
@@ -157,6 +160,8 @@ export function ChatInputBar({
   onSelectLucidMode,
   isArenaMode = false,
   onToggleArenaMode,
+  isHandsFreeMode = false,
+  onToggleHandsFreeMode,
 }: ChatInputBarProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
@@ -280,34 +285,96 @@ export function ChatInputBar({
     }
   };
 
-  // Handle File Upload
+  // Handle File Upload (Supports Image, PDF, Excel .xlsx/.csv, Word .docx, Code, Text)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    files.forEach((file) => {
+    files.forEach(async (file) => {
       const isImage = file.type.startsWith("image/");
-      const reader = new FileReader();
+      const fileId = `att-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
-      reader.onload = (evt) => {
-        const content = evt.target?.result as string;
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const content = evt.target?.result as string;
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: fileId,
+              name: file.name,
+              type: "image",
+              content,
+              mimeType: file.type,
+              isScanned: true,
+              isParsing: false,
+            },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Document parsing (PDF, Excel, Word, Text, Code)
+        // Add loading placeholder chip
         setAttachments((prev) => [
           ...prev,
           {
-            id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: fileId,
             name: file.name,
-            type: isImage ? "image" : "file",
-            content,
+            type: "file",
+            content: "",
             mimeType: file.type,
-            isScanned: true,
+            isScanned: false,
+            isParsing: true,
           },
         ]);
-      };
 
-      if (isImage) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsText(file);
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const res = await fetch("/api/parse-file", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await res.json();
+          if (data.success && data.content) {
+            setAttachments((prev) =>
+              prev.map((att) =>
+                att.id === fileId
+                  ? {
+                      ...att,
+                      content: data.content,
+                      isScanned: true,
+                      isParsing: false,
+                    }
+                  : att
+              )
+            );
+          } else {
+            throw new Error(data.error || "Gagal memproses dokumen");
+          }
+        } catch (err: any) {
+          console.error("Document parse error:", err);
+          // Fallback reading as text if client-side fallback works
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            const content = evt.target?.result as string;
+            setAttachments((prev) =>
+              prev.map((att) =>
+                att.id === fileId
+                  ? {
+                      ...att,
+                      content: content || "Gagal membaca isi file.",
+                      isScanned: true,
+                      isParsing: false,
+                    }
+                  : att
+              )
+            );
+          };
+          reader.readAsText(file);
+        }
       }
     });
 
@@ -686,7 +753,7 @@ export function ChatInputBar({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,.txt,.md,.js,.ts,.tsx,.json,.py,.csv,.html,.css"
+          accept="image/*,.pdf,.xlsx,.xls,.docx,.csv,.txt,.md,.js,.ts,.tsx,.json,.py,.html,.css"
           onChange={handleFileChange}
           className="hidden"
         />
@@ -697,7 +764,7 @@ export function ChatInputBar({
             {attachments.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.08] border border-white/[0.12] text-xs text-white/80 max-w-[220px]"
+                className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.08] border border-white/[0.12] text-xs text-white/80 max-w-[240px]"
               >
                 {a.type === "image" ? (
                   <ImageIcon className="w-3.5 h-3.5 text-white/60 shrink-0" />
@@ -705,10 +772,17 @@ export function ChatInputBar({
                   <FileText className="w-3.5 h-3.5 text-white/60 shrink-0" />
                 )}
                 <span className="truncate text-[11px] font-medium">{a.name}</span>
-                <span className="flex items-center gap-0.5 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 rounded-full shrink-0" title="File/Gambar Ter-Scan">
-                  <CheckCircle2 className="w-2.5 h-2.5" />
-                  <span>Scan</span>
-                </span>
+                {a.isParsing ? (
+                  <span className="flex items-center gap-1 text-[9px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full shrink-0 animate-pulse">
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    <span>Parsing...</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-0.5 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 rounded-full shrink-0" title="File/Gambar Ter-Scan">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    <span>Scan</span>
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => removeAttachment(a.id)}
@@ -767,6 +841,26 @@ export function ChatInputBar({
               title={isListening ? "Hentikan perekaman suara" : "Gunakan Perekam Suara (Speech-to-Text)"}
             >
               {isListening ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Hands-free Voice Mode Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                playClickSound();
+                if (onToggleHandsFreeMode) {
+                  onToggleHandsFreeMode();
+                }
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold transition-all duration-200 ${
+                isHandsFreeMode
+                  ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse"
+                  : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
+              }`}
+              title={isHandsFreeMode ? "Nonaktifkan Mode Hands-Free" : "Aktifkan Mode Hands-Free (Bicara & Dengar Tanpa Ketik)"}
+            >
+              <Headphones className={`w-3.5 h-3.5 ${isHandsFreeMode ? "text-emerald-400" : "text-white/40"}`} />
+              <span className="hidden sm:inline">{isHandsFreeMode ? "Hands-Free On" : "Hands-Free"}</span>
             </button>
 
             {/* Prompt Auto-Enhancer Magic Wand Button */}
