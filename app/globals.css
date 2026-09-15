@@ -571,3 +571,22 @@ body::before {
     --text-secondary: rgba(255, 255, 255, 0.85);
   }
 }
+
+/* ===== LANDING PAGE MARQUEE ===== */
+.marquee-track {
+  animation: marquee 40s linear infinite;
+  width: fit-content;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
