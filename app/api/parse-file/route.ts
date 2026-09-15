@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse");
 
 export async function POST(req: Request) {
   try {
@@ -23,10 +25,11 @@ export async function POST(req: Request) {
       try {
         const data = await pdfParse(buffer);
         extractedText = data.text;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Format tidak valid";
         console.error("PDF parse error:", err);
         return NextResponse.json(
-          { error: `Gagal membaca berkas PDF (${err?.message || "Format tidak valid"})` },
+          { error: `Gagal membaca berkas PDF (${errorMessage})` },
           { status: 400 }
         );
       }
@@ -52,10 +55,11 @@ export async function POST(req: Request) {
         });
 
         extractedText = sheetsContent.join("\n\n");
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Format tidak valid";
         console.error("Excel parse error:", err);
         return NextResponse.json(
-          { error: `Gagal membaca berkas Excel/CSV (${err?.message || "Format tidak valid"})` },
+          { error: `Gagal membaca berkas Excel/CSV (${errorMessage})` },
           { status: 400 }
         );
       }
@@ -75,10 +79,11 @@ export async function POST(req: Request) {
         } else {
           extractedText = "Isi berkas DOCX tidak dapat diekstrak.";
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Format tidak valid";
         console.error("DOCX parse error:", err);
         return NextResponse.json(
-          { error: `Gagal membaca berkas DOCX (${err?.message || "Format tidak valid"})` },
+          { error: `Gagal membaca berkas DOCX (${errorMessage})` },
           { status: 400 }
         );
       }
@@ -102,10 +107,11 @@ export async function POST(req: Request) {
       isTruncated,
       content: finalText,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan saat memproses berkas";
     console.error("File parsing API error:", error);
     return NextResponse.json(
-      { error: error?.message || "Terjadi kesalahan saat memproses berkas" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

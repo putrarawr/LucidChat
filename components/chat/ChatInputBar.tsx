@@ -354,7 +354,7 @@ export function ChatInputBar({
           } else {
             throw new Error(data.error || "Gagal memproses dokumen");
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error("Document parse error:", err);
           // Fallback reading as text if client-side fallback works
           const reader = new FileReader();
