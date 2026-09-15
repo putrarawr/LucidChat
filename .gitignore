@@ -38,6 +38,7 @@ yarn-error.log*
 
 # markdown files
 *.md
+!README.md
 
 # typescript
 *.tsbuildinfo
