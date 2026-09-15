@@ -56,7 +56,7 @@ export default function ChatPage() {
   const urlChatId = params?.chatId as string | undefined;
 
   const [selectedModel, setSelectedModel] = useState<ModelItem>(DEFAULT_MODELS[0]);
-  const [selectedLucidMode, setSelectedLucidMode] = useState<LucidMode | null>(LUCID_MODES[0]);
+  const [selectedLucidMode, setSelectedLucidMode] = useState<LucidMode | null>(null);
 
   // Arena Mode (Side-by-Side Model Comparison)
   const [isArenaMode, setIsArenaMode] = useState(false);
