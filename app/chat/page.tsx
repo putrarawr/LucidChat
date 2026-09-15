@@ -80,8 +80,6 @@ export default function ChatPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
 
   // Resizable split panel states
   const [previewWidth, setPreviewWidth] = useState(50);
@@ -591,19 +589,7 @@ export default function ChatPage() {
         await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", activeChatId);
       }
 
-      // Auto-TTS for Hands-Free mode
-      if (isHandsFreeMode && !isSpeakerMuted && finalCleanContent && typeof window !== "undefined" && window.speechSynthesis) {
-        try {
-          window.speechSynthesis.cancel();
-          const cleanSpeechText = finalCleanContent.replace(/```[\s\S]*?```/g, "").replace(/[*#_~`]/g, "");
-          const utterance = new SpeechSynthesisUtterance(cleanSpeechText.substring(0, 500));
-          utterance.lang = "id-ID";
-          utterance.rate = 1.0;
-          window.speechSynthesis.speak(utterance);
-        } catch {
-          // Fallback silent
-        }
-      }
+
     } catch (err: unknown) {
       console.warn("Save assistant message error:", err);
     } finally {
@@ -925,15 +911,10 @@ export default function ChatPage() {
         isOpen={isHandsFreeMode}
         onClose={() => setIsHandsFreeMode(false)}
         selectedModel={selectedModel}
-        isListening={false}
+        userName={userName}
+        onSendMessage={(spokenText) => handleSendMessage(spokenText)}
         isLoading={isLoading}
-        isSpeaking={typeof window !== "undefined" && window.speechSynthesis ? window.speechSynthesis.speaking : false}
-        userTranscript={messages.filter((m) => m.role === "user").slice(-1)[0]?.content || ""}
-        aiResponse={messages.filter((m) => m.role === "assistant").slice(-1)[0]?.content ? stripThinkTags(messages.filter((m) => m.role === "assistant").slice(-1)[0].content) : ""}
-        onToggleMic={() => setIsMicMuted((prev) => !prev)}
-        onToggleSpeaker={() => setIsSpeakerMuted((prev) => !prev)}
-        isMicMuted={isMicMuted}
-        isSpeakerMuted={isSpeakerMuted}
+        lastAiMessage={messages.filter((m) => m.role === "assistant").slice(-1)[0]?.content || ""}
       />
 
       {/* Floating Toast Success Notification */}
