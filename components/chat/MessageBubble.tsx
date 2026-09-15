@@ -556,49 +556,46 @@ export function MessageBubble({
         {/* Action Toolbar (Always Visible) */}
         {!message.isStreaming && !isEditing && (
           <div
-            className={`flex items-center gap-1.5 pt-1.5 px-1 ${
+            className={`flex items-center gap-1 pt-1.5 px-1 ${
               isUser ? "justify-end" : "justify-start"
             }`}
           >
             <button
               onClick={handleCopy}
-              className="px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/50 hover:text-white transition-all shadow-sm flex items-center gap-1 text-[11px]"
+              className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/50 hover:text-white transition-all shadow-sm"
               title="Salin Teks"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span className="text-[10px] font-medium text-white/60">Salin</span>
             </button>
 
             <button
               onClick={handleToggleSpeech}
-              className={`px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 transition-all shadow-sm flex items-center gap-1 text-[11px] ${
+              className={`p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 transition-all shadow-sm ${
                 isSpeaking ? "text-emerald-400 border-emerald-500/30" : "text-white/50 hover:text-white"
               }`}
               title={isSpeaking ? "Hentikan Suara" : "Bacakan Respons (Text-to-Speech)"}
             >
               {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-              <span className="text-[10px] font-medium text-white/60">Suara</span>
             </button>
 
             {isUser && onEditMessage && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/50 hover:text-white transition-all shadow-sm flex items-center gap-1 text-[11px]"
+                className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/50 hover:text-white transition-all shadow-sm"
                 title="Edit Pesan"
               >
                 <Pencil className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-medium text-white/60">Edit</span>
               </button>
             )}
 
             {!isUser && onRegenerate && (
               <button
                 onClick={() => onRegenerate(message.id)}
-                className="px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/60 hover:text-white transition-all shadow-sm flex items-center gap-1 text-[11px]"
+                className="px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/70 hover:text-white transition-all shadow-sm flex items-center gap-1 text-[11px]"
                 title="Restart / Regenerate Respons AI"
               >
                 <RefreshCw className="w-3.5 h-3.5 text-amber-400/80" />
-                <span className="text-[10px] font-medium text-white/70">Restart</span>
+                <span className="text-[10px] font-medium text-white/80">Restart</span>
               </button>
             )}
           </div>
