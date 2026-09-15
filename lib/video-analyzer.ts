@@ -89,7 +89,7 @@ async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisResult> {
         const html = await pageRes.text();
 
         // Extract description
-        const descMatch = html.match(/"description":\s*\{\s*"simpleText":\s*"(.*?)"/s) || html.match(/<meta\s+name="description"\s+content="(.*?)"/i);
+        const descMatch = html.match(/"description":\s*\{\s*"simpleText":\s*"([\s\S]*?)"/) || html.match(/<meta\s+name="description"\s+content="([\s\S]*?)"/i);
         if (descMatch) {
           description = descMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"');
         }
