@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Code, Brain, Globe, Laptop, Zap, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
+import { ModelLogo, GeminiLogo, OpenAILogo, ClaudeLogo, DeepSeekLogo, KimiLogo, QwenLogo, LlamaLogo } from "@/components/icons/ModelLogos";
 
 export interface AttachmentFile {
   id: string;
@@ -13,23 +14,75 @@ export interface AttachmentFile {
   isScanned?: boolean;
 }
 
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  fast: Zap,
-  routine: Zap,
-  coding: Code,
-  agentic: Sparkles,
-  reasoning: Brain,
-  multilingual: Globe,
-  local: Laptop,
-};
-
-const CATEGORIES = [
-  { tag: "agentic", title: "WEB CRAWLER & SEARCH AGENT", items: DEFAULT_MODELS.filter((m) => m.id === "web-crawler-agent") },
-  { tag: "fast", title: "FAST & ROUTINE", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("fast") && m.id !== "web-crawler-agent") },
-  { tag: "coding", title: "CODING & AGENTIC", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("coding")) },
-  { tag: "reasoning", title: "DEEP REASONING", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("reasoning")) },
-  { tag: "multilingual", title: "MULTILINGUAL", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("multilingual") && m.id !== "web-crawler-agent") },
-  { tag: "local", title: "LOCAL ENGINE", items: DEFAULT_MODELS.filter((m) => m.capability_tags.includes("local")) },
+const BRAND_CATEGORIES = [
+  {
+    tag: "gemini",
+    title: "GOOGLE GEMINI",
+    icon: GeminiLogo,
+    items: DEFAULT_MODELS.filter((m) => m.id.includes("gemini") || m.provider === "gemini"),
+  },
+  {
+    tag: "openai",
+    title: "OPENAI GPT",
+    icon: OpenAILogo,
+    items: DEFAULT_MODELS.filter(
+      (m) => (m.id.includes("gpt") || m.id.includes("o3") || m.provider === "openai") && m.id !== "web-crawler-agent"
+    ),
+  },
+  {
+    tag: "kimi",
+    title: "MOONSHOT KIMI",
+    icon: KimiLogo,
+    items: DEFAULT_MODELS.filter((m) => m.id.includes("kimi") || m.id.includes("moonshot") || m.provider === "kimi"),
+  },
+  {
+    tag: "claude",
+    title: "ANTHROPIC CLAUDE",
+    icon: ClaudeLogo,
+    items: DEFAULT_MODELS.filter((m) => m.id.includes("claude") || m.provider === "claude"),
+  },
+  {
+    tag: "deepseek",
+    title: "DEEPSEEK AI",
+    icon: DeepSeekLogo,
+    items: DEFAULT_MODELS.filter((m) => m.id.includes("deepseek") || m.provider === "deepseek"),
+  },
+  {
+    tag: "qwen",
+    title: "QWEN (ALIBABA)",
+    icon: QwenLogo,
+    items: DEFAULT_MODELS.filter((m) => m.id.includes("qwen")),
+  },
+  {
+    tag: "llama",
+    title: "META LLAMA",
+    icon: LlamaLogo,
+    items: DEFAULT_MODELS.filter((m) => m.id.includes("llama")),
+  },
+  {
+    tag: "specialized",
+    title: "AGENTS & OTHER ENGINES",
+    icon: Globe,
+    items: DEFAULT_MODELS.filter(
+      (m) =>
+        m.id === "web-crawler-agent" ||
+        m.id.includes("nvidia") ||
+        (!m.id.includes("gemini") &&
+          !m.id.includes("gpt") &&
+          !m.id.includes("o3") &&
+          !m.id.includes("claude") &&
+          !m.id.includes("deepseek") &&
+          !m.id.includes("kimi") &&
+          !m.id.includes("moonshot") &&
+          !m.id.includes("qwen") &&
+          !m.id.includes("llama") &&
+          m.provider !== "gemini" &&
+          m.provider !== "openai" &&
+          m.provider !== "claude" &&
+          m.provider !== "deepseek" &&
+          m.provider !== "kimi")
+    ),
+  },
 ];
 
 const SLASH_COMMANDS = [
@@ -525,7 +578,7 @@ export function ChatInputBar({
           ) : (
             /* TAB 1: SINGLE MODEL LIST */
             <div className="py-2">
-              {CATEGORIES.every((cat) => {
+              {BRAND_CATEGORIES.every((cat) => {
                 const matched = cat.items.filter((m) => {
                   if (!modelSearchQuery.trim()) return true;
                   const q = modelSearchQuery.toLowerCase().trim();
@@ -542,7 +595,7 @@ export function ChatInputBar({
                   Model AI tidak ditemukan untuk &quot;{modelSearchQuery}&quot;
                 </div>
               ) : (
-                CATEGORIES.map((cat) => {
+                BRAND_CATEGORIES.map((cat) => {
                   const matchedItems = cat.items.filter((m) => {
                     if (!modelSearchQuery.trim()) return true;
                     const q = modelSearchQuery.toLowerCase().trim();
@@ -555,15 +608,15 @@ export function ChatInputBar({
                   });
 
                   if (matchedItems.length === 0) return null;
-                  const Icon = CATEGORY_ICONS[cat.tag] || Sparkles;
+                  const CategoryIcon = cat.icon || Sparkles;
 
                   return (
-                    <div key={cat.tag} className="py-1.5 first:pt-0 last:pb-0">
-                      <div className="px-3 sm:px-4 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-white/30 uppercase">
-                        <Icon className="w-3 h-3" />
+                    <div key={cat.tag} className="py-2 first:pt-0 last:pb-0 border-b border-white/[0.06] last:border-b-0">
+                      <div className="px-3 sm:px-4 py-1.5 flex items-center gap-2 text-[10px] font-bold tracking-[0.12em] text-white/40 uppercase">
+                        <CategoryIcon className="w-3.5 h-3.5 text-white/60" />
                         <span>{cat.title}</span>
                       </div>
-                      <div className="space-y-0.5 px-2">
+                      <div className="space-y-1 px-2 mt-0.5">
                         {matchedItems.map((m) => {
                           const isSelected = !selectedLucidMode && m.id === selectedModel.id;
                           return (
@@ -583,21 +636,32 @@ export function ChatInputBar({
                               }}
                               className={`w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-[13px] flex items-center justify-between transition-all duration-200 ${
                                 isSelected
-                                  ? "bg-white/15 text-white font-medium border border-white/20 shadow-sm"
-                                  : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                                  ? "bg-white/15 text-white font-semibold border border-white/20 shadow-sm"
+                                  : "text-white/70 hover:text-white hover:bg-white/[0.06]"
                               }`}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                {isSelected && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] shrink-0" />
-                                )}
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={`p-1.5 rounded-lg border shrink-0 shadow-sm transition-colors ${
+                                  isSelected
+                                    ? "bg-white/20 border-white/30 text-white"
+                                    : "bg-white/[0.06] border-white/10 text-white/70 group-hover:text-white"
+                                }`}>
+                                  <ModelLogo modelId={m.id} provider={m.provider} className="w-3.5 h-3.5" />
+                                </div>
                                 <span className="truncate">{m.display_name}</span>
                               </div>
-                              {m.is_free && (
-                                <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 border border-white/[0.06] ml-2 shrink-0">
-                                  Free
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2 shrink-0 ml-2">
+                                {m.is_free && (
+                                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 border border-white/[0.06] font-mono">
+                                    Free
+                                  </span>
+                                )}
+                                {isSelected && (
+                                  <div className="p-1 rounded-full bg-white text-black shrink-0 shadow-md">
+                                    <Check className="w-3 h-3" />
+                                  </div>
+                                )}
+                              </div>
                             </button>
                           );
                         })}
@@ -737,9 +801,13 @@ export function ChatInputBar({
             <button
               type="button"
               onClick={handleToggleModelOpen}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-[10px] sm:text-xs text-white transition-all duration-200 ml-0.5 sm:ml-1 shadow-sm max-w-[150px] sm:max-w-[220px]"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-[10px] sm:text-xs text-white transition-all duration-200 ml-0.5 sm:ml-1 shadow-sm max-w-[170px] sm:max-w-[240px]"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.5)] shrink-0" />
+              {selectedLucidMode ? (
+                renderModeIcon(selectedLucidMode.icon)
+              ) : (
+                <ModelLogo modelId={selectedModel.id} provider={selectedModel.provider} className="w-3.5 h-3.5 text-white/90 shrink-0" />
+              )}
               <span className="truncate font-medium text-[10px] sm:text-[11px]">
                 {selectedLucidMode ? selectedLucidMode.name : selectedModel.display_name}
               </span>
