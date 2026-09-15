@@ -10,7 +10,7 @@ import { SessionList, SessionItem } from "@/components/sidebar/SessionList";
 import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { SettingsModal } from "@/components/settings/SettingsModal";
-import { X, Swords, PanelLeftOpen, PanelLeftClose, Settings } from "lucide-react";
+import { X, Swords, PanelLeftOpen, PanelLeftClose, Settings, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 
 interface ChatRow {
@@ -76,6 +76,7 @@ export default function ChatPage() {
   const [userAvatar, setUserAvatar] = useState<string | undefined>();
   const [customSystemPrompt, setCustomSystemPrompt] = useState<string | undefined>();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Resizable split panel states
@@ -153,18 +154,36 @@ export default function ChatPage() {
   useEffect(() => {
     async function loadData() {
       try {
+        // 1. Check local storage overrides first to prevent hard refresh resets
+        if (typeof window !== "undefined") {
+          const localName = localStorage.getItem("lucidchat_user_name");
+          const localAvatar = localStorage.getItem("lucidchat_user_avatar");
+          const localPrompt = localStorage.getItem("lucidchat_custom_system_prompt");
+
+          if (localName && localName.trim()) setUserName(localName.trim());
+          if (localAvatar && localAvatar.trim()) setUserAvatar(localAvatar.trim());
+          if (localPrompt && localPrompt.trim()) setCustomSystemPrompt(localPrompt.trim());
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           setUserEmail(user.email);
           const meta = user.user_metadata || {};
           const name = meta.full_name || meta.name || meta.custom_claims?.global_name;
-          if (name) {
-            setUserName(name);
-          } else if (user.email) {
-            const rawName = user.email.split("@")[0];
-            setUserName(rawName.charAt(0).toUpperCase() + rawName.slice(1));
+
+          // Only set fallback from auth if not already present in localStorage
+          const hasLocalName = typeof window !== "undefined" && !!localStorage.getItem("lucidchat_user_name");
+          if (!hasLocalName) {
+            if (name) {
+              setUserName(name);
+            } else if (user.email) {
+              const rawName = user.email.split("@")[0];
+              setUserName(rawName.charAt(0).toUpperCase() + rawName.slice(1));
+            }
           }
-          if (meta.avatar_url || meta.picture) {
+
+          const hasLocalAvatar = typeof window !== "undefined" && !!localStorage.getItem("lucidchat_user_avatar");
+          if (!hasLocalAvatar && (meta.avatar_url || meta.picture)) {
             setUserAvatar(meta.avatar_url || meta.picture);
           }
 
@@ -452,33 +471,16 @@ export default function ChatPage() {
 
                   if (parsed.delta) {
                     accumulatedContent += parsed.delta;
+                    setter((prev) =>
+                      prev.map((msg) =>
+                        msg.id === msgId ? { ...msg, content: accumulatedContent } : msg
+                      )
+                    );
                   }
 
                   if (parsed.usage && parsed.usage.completionTokens) {
                     realTokensFromApi = parsed.usage.completionTokens;
                   }
-
-                  const activeTokens = realTokensFromApi ?? Math.max(1, Math.round(accumulatedContent.length / 3.7));
-                  const elapsedSec = Math.max(0.1, (performance.now() - startTime) / 1000);
-                  const tps = Math.round(activeTokens / elapsedSec);
-
-                  setter((prev) =>
-                    prev.map((msg) =>
-                      msg.id === msgId
-                        ? {
-                            ...msg,
-                            content: accumulatedContent,
-                            stats: {
-                              ttftMs,
-                              totalTokens: activeTokens,
-                              tokensPerSec: tps,
-                              provider: model.provider,
-                              modelName: model.display_name,
-                            },
-                          }
-                        : msg
-                    )
-                  );
                 }
               } catch {
                 // Ignore non-JSON
@@ -486,6 +488,31 @@ export default function ChatPage() {
             }
           }
         }
+
+        // Calculate final tokens and performance metrics ONLY AFTER full generation completes
+        const totalElapsedMs = performance.now() - startTime;
+        const finalTokens = realTokensFromApi ?? Math.max(1, Math.round(accumulatedContent.length / 3.7));
+        const elapsedSec = Math.max(0.1, totalElapsedMs / 1000);
+        const tps = Math.round(finalTokens / elapsedSec);
+
+        setter((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? {
+                  ...msg,
+                  content: accumulatedContent,
+                  isStreaming: false,
+                  stats: {
+                    ttftMs: ttftMs ?? Math.round(totalElapsedMs),
+                    totalTokens: finalTokens,
+                    tokensPerSec: tps,
+                    provider: model.provider,
+                    modelName: model.display_name,
+                  },
+                }
+              : msg
+          )
+        );
 
         return accumulatedContent;
       } catch (err: unknown) {
@@ -898,7 +925,21 @@ export default function ChatPage() {
         onUpdateUserAvatar={setUserAvatar}
         customSystemPrompt={customSystemPrompt}
         onUpdateCustomSystemPrompt={setCustomSystemPrompt}
+        onSaveSuccess={(msg) => {
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(null), 3000);
+        }}
       />
+
+      {/* Floating Toast Success Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#121319] border border-emerald-500/30 text-white shadow-2xl shadow-emerald-950/40 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <Check className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-xs font-medium tracking-wide text-zinc-200">{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

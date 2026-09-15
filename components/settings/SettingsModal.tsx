@@ -25,6 +25,7 @@ interface SettingsModalProps {
   onUpdateUserAvatar?: (newAvatar: string) => void;
   customSystemPrompt?: string;
   onUpdateCustomSystemPrompt?: (prompt: string) => void;
+  onSaveSuccess?: (message: string) => void;
 }
 
 export function SettingsModal({
@@ -36,24 +37,22 @@ export function SettingsModal({
   onUpdateUserAvatar,
   customSystemPrompt = "",
   onUpdateCustomSystemPrompt,
+  onSaveSuccess,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "data">("profile");
-  
-  // Local state for settings form
+
   const [displayName, setDisplayName] = useState(userName);
   const [avatarUrl, setAvatarUrl] = useState(userAvatar);
   const [systemPrompt, setSystemPrompt] = useState(customSystemPrompt);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const [autoOpenPreview, setAutoOpenPreview] = useState(true);
-  const [savedNotice, setSavedNotice] = useState(false);
 
-  // Sync props and localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedName = localStorage.getItem("lucidchat_user_name") || userName;
-      const storedAvatar = localStorage.getItem("lucidchat_user_avatar") || userAvatar;
-      const storedPrompt = localStorage.getItem("lucidchat_custom_system_prompt") || customSystemPrompt;
+      const storedName = localStorage.getItem("lucidchat_user_name") ?? userName;
+      const storedAvatar = localStorage.getItem("lucidchat_user_avatar") ?? userAvatar;
+      const storedPrompt = localStorage.getItem("lucidchat_custom_system_prompt") ?? customSystemPrompt;
       const storedSound = localStorage.getItem("lucidchat_sound_enabled") !== "false";
       const storedScroll = localStorage.getItem("lucidchat_autoscroll") !== "false";
       const storedPreview = localStorage.getItem("lucidchat_auto_code_preview") !== "false";
@@ -72,21 +71,28 @@ export function SettingsModal({
   const handleSaveSettings = () => {
     playClickSound();
 
+    const trimmedName = displayName.trim();
+    const trimmedAvatar = avatarUrl.trim();
+    const trimmedPrompt = systemPrompt.trim();
+
     if (typeof window !== "undefined") {
-      localStorage.setItem("lucidchat_user_name", displayName.trim());
-      localStorage.setItem("lucidchat_user_avatar", avatarUrl.trim());
-      localStorage.setItem("lucidchat_custom_system_prompt", systemPrompt.trim());
+      localStorage.setItem("lucidchat_user_name", trimmedName);
+      localStorage.setItem("lucidchat_user_avatar", trimmedAvatar);
+      localStorage.setItem("lucidchat_custom_system_prompt", trimmedPrompt);
       localStorage.setItem("lucidchat_sound_enabled", soundEnabled ? "true" : "false");
       localStorage.setItem("lucidchat_autoscroll", autoScroll ? "true" : "false");
       localStorage.setItem("lucidchat_auto_code_preview", autoOpenPreview ? "true" : "false");
     }
 
-    if (onUpdateUserName) onUpdateUserName(displayName.trim());
-    if (onUpdateUserAvatar) onUpdateUserAvatar(avatarUrl.trim());
-    if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(systemPrompt.trim());
+    if (onUpdateUserName) onUpdateUserName(trimmedName);
+    if (onUpdateUserAvatar) onUpdateUserAvatar(trimmedAvatar);
+    if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(trimmedPrompt);
 
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2000);
+    if (onSaveSuccess) {
+      onSaveSuccess("Pengaturan berhasil disimpan");
+    }
+
+    onClose();
   };
 
   const handleResetSettings = () => {
@@ -112,8 +118,11 @@ export function SettingsModal({
       if (onUpdateUserAvatar) onUpdateUserAvatar("");
       if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt("");
 
-      setSavedNotice(true);
-      setTimeout(() => setSavedNotice(false), 2000);
+      if (onSaveSuccess) {
+        onSaveSuccess("Pengaturan berhasil di-reset");
+      }
+
+      onClose();
     }
   };
 
@@ -123,18 +132,13 @@ export function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-2xl animate-fade-in">
-      <div className="w-full max-w-2xl rounded-3xl border border-white/20 bg-[#0e0e14]/95 shadow-[0_0_80px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a0a0e] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.03]">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/10 border border-white/15 text-white">
-              <Settings className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white tracking-wide">Pengaturan Aplikasi & Profil</h3>
-              <p className="text-[11px] text-white/50">Atur identitas tampilan, preferensi AI, dan kontrol sistem</p>
-            </div>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="flex items-center gap-2.5">
+            <Settings className="w-4 h-4 text-white/70" />
+            <h3 className="text-sm font-semibold text-white tracking-wide">Pengaturan</h3>
           </div>
           <button
             type="button"
@@ -142,28 +146,28 @@ export function SettingsModal({
               playClickSound();
               onClose();
             }}
-            className="p-1.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+            className="p-1 rounded-lg text-white/40 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Tab Switcher Bar */}
-        <div className="flex items-center gap-1 px-4 pt-3 pb-2 border-b border-white/10 bg-white/[0.01] overflow-x-auto scrollbar-none">
+        {/* Minimal Tab Switcher Bar */}
+        <div className="flex items-center gap-4 px-5 pt-3 pb-2 border-b border-white/10 text-xs font-medium overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => {
               playClickSound();
               setActiveTab("profile");
             }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 py-1.5 transition-all border-b-2 ${
               activeTab === "profile"
-                ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                : "text-white/40 hover:text-white/80 hover:bg-white/[0.05]"
+                ? "border-white text-white font-semibold"
+                : "border-transparent text-white/40 hover:text-white/80"
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Profil & Identitas</span>
+            <span>Profil</span>
           </button>
 
           <button
@@ -172,14 +176,14 @@ export function SettingsModal({
               playClickSound();
               setActiveTab("persona");
             }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 py-1.5 transition-all border-b-2 ${
               activeTab === "persona"
-                ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                : "text-white/40 hover:text-white/80 hover:bg-white/[0.05]"
+                ? "border-white text-white font-semibold"
+                : "border-transparent text-white/40 hover:text-white/80"
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>Instruksi AI Global</span>
+            <span>Instruksi AI</span>
           </button>
 
           <button
@@ -188,10 +192,10 @@ export function SettingsModal({
               playClickSound();
               setActiveTab("interface");
             }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 py-1.5 transition-all border-b-2 ${
               activeTab === "interface"
-                ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                : "text-white/40 hover:text-white/80 hover:bg-white/[0.05]"
+                ? "border-white text-white font-semibold"
+                : "border-transparent text-white/40 hover:text-white/80"
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" />
@@ -204,20 +208,20 @@ export function SettingsModal({
               playClickSound();
               setActiveTab("data");
             }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 py-1.5 transition-all border-b-2 ${
               activeTab === "data"
-                ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                : "text-white/40 hover:text-white/80 hover:bg-white/[0.05]"
+                ? "border-white text-white font-semibold"
+                : "border-transparent text-white/40 hover:text-white/80"
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>Manajemen Data</span>
+            <span>Data</span>
           </button>
         </div>
 
-        {/* Tab Body */}
-        <div className="p-5 overflow-y-auto space-y-5 flex-1 scrollbar-thin">
-          {/* TAB 1: PROFIL & IDENTITAS */}
+        {/* Tab Content Body */}
+        <div className="p-5 overflow-y-auto space-y-4 flex-1 scrollbar-thin">
+          {/* TAB 1: PROFIL */}
           {activeTab === "profile" && (
             <div className="space-y-4">
               <div>
@@ -228,17 +232,17 @@ export function SettingsModal({
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Masukkan nama Anda (contoh: Putra, Alex)..."
-                  className="w-full bg-white/[0.06] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-all"
+                  placeholder="Masukkan nama Anda (contoh: Putra)..."
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all"
                 />
                 <p className="text-[10px] text-white/40 mt-1">
-                  Nama ini akan ditampilkan pada balasan percakapan dan tersimpan permanen di setiap sesi chat Anda.
+                  Nama ini akan tersimpan permanen di browser Anda dan digunakan untuk profil bubble chat.
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-white/80 mb-1.5">
-                  URL Avatar Pengguna (Opsional)
+                  URL Avatar (Opsional)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -246,22 +250,19 @@ export function SettingsModal({
                     value={avatarUrl}
                     onChange={(e) => setAvatarUrl(e.target.value)}
                     placeholder="https://example.com/avatar.jpg"
-                    className="flex-1 bg-white/[0.06] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-all"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all"
                   />
                   {avatarUrl && (
-                    <div className="w-9 h-9 rounded-xl border border-white/20 overflow-hidden shrink-0 bg-white/5">
+                    <div className="w-8 h-8 rounded-xl border border-white/15 overflow-hidden shrink-0 bg-white/5">
                       <img src={avatarUrl} alt="Preview Avatar" className="w-full h-full object-cover" />
                     </div>
                   )}
                 </div>
-                <p className="text-[10px] text-white/40 mt-1">
-                  Masukkan tautan gambar langsung untuk mengganti foto profil bubble chat pengguna.
-                </p>
               </div>
             </div>
           )}
 
-          {/* TAB 2: INSTRUKSI AI GLOBAL */}
+          {/* TAB 2: INSTRUKSI AI */}
           {activeTab === "persona" && (
             <div className="space-y-4">
               <div>
@@ -271,37 +272,33 @@ export function SettingsModal({
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
-                  rows={5}
-                  placeholder="Contoh: Jawab selalu dalam Bahasa Indonesia terstruktur, gunakan poin-poin penting, dan berikan kode bersih jika diminta..."
-                  className="w-full bg-white/[0.06] border border-white/15 rounded-xl p-3 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-all resize-none"
+                  rows={4}
+                  placeholder="Jawab selalu dalam Bahasa Indonesia terstruktur, berikan contoh kode bersih jika diminta..."
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all resize-none"
                 />
                 <p className="text-[10px] text-white/40 mt-1">
-                  Instruksi ini akan disisipkan secara otomatis ke seluruh model AI di setiap percakapan.
+                  Instruksi ini disisipkan ke seluruh model AI secara otomatis.
                 </p>
               </div>
 
-              {/* Quick Presets */}
               <div>
-                <span className="block text-[11px] font-semibold text-white/50 tracking-wider uppercase mb-2">
-                  Preset Instruksi Cepat
+                <span className="block text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+                  Preset Cepat
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => applyPromptPreset("Jawablah secara singkat, padat, dan langsung pada inti masalah.")}
-                    className="text-left p-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
                   >
-                    <div className="font-semibold text-white">Ringkas & Direct</div>
-                    <div className="text-[10px] text-white/40 mt-0.5">Jawab langsung tanpa pendahuluan panjang</div>
+                    Ringkas & Direct
                   </button>
-
                   <button
                     type="button"
-                    onClick={() => applyPromptPreset("Bertindaklah sebagai Senior Code Architect. Berikan kode modular, clean code, dan penjelasan arsitektur.")}
-                    className="text-left p-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
+                    onClick={() => applyPromptPreset("Bertindaklah sebagai Senior Code Architect. Berikan kode modular, clean code, dan penjelasan terstruktur.")}
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
                   >
-                    <div className="font-semibold text-white">Senior Code Architect</div>
-                    <div className="text-[10px] text-white/40 mt-0.5">Fokus pada kualitas kode & arsitektur</div>
+                    Senior Code Architect
                   </button>
                 </div>
               </div>
@@ -310,37 +307,33 @@ export function SettingsModal({
 
           {/* TAB 3: ANTARMUKA & SUARA */}
           {activeTab === "interface" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/10 text-white">
-                    {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                  </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="flex items-center gap-2.5">
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-white/70" /> : <VolumeX className="w-4 h-4 text-white/40" />}
                   <div>
                     <h4 className="text-xs font-semibold text-white">Efek Suara UI</h4>
-                    <p className="text-[10px] text-white/40">Suara taktil saat mengklik tombol & mengirim pesan</p>
+                    <p className="text-[10px] text-white/40">Suara klik tombol & audio kirim pesan</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSoundEnabled((prev) => !prev)}
-                  className={`w-11 h-6 rounded-full transition-all duration-200 p-1 relative ${
+                  className={`w-9 h-5 rounded-full transition-all duration-200 p-0.5 relative ${
                     soundEnabled ? "bg-white" : "bg-white/10"
                   }`}
                 >
                   <span
                     className={`block w-4 h-4 rounded-full transition-transform duration-200 ${
-                      soundEnabled ? "translate-x-5 bg-black" : "translate-x-0 bg-white/50"
+                      soundEnabled ? "translate-x-4 bg-black" : "translate-x-0 bg-white/50"
                     }`}
                   />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/10 text-white">
-                    <MessageSquare className="w-4 h-4" />
-                  </div>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <MessageSquare className="w-4 h-4 text-white/70" />
                   <div>
                     <h4 className="text-xs font-semibold text-white">Auto-Scroll Percakapan</h4>
                     <p className="text-[10px] text-white/40">Geser otomatis ke pesan terbaru saat AI merespons</p>
@@ -349,23 +342,21 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={() => setAutoScroll((prev) => !prev)}
-                  className={`w-11 h-6 rounded-full transition-all duration-200 p-1 relative ${
+                  className={`w-9 h-5 rounded-full transition-all duration-200 p-0.5 relative ${
                     autoScroll ? "bg-white" : "bg-white/10"
                   }`}
                 >
                   <span
                     className={`block w-4 h-4 rounded-full transition-transform duration-200 ${
-                      autoScroll ? "translate-x-5 bg-black" : "translate-x-0 bg-white/50"
+                      autoScroll ? "translate-x-4 bg-black" : "translate-x-0 bg-white/50"
                     }`}
                   />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/10 text-white">
-                    <Code className="w-4 h-4" />
-                  </div>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <Code className="w-4 h-4 text-white/70" />
                   <div>
                     <h4 className="text-xs font-semibold text-white">Preview Kode Otomatis</h4>
                     <p className="text-[10px] text-white/40">Buka panel split saat AI membuatkan kode HTML/JS</p>
@@ -374,13 +365,13 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={() => setAutoOpenPreview((prev) => !prev)}
-                  className={`w-11 h-6 rounded-full transition-all duration-200 p-1 relative ${
+                  className={`w-9 h-5 rounded-full transition-all duration-200 p-0.5 relative ${
                     autoOpenPreview ? "bg-white" : "bg-white/10"
                   }`}
                 >
                   <span
                     className={`block w-4 h-4 rounded-full transition-transform duration-200 ${
-                      autoOpenPreview ? "translate-x-5 bg-black" : "translate-x-0 bg-white/50"
+                      autoOpenPreview ? "translate-x-4 bg-black" : "translate-x-0 bg-white/50"
                     }`}
                   />
                 </button>
@@ -388,25 +379,22 @@ export function SettingsModal({
             </div>
           )}
 
-          {/* TAB 4: MANAJEMEN DATA */}
+          {/* TAB 4: DATA */}
           {activeTab === "data" && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/10 text-white">
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white">Penyimpanan & Keamanan Lokal</h4>
-                    <p className="text-[10px] text-white/40">Data sesi tersimpan secara terenkripsi di browser Anda</p>
-                  </div>
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-white/70" />
+                  <h4 className="text-xs font-semibold text-white">Penyimpanan Lokal</h4>
                 </div>
-
-                <div className="pt-2 flex flex-wrap gap-2">
+                <p className="text-[10px] text-white/40">
+                  Data sesi dan preferensi pengguna tersimpan secara aman di peramban browser Anda.
+                </p>
+                <div className="pt-1">
                   <button
                     type="button"
                     onClick={handleResetSettings}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs text-white/80 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-xs text-white/80 transition-all border border-white/10"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Reset Pengaturan</span>
@@ -417,36 +405,26 @@ export function SettingsModal({
           )}
         </div>
 
-        {/* Footer Bar with Action Buttons */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-white/10 bg-white/[0.03]">
-          <div className="flex items-center gap-2">
-            {savedNotice && (
-              <span className="flex items-center gap-1.5 text-xs text-white font-medium animate-fade-in">
-                <Check className="w-3.5 h-3.5 text-white" />
-                <span>Pengaturan Tersimpan</span>
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                playClickSound();
-                onClose();
-              }}
-              className="px-4 py-2 rounded-xl text-xs font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all"
-            >
-              Tutup
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveSettings}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 shadow-md transition-all"
-            >
-              <Check className="w-3.5 h-3.5" />
-              <span>Simpan Pengaturan</span>
-            </button>
-          </div>
+        {/* Footer Bar */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-white/10 bg-white/[0.02]">
+          <button
+            type="button"
+            onClick={() => {
+              playClickSound();
+              onClose();
+            }}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveSettings}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 shadow-sm transition-all"
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>Simpan Pengaturan</span>
+          </button>
         </div>
       </div>
     </div>
