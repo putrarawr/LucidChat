@@ -641,12 +641,12 @@ export function ChatInputBar({
                               }`}
                             >
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <div className={`p-1.5 rounded-lg border shrink-0 shadow-sm transition-colors ${
+                                <div className={`p-1.5 rounded-lg border shrink-0 shadow-sm transition-colors flex items-center justify-center ${
                                   isSelected
-                                    ? "bg-white/20 border-white/30 text-white"
-                                    : "bg-white/[0.06] border-white/10 text-white/70 group-hover:text-white"
+                                    ? "bg-white/20 border-white/30"
+                                    : "bg-white/[0.08] border-white/10"
                                 }`}>
-                                  <ModelLogo modelId={m.id} provider={m.provider} className="w-3.5 h-3.5" />
+                                  <ModelLogo modelId={m.id} provider={m.provider} className="w-4 h-4" />
                                 </div>
                                 <span className="truncate">{m.display_name}</span>
                               </div>
