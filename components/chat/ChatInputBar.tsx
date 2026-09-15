@@ -797,7 +797,7 @@ export function ChatInputBar({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className="glass-input-container relative overflow-hidden"
+        className="glass-input-container relative"
       >
         {/* Drag and Drop Visual Overlay */}
         {isDraggingOver && (
@@ -990,43 +990,50 @@ export function ChatInputBar({
 
               {/* Attachment Popover Menu */}
               {isAttachmentMenuOpen && (
-                <div className="absolute bottom-full right-0 mb-2 w-56 bg-[#121218] border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-slide-up flex flex-col gap-1 backdrop-blur-xl">
-                  <p className="text-[10px] font-semibold tracking-wider text-white/40 uppercase px-2 py-1">Pilih Lampiran</p>
-
-                  {/* Option 1: Foto / Gambar */}
+                <div className="absolute bottom-full right-0 mb-3 w-56 sm:w-64 bg-[#14141d]/98 border border-white/15 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] p-1.5 z-50 animate-slide-up flex flex-col gap-0.5 backdrop-blur-2xl">
+                  {/* Option 1: Upload File Dokumen */}
                   <button
                     type="button"
                     onClick={() => {
-                      setIsAttachmentMenuOpen(false);
-                      imageInputRef.current?.click();
-                    }}
-                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.08] transition-all text-left group"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 group-hover:scale-105 transition-transform shrink-0">
-                      <ImageIcon className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-medium text-white/90 group-hover:text-white">Foto / Gambar</span>
-                      <span className="text-[9px] text-white/40">PNG, JPG, WebP, GIF</span>
-                    </div>
-                  </button>
-
-                  {/* Option 2: Dokumen & File */}
-                  <button
-                    type="button"
-                    onClick={() => {
+                      playClickSound();
                       setIsAttachmentMenuOpen(false);
                       docInputRef.current?.click();
                     }}
-                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.08] transition-all text-left group"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-all text-left text-white/90 hover:text-white group"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 group-hover:scale-105 transition-transform shrink-0">
-                      <FileText className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-medium text-white/90 group-hover:text-white">Dokumen & File</span>
-                      <span className="text-[9px] text-white/40">PDF, Excel, Word, CSV, Kode</span>
-                    </div>
+                    <Paperclip className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" />
+                    <span className="text-xs font-medium">Unggah Dokumen & File</span>
+                  </button>
+
+                  {/* Option 2: Upload Foto / Gambar */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      setIsAttachmentMenuOpen(false);
+                      imageInputRef.current?.click();
+                    }}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-all text-left text-white/90 hover:text-white group"
+                  >
+                    <ImageIcon className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" />
+                    <span className="text-xs font-medium">Unggah Foto / Gambar</span>
+                  </button>
+
+                  <div className="my-1 border-t border-white/10" />
+
+                  {/* Option 3: Generasi Gambar AI */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      setIsAttachmentMenuOpen(false);
+                      setInput("/image ");
+                      if (textareaRef.current) textareaRef.current.focus();
+                    }}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-all text-left text-white/90 hover:text-white group"
+                  >
+                    <Wand2 className="w-4 h-4 text-purple-400 group-hover:text-purple-300 shrink-0" />
+                    <span className="text-xs font-medium">Buat Gambar AI (/image)</span>
                   </button>
                 </div>
               )}
