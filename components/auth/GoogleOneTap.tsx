@@ -11,6 +11,7 @@ declare global {
         id: {
           initialize: (config: Record<string, unknown>) => void;
           prompt: (notification?: (n: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void) => void;
+          cancel: () => void;
         };
       };
     };
@@ -75,6 +76,7 @@ export default function GoogleOneTap({
         cancel_on_tap_outside: true,
       });
 
+      // Attempt one tap prompt on load
       window.google.accounts.id.prompt();
     } catch (e) {
       console.warn("Google One Tap initialization error:", e);
@@ -82,24 +84,20 @@ export default function GoogleOneTap({
   }, [clientId, onError, onSuccess, supabase.auth]);
 
   const handleGoogleClick = async () => {
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-            },
-          });
-        }
-      });
-    } else {
-      await supabase.auth.signInWithOAuth({
+    // Directly launch OAuth flow on explicit user click so it works EVERY time without cooldown limits
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+      if (error && onError) {
+        onError(error.message);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal mengalihkan ke Google.";
+      if (onError) onError(message);
     }
   };
 
