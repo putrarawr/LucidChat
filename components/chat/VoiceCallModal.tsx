@@ -48,25 +48,88 @@ export function VoiceCallModal({
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  // Configure distinct Voice Persona based on selected AI Model / Provider
-  const getVoiceSettings = () => {
+  // Store loaded browser voices
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Load browser voices reliably (handles async loading in Chrome/Edge/Safari)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    const loadVoices = () => {
+      const avail = window.speechSynthesis.getVoices();
+      if (avail && avail.length > 0) {
+        setVoices(avail);
+      }
+    };
+
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  // Clean raw AI markdown/HTML text into clean, clear natural spoken prose
+  const cleanTextForSpeech = (rawText: string) => {
+    if (!rawText) return "";
+    return rawText
+      // Remove thinking blocks
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, "")
+      // Remove inline code
+      .replace(/`([^`]+)`/g, "$1")
+      // Remove URLs
+      .replace(/https?:\/\/\S+/gi, "")
+      // Remove markdown headers, bold, italics, strike
+      .replace(/#{1,6}\s+/g, "")
+      .replace(/[*_~]{1,3}/g, "")
+      // Remove list markers like "1. ", "- ", "* "
+      .replace(/^\s*[-*+]\s+/gm, "")
+      .replace(/^\s*\d+\.\s+/gm, "")
+      // Remove extra brackets / links [text](url) -> text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      // Replace multiple newlines with single space
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  // Configure subtle voice persona settings per AI Model without breaking TTS audio quality
+  const getVoicePersona = (availableVoices: SpeechSynthesisVoice[]) => {
     const provider = selectedModel.provider?.toLowerCase() || "";
     const id = selectedModel.id?.toLowerCase() || "";
 
-    if (id.includes("gemini") || provider === "gemini") {
-      return { pitch: 1.15, rate: 1.05 }; // Warm & energetic
-    } else if (id.includes("claude") || provider === "anthropic") {
-      return { pitch: 0.85, rate: 0.92 }; // Calm & deep
-    } else if (id.includes("deepseek")) {
-      return { pitch: 1.08, rate: 1.12 }; // Fast & articulate
-    } else if (id.includes("qwen") || id.includes("kimi")) {
-      return { pitch: 1.12, rate: 1.0 }; // Soft & friendly
+    // Find Indonesian voices first, then Malay (very close & natural), then fallbacks
+    const idVoices = availableVoices.filter((v) => v.lang.toLowerCase().includes("id"));
+    const msVoices = availableVoices.filter((v) => v.lang.toLowerCase().includes("ms"));
+
+    let selectedVoice: SpeechSynthesisVoice | null = null;
+
+    if (idVoices.length > 0) {
+      // If multiple Indonesian voices exist, map model provider to specific voice index
+      if (id.includes("claude") || provider === "anthropic") {
+        selectedVoice = idVoices[1 % idVoices.length];
+      } else if (id.includes("deepseek")) {
+        selectedVoice = idVoices[2 % idVoices.length] || idVoices[0];
+      } else {
+        selectedVoice = idVoices[0];
+      }
+    } else if (msVoices.length > 0) {
+      selectedVoice = msVoices[0];
     }
-    // Default (OpenAI, etc.)
-    return { pitch: 1.0, rate: 1.0 };
+
+    // Keep pitch & rate at clear, natural levels (distorted pitch causes robotic garbled sound)
+    if (id.includes("gemini") || provider === "gemini") {
+      return { voice: selectedVoice, pitch: 1.0, rate: 1.02 };
+    } else if (id.includes("claude") || provider === "anthropic") {
+      return { voice: selectedVoice, pitch: 0.98, rate: 0.98 };
+    } else if (id.includes("deepseek")) {
+      return { voice: selectedVoice, pitch: 1.02, rate: 1.04 };
+    }
+
+    return { voice: selectedVoice, pitch: 1.0, rate: 1.0 };
   };
 
-  // Handle SpeechSynthesis (TTS) with model-specific voice persona
+  // Handle SpeechSynthesis (TTS)
   const speakText = (text: string, onEndCallback?: () => void) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       if (onEndCallback) onEndCallback();
@@ -79,36 +142,31 @@ export function VoiceCallModal({
       return;
     }
 
-    const cleanText = text
-      .replace(/```[\s\S]*?```/g, "")
-      .replace(/[*#_~`]/g, "")
-      .trim();
+    const cleanText = cleanTextForSpeech(text);
 
     if (!cleanText) {
       if (onEndCallback) onEndCallback();
       return;
     }
 
-    setAiSpeechText(cleanText);
+    // Limit text length for voice call mode so AI speaks concise responses
+    const spokenExcerpt = cleanText.length > 350 ? cleanText.substring(0, 350) + "..." : cleanText;
+
+    setAiSpeechText(spokenExcerpt);
     setCallStatus("speaking");
 
-    const utterance = new SpeechSynthesisUtterance(cleanText.substring(0, 500));
+    const utterance = new SpeechSynthesisUtterance(spokenExcerpt);
     utterance.lang = "id-ID";
 
-    const { pitch, rate } = getVoiceSettings();
-    utterance.pitch = pitch;
-    utterance.rate = rate;
+    const avail = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
+    const persona = getVoicePersona(avail);
 
-    // Dynamically pick distinct voice from available browser voices if present
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      const idVoices = voices.filter((v) => v.lang.includes("id") || v.lang.includes("ID"));
-      if (idVoices.length > 0) {
-        // Pick voice index based on provider hash
-        const providerHash = selectedModel.provider.charCodeAt(0) % idVoices.length;
-        utterance.voice = idVoices[providerHash] || idVoices[0];
-      }
+    if (persona.voice) {
+      utterance.voice = persona.voice;
+      utterance.lang = persona.voice.lang;
     }
+    utterance.pitch = persona.pitch;
+    utterance.rate = persona.rate;
 
     utterance.onend = () => {
       if (onEndCallback) onEndCallback();
