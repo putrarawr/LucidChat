@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Bot,
   Sparkles,
+  Bell,
 } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
@@ -158,9 +159,10 @@ export default function RoomsPage() {
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
   };
 
@@ -704,6 +706,28 @@ export default function RoomsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Bell Button for Mobile Notification Activation & Test */}
+                    <button
+                      onClick={async () => {
+                        playClickSound();
+                        const granted = await requestNotificationPermission();
+                        if (granted) {
+                          sendNativePushNotification(
+                            "LucidChat AI",
+                            "Notifikasi HP berhasil diaktifkan! Anda akan menerima pesan saat AI selesai merespons.",
+                            "/logo.png"
+                          );
+                          alert("✅ Notifikasi HP berhasil diaktifkan! Tes notifikasi telah dikirim ke HP Anda.");
+                        } else {
+                          alert("⚠️ Izin notifikasi ditolak di HP/Browser Anda. Silakan beri izin notifikasi di pengaturan browser.");
+                        }
+                      }}
+                      className="p-2 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
+                      title="Aktifkan & Tes Notifikasi HP"
+                    >
+                      <Bell className="w-4 h-4 text-amber-300" />
+                    </button>
+
                     <button
                       onClick={() => {
                         playClickSound();
