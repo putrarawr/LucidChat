@@ -276,56 +276,6 @@ export default function ChatPage() {
     }
   }, [urlChatId]);
 
-  const handleSelectModelRoom = async (modelId: string) => {
-    const targetModel = DEFAULT_MODELS.find((m) => m.id === modelId) || DEFAULT_MODELS[0];
-    setSelectedModel(targetModel);
-    playClickSound();
-
-    // Look for existing session dedicated to this model room
-    const roomTitle = `[Room AI] ${targetModel.display_name}`;
-    const existingSession = sessions.find(
-      (s) => s.title === roomTitle || s.title === targetModel.display_name
-    );
-
-    if (existingSession) {
-      handleSelectSession(existingSession.id);
-    } else {
-      // Create new model room session
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: newChat, error } = await supabase
-            .from("chats")
-            .insert({
-              user_id: user.id,
-              title: roomTitle,
-              model_used: targetModel.id,
-            })
-            .select()
-            .single();
-
-          if (newChat && !error) {
-            const newSessionItem: SessionItem = {
-              id: newChat.id,
-              title: newChat.title,
-              updatedAt: newChat.updated_at,
-              modelUsed: targetModel.id,
-            };
-            setSessions((prev) => [newSessionItem, ...prev]);
-            handleSelectSession(newChat.id);
-          } else {
-            handleNewChat();
-          }
-        } else {
-          handleNewChat();
-        }
-      } catch (err) {
-        console.warn("Failed to create model room session:", err);
-        handleNewChat();
-      }
-    }
-  };
-
   const handleNewChat = () => {
     setMessages([]);
     setArenaMessages([]);
@@ -681,7 +631,6 @@ export default function ChatPage() {
           isOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           onSelectSession={handleSelectSession}
-          onSelectModelRoom={handleSelectModelRoom}
           onNewChat={handleNewChat}
           onDeleteSession={handleDeleteSession}
           onPinSession={handlePinSession}

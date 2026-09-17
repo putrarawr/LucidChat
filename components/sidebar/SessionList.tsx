@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   MessageSquare,
@@ -14,11 +15,10 @@ import {
   X,
   Settings,
   LogOut,
-  Users,
-  History,
+  Bot,
+  ExternalLink,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
-import { ModelLogo } from "@/components/icons/ModelLogos";
 
 export interface SessionItem {
   id: string;
@@ -35,7 +35,6 @@ export interface SessionListProps {
   isOpen: boolean;
   onToggleSidebar: () => void;
   onSelectSession: (id: string) => void;
-  onSelectModelRoom?: (modelId: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
   onPinSession?: (id: string) => void;
@@ -48,60 +47,12 @@ export interface SessionListProps {
   userAvatar?: string;
 }
 
-// WhatsApp-Style Curated Model Chat Rooms
-const MODEL_ROOMS: { id: string; name: string; provider: string; desc: string }[] = [
-  {
-    id: "gemini/gemini-3.6-flash",
-    name: "Gemini 3.6 Flash",
-    provider: "Google",
-    desc: "Inferensi kilat & multimodal",
-  },
-  {
-    id: "openai/gpt-4o",
-    name: "OpenAI GPT-4o",
-    provider: "OpenAI",
-    desc: "Penalaran cerdas & instruksi agen",
-  },
-  {
-    id: "claude/claude-3-7-sonnet-20250219",
-    name: "Claude 3.7 Sonnet",
-    provider: "Anthropic",
-    desc: "Kreativitas & analisis kode mendalam",
-  },
-  {
-    id: "deepseek/deepseek-r1",
-    name: "DeepSeek R1",
-    provider: "DeepSeek",
-    desc: "Model reasoning matematika & koding",
-  },
-  {
-    id: "kimi/kimi-latest",
-    name: "Kimi AI",
-    provider: "Moonshot",
-    desc: "Konteks panjang & pemindaian dokumen",
-  },
-  {
-    id: "qwen/qwen-2.5-coder-32b-instruct",
-    name: "Qwen 2.5 Coder",
-    provider: "Alibaba",
-    desc: "Spesialis arsitektur & sintaksis kode",
-  },
-  {
-    id: "meta/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
-    provider: "Meta",
-    desc: "Open-weights reasoning terkemuka",
-  },
-];
-
 export function SessionList({
   sessions,
   currentSessionId,
-  selectedModelId,
   isOpen,
   onToggleSidebar,
   onSelectSession,
-  onSelectModelRoom,
   onNewChat,
   onDeleteSession,
   onPinSession,
@@ -113,22 +64,18 @@ export function SessionList({
   userName,
   userAvatar,
 }: SessionListProps) {
-  const [activeTab, setActiveTab] = useState<"rooms" | "history">("rooms");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [deleteConfirmSession, setDeleteConfirmSession] = useState<SessionItem | null>(null);
 
-  // Filter sessions & model rooms by search query
-  const filteredSessions = sessions.filter((s) =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter out room chats from global history to keep /chat history separate from /rooms
+  const historySessions = sessions.filter(
+    (s) => !s.title.startsWith("[Room AI]")
   );
 
-  const filteredRooms = MODEL_ROOMS.filter(
-    (r) =>
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.desc.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSessions = historySessions.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const pinnedSessions = filteredSessions.filter((s) => s.isPinned);
@@ -237,39 +184,17 @@ export function SessionList({
             Chat Baru
           </button>
 
-          {/* Tab Switcher: WhatsApp-Style Model Rooms vs Riwayat Chat */}
-          <div className="mt-3 grid grid-cols-2 p-1 rounded-2xl bg-white/[0.03] border border-white/[0.08] shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                playClickSound();
-                setActiveTab("rooms");
-              }}
-              className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 ${
-                activeTab === "rooms"
-                  ? "bg-white/10 text-white shadow-sm border border-white/15"
-                  : "text-white/40 hover:text-white/80"
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Room AI</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                playClickSound();
-                setActiveTab("history");
-              }}
-              className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 ${
-                activeTab === "history"
-                  ? "bg-white/10 text-white shadow-sm border border-white/15"
-                  : "text-white/40 hover:text-white/80"
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>Riwayat</span>
-            </button>
-          </div>
+          {/* Dedicated Model Rooms Route Button */}
+          <Link
+            href="/rooms"
+            className="w-full mt-2 py-2.5 px-3.5 rounded-2xl flex items-center justify-between gap-2 text-xs font-semibold bg-gradient-to-r from-white/10 via-white/5 to-transparent hover:from-white/20 hover:to-white/10 border border-white/15 text-white shadow-sm transition-all shrink-0 group"
+          >
+            <div className="flex items-center gap-2">
+              <Bot className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+              <span>Model Rooms AI</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+          </Link>
 
           {/* Search Filter Input */}
           <div className="mt-3 relative shrink-0">
@@ -278,7 +203,7 @@ export function SessionList({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={activeTab === "rooms" ? "Cari Room AI..." : "Cari percakapan..."}
+              placeholder="Cari percakapan..."
               className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-white placeholder-white/25 focus:outline-none focus:border-white/20 transition-all"
             />
             {searchQuery && (
@@ -291,95 +216,34 @@ export function SessionList({
             )}
           </div>
 
-          {/* Tab Content Container */}
-          <div className="mt-3 overflow-y-auto flex-1 pr-1 space-y-2">
-            {/* 1. WHATSAPP-STYLE ROOM CHAT PER MODEL TAB */}
-            {activeTab === "rooms" && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[9px] font-semibold tracking-[0.15em] text-white/40 uppercase px-2 mb-1">
-                  <span>Kontak AI Online</span>
-                  <span className="text-emerald-400 font-mono text-[9px] flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    LIVE
-                  </span>
+          {/* Session List Container (Global Custom Sessions Only) */}
+          <div className="mt-4 space-y-3 overflow-y-auto flex-1 pr-1">
+            {/* Pinned Sessions */}
+            {pinnedSessions.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.15em] text-white/40 uppercase px-2 mb-1">
+                  <Pin className="w-3 h-3 text-white/50" />
+                  <span>Disematkan</span>
                 </div>
-
-                {filteredRooms.map((room) => {
-                  const isRoomActive = selectedModelId === room.id;
-                  const matchingSession = sessions.find(
-                    (s) => s.modelUsed === room.id || s.title.includes(room.name)
-                  );
-
-                  return (
-                    <div
-                      key={room.id}
-                      onClick={() => {
-                        playClickSound();
-                        if (onSelectModelRoom) onSelectModelRoom(room.id);
-                      }}
-                      className={`group relative flex items-center gap-3 p-2.5 rounded-2xl text-xs cursor-pointer transition-all duration-200 border ${
-                        isRoomActive
-                          ? "bg-gradient-to-r from-white/15 to-white/5 border-white/30 text-white shadow-[0_0_20px_rgba(255,255,255,0.08)] scale-[1.01]"
-                          : "bg-white/[0.03] border-white/[0.06] text-white/70 hover:bg-white/[0.07] hover:border-white/15 hover:text-white"
-                      }`}
-                    >
-                      {/* Model Avatar & Online Indicator */}
-                      <div className="relative shrink-0">
-                        <div className="w-9 h-9 rounded-full bg-white/[0.08] border border-white/20 flex items-center justify-center p-1.5 shadow-inner group-hover:scale-105 transition-transform">
-                          <ModelLogo modelId={room.id} provider={room.provider} className="w-5 h-5" />
-                        </div>
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0e0e14] shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                      </div>
-
-                      {/* Info & Snippet */}
-                      <div className="flex flex-col min-w-0 flex-1 text-left">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-semibold text-white truncate text-xs">{room.name}</span>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/10 text-white/50 shrink-0">
-                            {room.provider}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-white/40 truncate mt-0.5">
-                          {matchingSession ? matchingSession.title : room.desc}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {pinnedSessions.map((s) => renderSessionRow(s))}
               </div>
             )}
 
-            {/* 2. HISTORY TAB */}
-            {activeTab === "history" && (
-              <div className="space-y-3">
-                {/* Pinned Sessions */}
-                {pinnedSessions.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.15em] text-white/40 uppercase px-2 mb-1">
-                      <Pin className="w-3 h-3 text-white/50" />
-                      <span>Disematkan</span>
-                    </div>
-                    {pinnedSessions.map((s) => renderSessionRow(s))}
-                  </div>
-                )}
-
-                {/* Unpinned / Regular Sessions */}
-                <div className="space-y-1">
-                  {pinnedSessions.length > 0 && (
-                    <div className="text-[9px] font-semibold tracking-[0.15em] text-white/25 uppercase px-2 mb-1 pt-1">
-                      Semua Chat
-                    </div>
-                  )}
-                  {filteredSessions.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-xs text-white/20">
-                      {searchQuery ? "Tidak ditemukan percakapan" : "Belum ada percakapan"}
-                    </div>
-                  ) : (
-                    unpinnedSessions.map((s) => renderSessionRow(s))
-                  )}
+            {/* Unpinned / Regular Sessions */}
+            <div className="space-y-1">
+              {pinnedSessions.length > 0 && (
+                <div className="text-[9px] font-semibold tracking-[0.15em] text-white/25 uppercase px-2 mb-1 pt-1">
+                  Semua Chat
                 </div>
-              </div>
-            )}
+              )}
+              {filteredSessions.length === 0 ? (
+                <div className="px-3 py-6 text-center text-xs text-white/20">
+                  {searchQuery ? "Tidak ditemukan percakapan" : "Belum ada percakapan"}
+                </div>
+              ) : (
+                unpinnedSessions.map((s) => renderSessionRow(s))
+              )}
+            </div>
           </div>
         </div>
 
@@ -483,7 +347,7 @@ export function SessionList({
           <span className="truncate">{s.title}</span>
         </div>
 
-        {/* Action Menu: Smooth visibility */}
+        {/* Action Menu */}
         <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-0.5 transition-all duration-200 shrink-0">
           {onPinSession && (
             <button
