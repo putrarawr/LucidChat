@@ -21,6 +21,8 @@ import {
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
+import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -44,7 +46,7 @@ export function SettingsModal({
   onUpdateCustomSystemPrompt,
   onSaveSuccess,
 }: SettingsModalProps) {
-  const { lang, setLang, t } = useI18n();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "data" | "support">("profile");
 
   const [displayName, setDisplayName] = useState(userName);
@@ -95,7 +97,7 @@ export function SettingsModal({
     if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(trimmedPrompt);
 
     if (onSaveSuccess) {
-      onSaveSuccess(t("settings.saveSuccess", "Pengaturan berhasil disimpan"));
+      onSaveSuccess(t("settings.saveSuccess", "Settings saved successfully"));
     }
 
     onClose();
@@ -103,7 +105,7 @@ export function SettingsModal({
 
   const handleResetSettings = () => {
     playClickSound();
-    if (confirm("Apakah Anda yakin ingin mengembalikan semua pengaturan ke default?")) {
+    if (confirm(t("settings.confirmReset", "Are you sure you want to restore all settings to defaults?"))) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("lucidchat_user_name");
         localStorage.removeItem("lucidchat_user_avatar");
@@ -125,7 +127,7 @@ export function SettingsModal({
       if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt("");
 
       if (onSaveSuccess) {
-        onSaveSuccess("Pengaturan berhasil di-reset");
+        onSaveSuccess(t("settings.saveSuccess", "Settings saved successfully"));
       }
 
       onClose();
@@ -144,7 +146,7 @@ export function SettingsModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex items-center gap-2.5">
             <Settings className="w-4 h-4 text-white/70" />
-            <h3 className="text-sm font-semibold text-white tracking-wide">Pengaturan</h3>
+            <h3 className="text-sm font-semibold text-white tracking-wide">{t("settings.title", "Application Settings")}</h3>
           </div>
           <button
             type="button"
@@ -173,7 +175,7 @@ export function SettingsModal({
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Profil</span>
+            <span>{t("settings.profileTab", "User Profile")}</span>
           </button>
 
           <button
@@ -189,7 +191,7 @@ export function SettingsModal({
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>Instruksi AI</span>
+            <span>{t("settings.personaTab", "Custom AI Persona")}</span>
           </button>
 
           <button
@@ -205,7 +207,7 @@ export function SettingsModal({
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" />
-            <span>Antarmuka & Suara</span>
+            <span>{t("settings.interfaceTab", "Interface & Sound")}</span>
           </button>
 
           <button
@@ -221,7 +223,7 @@ export function SettingsModal({
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>Data</span>
+            <span>{t("settings.dataTab", "Data & Privacy")}</span>
           </button>
 
           <button
@@ -237,7 +239,7 @@ export function SettingsModal({
             }`}
           >
             <Bug className="w-3.5 h-3.5 text-rose-400" />
-            <span>{t("settings.supportTab", "Pengembang & Lapor Bug")}</span>
+            <span>{t("settings.supportTab", "Developer & Bug Report")}</span>
           </button>
         </div>
 
@@ -248,30 +250,30 @@ export function SettingsModal({
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-white/80 mb-1.5">
-                  Nama Tampilan (Display Name)
+                  {t("settings.displayName", "Display Name")}
                 </label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Masukkan nama Anda (contoh: Putra)..."
+                  placeholder={t("settings.displayNamePlaceholder", "Enter your display name...")}
                   className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all"
                 />
                 <p className="text-[10px] text-white/40 mt-1">
-                  Nama ini akan tersimpan permanen di browser Anda dan digunakan untuk profil bubble chat.
+                  {t("settings.displayNameHint", "This name will be saved permanently in your browser and used for your chat profile.")}
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-white/80 mb-1.5">
-                  URL Avatar (Opsional)
+                  {t("settings.avatarUrl", "Avatar / Profile Picture URL")}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={avatarUrl}
                     onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://example.com/avatar.jpg"
+                    placeholder={t("settings.avatarUrlPlaceholder", "https://...")}
                     className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all"
                   />
                   {avatarUrl && (
@@ -289,38 +291,38 @@ export function SettingsModal({
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-white/80 mb-1.5">
-                  Instruksi System Tambahan (Global Persona Prompt)
+                  {t("settings.systemPrompt", "Custom System Prompt (Lucid Persona)")}
                 </label>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
                   rows={4}
-                  placeholder="Jawab selalu dalam Bahasa Indonesia terstruktur, berikan contoh kode bersih jika diminta..."
+                  placeholder={t("settings.systemPromptPlaceholder", "Example: Always answer politely, concisely, with step-by-step code samples...")}
                   className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all resize-none"
                 />
                 <p className="text-[10px] text-white/40 mt-1">
-                  Instruksi ini disisipkan ke seluruh model AI secara otomatis.
+                  {t("settings.systemPromptHint", "This instruction will be appended to every AI chat session.")}
                 </p>
               </div>
 
               <div>
                 <span className="block text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
-                  Preset Cepat
+                  {t("chat.presetQuick", "Quick Presets")}
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => applyPromptPreset("Jawablah secara singkat, padat, dan langsung pada inti masalah.")}
+                    onClick={() => applyPromptPreset("Answer concisely, clearly, and get straight to the point.")}
                     className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
                   >
-                    Ringkas & Direct
+                    {t("settings.presetShort", "Concise & Direct")}
                   </button>
                   <button
                     type="button"
-                    onClick={() => applyPromptPreset("Bertindaklah sebagai Senior Code Architect. Berikan kode modular, clean code, dan penjelasan terstruktur.")}
+                    onClick={() => applyPromptPreset("Act as a Senior Code Architect. Provide clean, modular code with clear explanations.")}
                     className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
                   >
-                    Senior Code Architect
+                    {t("settings.presetArchitect", "Senior Code Architect")}
                   </button>
                 </div>
               </div>
@@ -334,8 +336,8 @@ export function SettingsModal({
                 <div className="flex items-center gap-2.5">
                   {soundEnabled ? <Volume2 className="w-4 h-4 text-white/70" /> : <VolumeX className="w-4 h-4 text-white/40" />}
                   <div>
-                    <h4 className="text-xs font-semibold text-white">Efek Suara UI</h4>
-                    <p className="text-[10px] text-white/40">Suara klik tombol & audio kirim pesan</p>
+                    <h4 className="text-xs font-semibold text-white">{t("settings.soundEffects", "Interactive Sound Effects")}</h4>
+                    <p className="text-[10px] text-white/40">{t("settings.soundEffectsDesc", "Play audio cues for message send, button clicks, and AI completion")}</p>
                   </div>
                 </div>
                 <button
@@ -357,8 +359,8 @@ export function SettingsModal({
                 <div className="flex items-center gap-2.5">
                   <MessageSquare className="w-4 h-4 text-white/70" />
                   <div>
-                    <h4 className="text-xs font-semibold text-white">Auto-Scroll Percakapan</h4>
-                    <p className="text-[10px] text-white/40">Geser otomatis ke pesan terbaru saat AI merespons</p>
+                    <h4 className="text-xs font-semibold text-white">{t("settings.autoScroll", "Auto Scroll Messages")}</h4>
+                    <p className="text-[10px] text-white/40">{t("settings.autoScrollDesc", "Automatically scroll to bottom while AI streams responses")}</p>
                   </div>
                 </div>
                 <button
@@ -380,8 +382,8 @@ export function SettingsModal({
                 <div className="flex items-center gap-2.5">
                   <Code className="w-4 h-4 text-white/70" />
                   <div>
-                    <h4 className="text-xs font-semibold text-white">{t("settings.autoCodePreview", "Preview Kode Otomatis")}</h4>
-                    <p className="text-[10px] text-white/40">{t("settings.autoCodePreviewDesc", "Buka panel split saat AI membuatkan kode HTML/JS")}</p>
+                    <h4 className="text-xs font-semibold text-white">{t("settings.autoCodePreview", "Auto Open Code Preview")}</h4>
+                    <p className="text-[10px] text-white/40">{t("settings.autoCodePreviewDesc", "Automatically open code preview tab when AI outputs HTML/CSS")}</p>
                   </div>
                 </div>
                 <button
@@ -399,49 +401,17 @@ export function SettingsModal({
                 </button>
               </div>
 
-              {/* Language Selector Card (i18n) */}
+              {/* Language Selector Card (i18n Multi-Language Grid) */}
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
                 <div className="flex items-center gap-2.5">
                   <Globe className="w-4 h-4 text-amber-300" />
                   <div>
-                    <h4 className="text-xs font-semibold text-white">{t("settings.language", "Bahasa Antarmuka (Language)")}</h4>
-                    <p className="text-[10px] text-white/40">{t("settings.languageDesc", "Pilih bahasa tampilan platform LucidChat")}</p>
+                    <h4 className="text-xs font-semibold text-white">{t("settings.language", "Interface Language")}</h4>
+                    <p className="text-[10px] text-white/40">{t("settings.languageDesc", "Choose display language for LucidChat platform")}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playClickSound();
-                      setLang("id");
-                    }}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all border ${
-                      lang === "id"
-                        ? "bg-white/15 border-white/30 text-white shadow-sm"
-                        : "bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <span>🇮🇩 Bahasa Indonesia</span>
-                    {lang === "id" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playClickSound();
-                      setLang("en");
-                    }}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all border ${
-                      lang === "en"
-                        ? "bg-white/15 border-white/30 text-white shadow-sm"
-                        : "bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <span>🇬🇧 English</span>
-                    {lang === "en" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                  </button>
-                </div>
+                <FloatingLanguagePicker variant="grid" className="pt-2" />
               </div>
             </div>
           )}
@@ -452,10 +422,10 @@ export function SettingsModal({
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-white/70" />
-                  <h4 className="text-xs font-semibold text-white">Penyimpanan Lokal</h4>
+                  <h4 className="text-xs font-semibold text-white">{t("settings.localDataTitle", "Local Storage")}</h4>
                 </div>
                 <p className="text-[10px] text-white/40">
-                  Data sesi dan preferensi pengguna tersimpan secara aman di peramban browser Anda.
+                  {t("settings.localDataDesc", "Session data and user preferences are safely stored in your browser.")}
                 </p>
                 <div className="pt-1">
                   <button
@@ -464,7 +434,7 @@ export function SettingsModal({
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-xs text-white/80 transition-all border border-white/10"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset Pengaturan</span>
+                    <span>{t("settings.resetDefault", "Reset Defaults")}</span>
                   </button>
                 </div>
               </div>
@@ -481,10 +451,10 @@ export function SettingsModal({
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">
-                      {t("settings.reportBugTitle", "Lapor Bug & Beri Saran")}
+                      {t("settings.reportBugTitle", "Report Bug & Feedback")}
                     </h4>
                     <p className="text-[10px] text-white/50">
-                      {t("settings.reportBugDesc", "Punya saran fitur atau menemukan kendala teknis? Hubungi pengembang langsung via Email atau buat issue di GitHub.")}
+                      {t("settings.reportBugDesc", "Found a bug or have feature suggestions? Contact the developer directly via Email or open an issue on GitHub.")}
                     </p>
                   </div>
                 </div>
@@ -541,7 +511,7 @@ export function SettingsModal({
             }}
             className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all"
           >
-            Batal
+            {t("sidebar.cancel", "Cancel")}
           </button>
           <button
             type="button"
@@ -549,7 +519,7 @@ export function SettingsModal({
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-white/90 shadow-sm transition-all"
           >
             <Check className="w-3.5 h-3.5" />
-            <span>Simpan Pengaturan</span>
+            <span>{t("settings.saveChanges", "Save Settings")}</span>
           </button>
         </div>
       </div>

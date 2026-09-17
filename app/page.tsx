@@ -27,6 +27,7 @@ import {
   Mail,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
 import { playClickSound } from "@/lib/sound";
 import {
   GeminiLogo,
@@ -553,7 +554,7 @@ function InteractiveDemo() {
 // ─── MAIN LANDING PAGE ───
 // ═══════════════════════════════════════════════════════════
 export default function LandingPage() {
-  const { lang, setLang, t } = useI18n();
+  const { lang, t } = useI18n();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -624,39 +625,8 @@ export default function LandingPage() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
-            {/* Glassmorphic Language Slider Switch Toggle */}
-            <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-semibold select-none relative shadow-inner">
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setLang("id");
-                }}
-                className={`px-2.5 py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
-                  lang === "id"
-                    ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
-                    : "text-white/40 hover:text-white/70"
-                }`}
-                title="Bahasa Indonesia"
-              >
-                <span>🇮🇩 ID</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setLang("en");
-                }}
-                className={`px-2.5 py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
-                  lang === "en"
-                    ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
-                    : "text-white/40 hover:text-white/70"
-                }`}
-                title="English"
-              >
-                <span>🇬🇧 EN</span>
-              </button>
-            </div>
+            {/* Floating Circle Multi-Language Picker */}
+            <FloatingLanguagePicker variant="floating" />
 
             <Link
               href="/login"
@@ -684,33 +654,8 @@ export default function LandingPage() {
           <div className="md:hidden px-6 pb-5 pt-2 border-t border-white/10 space-y-3 rounded-b-3xl bg-[#08080e]/95 backdrop-blur-2xl">
             {/* Language Switcher on Mobile */}
             <div className="flex items-center justify-between py-2 border-b border-white/10">
-              <span className="text-xs text-zinc-400 font-medium">Language / Bahasa</span>
-              <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-semibold select-none">
-                <button
-                  type="button"
-                  onClick={() => {
-                    playClickSound();
-                    setLang("id");
-                  }}
-                  className={`px-2.5 py-1 rounded-full transition-all ${
-                    lang === "id" ? "bg-white/20 text-white font-bold" : "text-white/40"
-                  }`}
-                >
-                  🇮🇩 ID
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    playClickSound();
-                    setLang("en");
-                  }}
-                  className={`px-2.5 py-1 rounded-full transition-all ${
-                    lang === "en" ? "bg-white/20 text-white font-bold" : "text-white/40"
-                  }`}
-                >
-                  🇬🇧 EN
-                </button>
-              </div>
+              <span className="text-xs text-zinc-400 font-medium">Language</span>
+              <FloatingLanguagePicker variant="compact" />
             </div>
 
             <a href="#fitur" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">{t("landing.navFeatures", "Fitur")}</a>

@@ -6,7 +6,11 @@ import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 
+import { useI18n } from "@/lib/i18n/I18nContext";
+import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
+
 export default function LoginPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,21 +40,21 @@ export default function LoginPage() {
       if (error) {
         const msg = error.message?.toLowerCase() || "";
         if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
-          setErrorMessage("Email Anda belum dikonfirmasi. Silakan cek inbox email Anda untuk link aktivasi.");
+          setErrorMessage(t("auth.emailUnconfirmed", "Email Anda belum dikonfirmasi. Silakan cek inbox email Anda untuk link aktivasi."));
           setShowResendButton(true);
         } else if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
-          setErrorMessage("Email atau kata sandi salah. Periksa kembali atau buat akun baru.");
+          setErrorMessage(t("auth.invalidCreds", "Email atau kata sandi salah. Periksa kembali atau buat akun baru."));
         } else {
-          setErrorMessage(error.message || "Gagal masuk. Periksa email & password Anda.");
+          setErrorMessage(error.message || t("auth.loginError", "Gagal masuk. Periksa email & password Anda."));
         }
       } else {
-        setSuccessMessage("Berhasil masuk! Mengalihkan...");
+        setSuccessMessage(t("auth.processing", "Berhasil masuk! Mengalihkan..."));
         setTimeout(() => {
           window.location.href = "/chat";
         }, 800);
       }
     } catch {
-      setErrorMessage("Terjadi kesalahan saat masuk.");
+      setErrorMessage(t("auth.loginError", "Terjadi kesalahan saat masuk."));
     } finally {
       setLoading(false);
     }
@@ -58,7 +62,7 @@ export default function LoginPage() {
 
   const handleResendConfirmation = async () => {
     if (!email) {
-      setErrorMessage("Masukkan alamat email Anda terlebih dahulu.");
+      setErrorMessage(t("auth.emailLabel", "Email"));
       return;
     }
     setResending(true);
@@ -71,13 +75,13 @@ export default function LoginPage() {
         },
       });
       if (error) {
-        setErrorMessage("Gagal mengirim ulang email konfirmasi: " + error.message);
+        setErrorMessage("Failed to resend email: " + error.message);
       } else {
-        setSuccessMessage("📧 Email konfirmasi telah dikirim ulang ke " + email + ". Silakan cek inbox dan folder spam Anda.");
+        setSuccessMessage(t("auth.resendSuccess", "📧 Email konfirmasi telah dikirim ulang ke ") + email);
         setShowResendButton(false);
       }
     } catch {
-      setErrorMessage("Terjadi kesalahan saat mengirim ulang email konfirmasi.");
+      setErrorMessage(t("auth.loginError", "Terjadi kesalahan saat mengirim ulang email konfirmasi."));
     } finally {
       setResending(false);
     }
@@ -99,14 +103,17 @@ export default function LoginPage() {
             className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors group"
           >
             <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Beranda</span>
+            <span>{t("nav.backHome", "Back to Home")}</span>
           </Link>
-          <Link
-            href="/register"
-            className="text-xs text-white/50 hover:text-white transition-colors"
-          >
-            Belum punya akun? <span className="text-white font-semibold">Daftar</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <FloatingLanguagePicker variant="compact" />
+            <Link
+              href="/register"
+              className="text-xs text-white/50 hover:text-white transition-colors"
+            >
+              {t("auth.noAccount", "Don't have an account?")} <span className="text-white font-semibold">{t("auth.signUpNow", "Register")}</span>
+            </Link>
+          </div>
         </div>
 
         {/* Login Card */}
@@ -120,9 +127,9 @@ export default function LoginPage() {
               <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-12 h-2 rounded-full bg-white/[0.03] blur-sm" />
             </div>
             <div className="space-y-1">
-              <h1 className="text-[24px] font-bold tracking-[-0.03em] text-white">Masuk</h1>
+              <h1 className="text-[24px] font-bold tracking-[-0.03em] text-white">{t("auth.loginTitle", "Sign In")}</h1>
               <p className="text-[12px] text-white/40 leading-relaxed max-w-[260px]">
-                Masuk ke akun LucidChat AI Platform
+                {t("auth.loginSubtitle", "Sign in to access multi-model AI chat")}
               </p>
             </div>
           </div>
@@ -138,7 +145,7 @@ export default function LoginPage() {
                   disabled={resending}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-amber-300 text-[11px] font-semibold transition-all border border-white/10"
                 >
-                  {resending ? "Mengirim..." : "📧 Kirim Ulang Email Konfirmasi"}
+                  {resending ? t("auth.resendSending", "Sending...") : t("auth.resendEmail", "📧 Resend Confirmation Email")}
                 </button>
               )}
             </div>
@@ -152,19 +159,19 @@ export default function LoginPage() {
           {/* Email Login Form */}
           <form onSubmit={handleEmailLogin} className="space-y-3.5 text-left">
             <div>
-              <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Email</label>
+              <label className="text-[11px] font-medium text-white/60 mb-1.5 block">{t("auth.emailLabel", "Email Address")}</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@email.com"
+                placeholder="name@email.com"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors"
               />
             </div>
 
             <div>
-              <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Kata Sandi</label>
+              <label className="text-[11px] font-medium text-white/60 mb-1.5 block">{t("auth.passwordLabel", "Password")}</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -190,22 +197,22 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 rounded-xl bg-white text-black font-semibold text-xs shadow-lg hover:bg-white/90 active:scale-95 transition-all duration-200 mt-2"
             >
-              {loading ? "Memproses..." : "Masuk"}
+              {loading ? t("auth.processing", "Processing...") : t("auth.loginBtn", "Sign In Now")}
             </button>
           </form>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-white/10" />
-            <span className="text-[10px] text-white/30">atau</span>
+            <span className="text-[10px] text-white/30">{t("auth.or", "or")}</span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Google OAuth */}
           <GoogleOneTap
-            buttonText="Masuk dengan Google"
+            buttonText={t("auth.googleLogin", "Continue with Google")}
             onSuccess={() => {
-              setSuccessMessage("Berhasil masuk! Mengalihkan...");
+              setSuccessMessage(t("auth.processing", "Berhasil masuk! Mengalihkan..."));
               setTimeout(() => {
                 window.location.href = "/chat";
               }, 600);
@@ -219,13 +226,13 @@ export default function LoginPage() {
               href="/register"
               className="text-[11px] text-white/40 hover:text-white transition-colors"
             >
-              Belum punya akun? <span className="text-white/70 font-semibold underline underline-offset-2 decoration-white/20 hover:decoration-white/50">Daftar sekarang</span>
+              {t("auth.noAccount", "Don't have an account?")} <span className="text-white/70 font-semibold underline underline-offset-2 decoration-white/20 hover:decoration-white/50">{t("auth.signUpNow", "Register now")}</span>
             </Link>
           </div>
 
           {/* Footer */}
           <p className="text-[10px] text-white/20 leading-relaxed">
-            Data aman dengan Supabase Row-Level Security
+            {t("auth.securityNote", "Data secured with Supabase Row-Level Security")}
           </p>
         </div>
       </div>

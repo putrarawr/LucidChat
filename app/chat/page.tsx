@@ -15,6 +15,7 @@ import { X, PanelLeftOpen, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
 
 interface ChatRow {
   id: string;
@@ -54,7 +55,7 @@ function generateSmartTitle(prompt: string): string {
 }
 
 export default function ChatPage() {
-  const { lang, setLang } = useI18n();
+  const { t } = useI18n();
   const params = useParams();
   const urlChatId = params?.chatId as string | undefined;
 
@@ -688,56 +689,24 @@ export default function ChatPage() {
           {/* Minimal Clean Header Bar */}
           <header className="h-12 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/[0.05] bg-[#0c0c12]/90 backdrop-blur-2xl animate-entrance-header z-30">
             <div className="flex items-center gap-2.5">
-              {/* Sidebar Open Button (Shown only when sidebar is closed) */}
+              {/* Sidebar Open Button (Floating circle without text) */}
               {!isSidebarOpen && (
                 <button
                   onClick={() => {
                     playClickSound();
                     setIsSidebarOpen(true);
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.12] hover:border-white/[0.18] text-white/70 hover:text-white transition-all shadow-sm"
-                  title="Buka Sidebar"
+                  className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.16] border border-white/15 text-white/80 hover:text-white transition-all shadow-md backdrop-blur-md active:scale-95"
+                  title="Open Sidebar"
                 >
-                  <PanelLeftOpen className="w-3.5 h-3.5 text-white/70" />
-                  <span className="text-[11px] font-medium text-white/80">Menu</span>
+                  <PanelLeftOpen className="w-4 h-4 text-white/90" />
                 </button>
               )}
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Glassmorphic Language Slider Switch Toggle */}
-              <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-[11px] font-semibold select-none relative shadow-inner">
-                <button
-                  type="button"
-                  onClick={() => {
-                    playClickSound();
-                    setLang("id");
-                  }}
-                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
-                    lang === "id"
-                      ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
-                      : "text-white/40 hover:text-white/70"
-                  }`}
-                  title="Bahasa Indonesia"
-                >
-                  <span>🇮🇩 ID</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    playClickSound();
-                    setLang("en");
-                  }}
-                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
-                    lang === "en"
-                      ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
-                      : "text-white/40 hover:text-white/70"
-                  }`}
-                  title="English"
-                >
-                  <span>🇬🇧 EN</span>
-                </button>
-              </div>
+              {/* Floating Circle Multi-Language Picker */}
+              <FloatingLanguagePicker variant="floating" />
 
               {activeCodePreview && (
                 <button

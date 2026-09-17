@@ -6,32 +6,37 @@ import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, ShieldCheck, Check, X } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 
+import { useI18n } from "@/lib/i18n/I18nContext";
+import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
+
 interface StrengthRule {
-  label: string;
+  key: string;
+  fallback: string;
   test: (pw: string) => boolean;
 }
 
 const STRENGTH_RULES: StrengthRule[] = [
-  { label: "Minimal 8 karakter", test: (pw) => pw.length >= 8 },
-  { label: "Huruf besar (A-Z)", test: (pw) => /[A-Z]/.test(pw) },
-  { label: "Huruf kecil (a-z)", test: (pw) => /[a-z]/.test(pw) },
-  { label: "Angka (0-9)", test: (pw) => /[0-9]/.test(pw) },
-  { label: "Simbol (!@#$...)", test: (pw) => /[^A-Za-z0-9]/.test(pw) },
+  { key: "auth.passwordMin8", fallback: "Minimal 8 karakter", test: (pw) => pw.length >= 8 },
+  { key: "auth.passwordUpper", fallback: "Huruf besar (A-Z)", test: (pw) => /[A-Z]/.test(pw) },
+  { key: "auth.passwordLower", fallback: "Huruf kecil (a-z)", test: (pw) => /[a-z]/.test(pw) },
+  { key: "auth.passwordNumber", fallback: "Angka (0-9)", test: (pw) => /[0-9]/.test(pw) },
+  { key: "auth.passwordSymbol", fallback: "Simbol (!@#$...)", test: (pw) => /[^A-Za-z0-9]/.test(pw) },
 ];
 
-function getStrengthLevel(score: number): {
+function getStrengthLevel(score: number, t: (k: string, f: string) => string): {
   label: string;
   color: string;
   barColor: string;
 } {
-  if (score <= 1) return { label: "Sangat Lemah", color: "text-red-400", barColor: "bg-red-500" };
-  if (score === 2) return { label: "Lemah", color: "text-orange-400", barColor: "bg-orange-500" };
-  if (score === 3) return { label: "Sedang", color: "text-amber-400", barColor: "bg-amber-500" };
-  if (score === 4) return { label: "Kuat", color: "text-emerald-400", barColor: "bg-emerald-500" };
-  return { label: "Sangat Kuat", color: "text-cyan-400", barColor: "bg-cyan-400" };
+  if (score <= 1) return { label: t("auth.strengthWeak", "Sangat Lemah"), color: "text-red-400", barColor: "bg-red-500" };
+  if (score === 2) return { label: t("auth.strengthWeak", "Lemah"), color: "text-orange-400", barColor: "bg-orange-500" };
+  if (score === 3) return { label: t("auth.strengthMedium", "Sedang"), color: "text-amber-400", barColor: "bg-amber-500" };
+  if (score === 4) return { label: t("auth.strengthStrong", "Kuat"), color: "text-emerald-400", barColor: "bg-emerald-500" };
+  return { label: t("auth.strengthVeryStrong", "Sangat Kuat"), color: "text-cyan-400", barColor: "bg-cyan-400" };
 }
 
 export default function RegisterPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,7 +53,7 @@ export default function RegisterPage() {
     () => STRENGTH_RULES.filter((r) => r.test(password)).length,
     [password]
   );
-  const strengthInfo = getStrengthLevel(strengthScore);
+  const strengthInfo = getStrengthLevel(strengthScore, t);
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
   const canSubmit = strengthScore >= 4 && passwordsMatch && email.length > 0;
@@ -72,27 +77,24 @@ export default function RegisterPage() {
 
       if (error) {
         if (error.message?.toLowerCase().includes("already registered")) {
-          setErrorMessage("Email ini sudah terdaftar. Silakan login atau gunakan email lain.");
+          setErrorMessage("Email is already registered. Please sign in.");
         } else {
-          setErrorMessage(error.message || "Gagal membuat akun. Coba lagi.");
+          setErrorMessage(error.message || "Failed to create account.");
         }
       } else if (data?.user?.identities?.length === 0) {
-        // User already exists in Supabase but tried to sign up again
-        setErrorMessage("Email ini sudah terdaftar. Silakan login atau gunakan email lain.");
+        setErrorMessage("Email is already registered. Please sign in.");
       } else if (data?.session) {
-        // Auto-confirm mode (no email verification required) — redirect immediately
-        setSuccessMessage("Akun berhasil dibuat! Mengalihkan ke chat...");
+        setSuccessMessage("Account created successfully! Redirecting...");
         setTimeout(() => {
           window.location.href = "/chat";
         }, 1200);
       } else {
-        // Email confirmation required — show verification message
         setSuccessMessage(
-          "📧 Kami telah mengirim link konfirmasi ke " + email + ". Silakan cek inbox email Anda (dan folder spam) untuk mengaktifkan akun, lalu kembali ke halaman login."
+          "📧 Confirmation link sent to " + email + ". Please check your inbox and spam folder."
         );
       }
     } catch {
-      setErrorMessage("Terjadi kesalahan saat membuat akun.");
+      setErrorMessage("An error occurred while creating your account.");
     } finally {
       setLoading(false);
     }
@@ -114,14 +116,17 @@ export default function RegisterPage() {
             className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors group"
           >
             <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Beranda</span>
+            <span>{t("nav.backHome", "Back to Home")}</span>
           </Link>
-          <Link
-            href="/login"
-            className="text-xs text-white/50 hover:text-white transition-colors"
-          >
-            Sudah punya akun? <span className="text-white font-semibold">Masuk</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <FloatingLanguagePicker variant="compact" />
+            <Link
+              href="/login"
+              className="text-xs text-white/50 hover:text-white transition-colors"
+            >
+              {t("auth.haveAccount", "Already have an account?")} <span className="text-white font-semibold">{t("auth.signInNow", "Sign In")}</span>
+            </Link>
+          </div>
         </div>
 
         {/* Register Card */}
@@ -134,9 +139,9 @@ export default function RegisterPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <h1 className="text-[22px] font-bold tracking-[-0.03em] text-white">Buat Akun Baru</h1>
+              <h1 className="text-[22px] font-bold tracking-[-0.03em] text-white">{t("auth.registerTitle", "Create New Account")}</h1>
               <p className="text-[11px] text-white/40 leading-relaxed max-w-[280px]">
-                Daftar untuk mengakses semua fitur LucidChat AI Platform
+                {t("auth.registerSubtitle", "Register to access all features of LucidChat AI Platform")}
               </p>
             </div>
           </div>
@@ -159,14 +164,14 @@ export default function RegisterPage() {
             {/* Email */}
             <div>
               <label className="text-[11px] font-medium text-white/60 mb-1.5 block">
-                Email
+                {t("auth.emailLabel", "Email Address")}
               </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@email.com"
+                placeholder="name@email.com"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors"
               />
             </div>
@@ -174,7 +179,7 @@ export default function RegisterPage() {
             {/* Password */}
             <div>
               <label className="text-[11px] font-medium text-white/60 mb-1.5 block">
-                Kata Sandi
+                {t("auth.passwordLabel", "Password")}
               </label>
               <div className="relative">
                 <input
@@ -182,7 +187,7 @@ export default function RegisterPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Buat kata sandi yang kuat"
+                  placeholder="••••••••"
                   className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors"
                 />
                 <button
@@ -232,7 +237,7 @@ export default function RegisterPage() {
                           ) : (
                             <X className="w-3 h-3 shrink-0" />
                           )}
-                          <span>{rule.label}</span>
+                          <span>{t(rule.key, rule.fallback)}</span>
                         </div>
                       );
                     })}
@@ -244,7 +249,7 @@ export default function RegisterPage() {
             {/* Confirm Password */}
             <div>
               <label className="text-[11px] font-medium text-white/60 mb-1.5 block">
-                Konfirmasi Kata Sandi
+                {t("auth.confirmPasswordLabel", "Confirm Password")}
               </label>
               <div className="relative">
                 <input
@@ -252,7 +257,7 @@ export default function RegisterPage() {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ulangi kata sandi"
+                  placeholder="••••••••"
                   className={`w-full px-3.5 py-2.5 pr-10 rounded-xl bg-white/[0.06] border text-xs text-white placeholder-white/30 outline-none transition-colors ${
                     passwordsMismatch
                       ? "border-red-500/40 focus:border-red-500/60"
@@ -272,13 +277,13 @@ export default function RegisterPage() {
               {passwordsMismatch && (
                 <p className="mt-1.5 text-[10px] text-red-400 flex items-center gap-1">
                   <X className="w-3 h-3" />
-                  Kata sandi tidak cocok
+                  {t("auth.matchError", "Passwords do not match")}
                 </p>
               )}
               {passwordsMatch && (
                 <p className="mt-1.5 text-[10px] text-emerald-400 flex items-center gap-1">
                   <Check className="w-3 h-3" />
-                  Kata sandi cocok
+                  {t("auth.matchSuccess", "Passwords match")}
                 </p>
               )}
             </div>
@@ -293,32 +298,22 @@ export default function RegisterPage() {
                   : "bg-white/10 text-white/30 cursor-not-allowed"
               }`}
             >
-              {loading ? "Memproses..." : "Buat Akun"}
+              {loading ? t("auth.processing", "Processing...") : t("auth.registerBtn", "Create Account")}
             </button>
-
-            {!canSubmit && password.length > 0 && (
-              <p className="text-[10px] text-white/30 text-center">
-                {strengthScore < 4
-                  ? "Password belum cukup kuat (minimal Kuat)"
-                  : !passwordsMatch
-                  ? "Konfirmasi password harus cocok"
-                  : "Lengkapi semua field"}
-              </p>
-            )}
           </form>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-white/10" />
-            <span className="text-[10px] text-white/30">atau</span>
+            <span className="text-[10px] text-white/30">{t("auth.or", "or")}</span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Google OAuth */}
           <GoogleOneTap
-            buttonText="Daftar dengan Google"
+            buttonText={t("auth.googleRegister", "Sign up with Google")}
             onSuccess={() => {
-              setSuccessMessage("Berhasil mendaftar! Mengalihkan...");
+              setSuccessMessage(t("auth.processing", "Berhasil mendaftar! Mengalihkan..."));
               setTimeout(() => {
                 window.location.href = "/chat";
               }, 600);
@@ -328,7 +323,7 @@ export default function RegisterPage() {
 
           {/* Footer */}
           <p className="text-[10px] text-white/20 leading-relaxed">
-            Data aman dengan Supabase Row-Level Security
+            {t("auth.securityNote", "Data secured with Supabase Row-Level Security")}
           </p>
         </div>
       </div>

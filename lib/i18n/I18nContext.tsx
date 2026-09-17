@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Language, translations, TranslationDictionary } from "./translations";
+import { Language, translations, SUPPORTED_LANGUAGES } from "./translations";
 
 interface I18nContextProps {
   lang: Language;
@@ -17,8 +17,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedLang = localStorage.getItem("lucidchat_language") as Language;
-      if (storedLang === "id" || storedLang === "en") {
+      const isValid = SUPPORTED_LANGUAGES.some((l) => l.code === storedLang);
+      if (isValid) {
         setLangState(storedLang);
+      } else {
+        setLangState("en");
       }
     }
   }, []);
@@ -34,17 +37,36 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const t = (path: string, fallback?: string): string => {
     const keys = path.split(".");
-    let current: TranslationDictionary | string = translations[lang];
 
+    // 1. Try selected language
+    let current: unknown = translations[lang];
+    let found = true;
     for (const key of keys) {
       if (typeof current === "object" && current !== null && key in current) {
-        current = current[key];
+        current = (current as Record<string, unknown>)[key];
       } else {
-        return fallback || path;
+        found = false;
+        break;
       }
     }
 
-    if (typeof current === "string") {
+    if (found && typeof current === "string") {
+      return current;
+    }
+
+    // 2. Secondary fallback: English dictionary
+    current = translations.en;
+    found = true;
+    for (const key of keys) {
+      if (typeof current === "object" && current !== null && key in current) {
+        current = (current as Record<string, unknown>)[key];
+      } else {
+        found = false;
+        break;
+      }
+    }
+
+    if (found && typeof current === "string") {
       return current;
     }
 

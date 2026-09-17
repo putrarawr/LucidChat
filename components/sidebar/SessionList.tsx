@@ -245,7 +245,7 @@ export function SessionList({
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.15em] text-white/40 uppercase px-2 mb-1">
                   <Pin className="w-3 h-3 text-white/50" />
-                  <span>Disematkan</span>
+                  <span>{t("sidebar.pinned", "Pinned")}</span>
                 </div>
                 {pinnedSessions.map((s) => renderSessionRow(s))}
               </div>
@@ -255,12 +255,12 @@ export function SessionList({
             <div className="space-y-1">
               {pinnedSessions.length > 0 && (
                 <div className="text-[9px] font-semibold tracking-[0.15em] text-white/25 uppercase px-2 mb-1 pt-1">
-                  Semua Chat
+                  {t("sidebar.allChats", "All Chats")}
                 </div>
               )}
               {filteredSessions.length === 0 ? (
                 <div className="px-3 py-6 text-center text-xs text-white/20">
-                  {searchQuery ? "Tidak ditemukan percakapan" : "Belum ada percakapan"}
+                  {searchQuery ? t("sidebar.notFound", "No conversations found") : t("sidebar.emptyHistory", "No history yet")}
                 </div>
               ) : (
                 unpinnedSessions.map((s) => renderSessionRow(s))
