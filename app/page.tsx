@@ -130,6 +130,7 @@ function ScrollReveal({
 
 // ─── NON-BOXY INTERACTIVE FEATURE HUB ───
 function InteractiveFeatureHub() {
+  const { lang, t } = useI18n();
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
 
   const features = [
@@ -137,17 +138,23 @@ function InteractiveFeatureHub() {
       id: "multi-model",
       icon: Layers,
       title: "Multi-Model Ensemble",
-      tagline: "Satu Antarmuka, Belasan Otak AI Terunggul",
-      desc: "Beralih dengan mulus antara Gemini 3.6, GPT-4o, Claude 3.7, DeepSeek R1, Qwen, Kimi, dan Llama dalam sekejap tanpa kehilangan histori percakapan.",
-      details: ["Routing Otomatis", "Model Side-by-Side Comparison", "Konteks Panjang hingga 2M Tokens"],
+      tagline: lang === "id" ? "Satu Antarmuka, Belasan Otak AI Terunggul" : "One Interface, Dozens of Leading AI Engines",
+      desc: lang === "id"
+        ? "Beralih dengan mulus antara Gemini 3.6, GPT-4o, Claude 3.7, DeepSeek R1, Qwen, Kimi, dan Llama dalam sekejap tanpa kehilangan histori percakapan."
+        : "Seamlessly switch between Gemini 3.6, GPT-4o, Claude 3.7, DeepSeek R1, Qwen, Kimi, and Llama instantly without losing conversation history.",
+      details: lang === "id"
+        ? ["Routing Otomatis", "Model Side-by-Side Comparison", "Konteks Panjang hingga 2M Tokens"]
+        : ["Smart Auto-Routing", "Side-by-Side Model Comparison", "Long Context up to 2M Tokens"],
       demoType: "models",
     },
     {
       id: "voice",
       icon: Headphones,
       title: "Hands-Free Voice Call",
-      tagline: "Percakapan Suara Real-Time Alami",
-      desc: "Berbicara langsung dengan AI layaknya panggilan suara telepon. Dilengkapi intonasi ekspresif, sapaan personal, dan transliterasi otomatis.",
+      tagline: lang === "id" ? "Percakapan Suara Real-Time Alami" : "Natural Real-Time Voice Conversation",
+      desc: lang === "id"
+        ? "Berbicara langsung dengan AI layaknya panggilan suara telepon. Dilengkapi intonasi ekspresif, sapaan personal, dan transliterasi otomatis."
+        : "Speak directly with AI like a phone call. Equipped with expressive intonation, personalized greetings, and automatic transliteration.",
       details: ["Low-Latency Audio Stream", "Multi-Language Support", "Noise Cancellation Integrated"],
       demoType: "voice",
     },
@@ -155,26 +162,36 @@ function InteractiveFeatureHub() {
       id: "scanner",
       icon: FileText,
       title: "Drag & Drop Scanner",
-      tagline: "Ekstraksi & Analisis Dokumen Otomatis",
-      desc: "Tarik file PDF, Excel, Word, CSV, foto dokumen, atau source code. AI akan secara otomatis memindai, merangkum, dan menganalisis seluruh data.",
-      details: ["Support 10+ Format File", "OCR Pemindaian Gambar", "Struktur Tabel & Formula Excel"],
+      tagline: lang === "id" ? "Ekstraksi & Analisis Dokumen Otomatis" : "Automatic Document Extraction & Analysis",
+      desc: lang === "id"
+        ? "Tarik file PDF, Excel, Word, CSV, foto dokumen, atau source code. AI akan secara otomatis memindai, merangkum, dan menganalisis seluruh data."
+        : "Drag & drop PDF, Excel, Word, CSV, document photos, or code files. AI automatically scans, summarizes, and analyzes your data.",
+      details: lang === "id"
+        ? ["Support 10+ Format File", "OCR Pemindaian Gambar", "Struktur Tabel & Formula Excel"]
+        : ["Supports 10+ File Formats", "Image OCR Scanning", "Excel Table & Formula Extraction"],
       demoType: "scanner",
     },
     {
       id: "search",
       icon: Globe,
       title: "Deep Web Search",
-      tagline: "Riset Web & Media Sosial Real-Time",
-      desc: "Menelusuri informasi terkini di internet, menganalisis link YouTube/TikTok/X, dan menyajikan jawaban lengkap beserta rujukan sumber terverifikasi.",
-      details: ["Sitasi Sumber Live", "Analisis Video & Post", "Pencarian Berita Terkini"],
+      tagline: lang === "id" ? "Riset Web & Media Sosial Real-Time" : "Real-Time Web & Social Media Research",
+      desc: lang === "id"
+        ? "Menelusuri informasi terkini di internet, menganalisis link YouTube/TikTok/X, dan menyajikan jawaban lengkap beserta rujukan sumber terverifikasi."
+        : "Crawl up-to-date web info, analyze YouTube/TikTok/X links, and present comprehensive answers with verified citations.",
+      details: lang === "id"
+        ? ["Sitasi Sumber Live", "Analisis Video & Post", "Pencarian Berita Terkini"]
+        : ["Live Source Citations", "Video & Social Post Analysis", "Latest News Crawling"],
       demoType: "search",
     },
     {
       id: "arena",
       icon: Swords,
       title: "Arena Mode Dual-AI",
-      tagline: "Adu Jawaban Side-by-Side",
-      desc: "Kirim satu prompt secara bersamaan ke dua model AI berbeda. Evaluasi mana yang memberikan solusi paling presisi dan elegan untuk kebutuhan Anda.",
+      tagline: lang === "id" ? "Adu Jawaban Side-by-Side" : "Side-by-Side AI Response Comparison",
+      desc: lang === "id"
+        ? "Kirim satu prompt secara bersamaan ke dua model AI berbeda. Evaluasi mana yang memberikan solusi paling presisi dan elegan untuk kebutuhan Anda."
+        : "Send one prompt simultaneously to two different AI models. Evaluate which model delivers the most precise solution for your needs.",
       details: ["Simultaneous Dual Response", "Side-by-Side UI", "Model Benchmark Instant"],
       demoType: "arena",
     },
@@ -182,8 +199,10 @@ function InteractiveFeatureHub() {
       id: "code",
       icon: Code2,
       title: "Live Artifacts & Diagram",
-      tagline: "Render Kode & Visualisasi Diagram",
-      desc: "AI menghasilkan komponen web interaktif (HTML/CSS/JS) serta diagram alur Mermaid.js yang langsung dipreview di kanvas artifact.",
+      tagline: lang === "id" ? "Render Kode & Visualisasi Diagram" : "Code Rendering & Diagram Visualization",
+      desc: lang === "id"
+        ? "AI menghasilkan komponen web interaktif (HTML/CSS/JS) serta diagram alur Mermaid.js yang langsung dipreview di kanvas artifact."
+        : "AI generates interactive web components (HTML/CSS/JS) and Mermaid.js flowcharts rendered directly in live artifact preview canvas.",
       details: ["Interactive Live Preview", "Mermaid.js Flowchart", "Code Export & Copy"],
       demoType: "code",
     },
@@ -196,13 +215,13 @@ function InteractiveFeatureHub() {
       <ScrollReveal>
         <div className="text-center space-y-4 mb-16 max-w-2xl mx-auto">
           <span className="text-[11px] font-semibold tracking-[0.25em] text-zinc-400 uppercase">
-            KAPABILITAS UTAMA
+            {t("landing.featuresTitle", "CORE CAPABILITIES")}
           </span>
           <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Desain Fluid. Tanpa Batas.
+            {t("landing.featuresHeading", "Fluid Design. Unlimited Power.")}
           </h2>
           <p className="text-sm text-zinc-400 leading-relaxed">
-            Pilih fitur di bawah untuk mengeksplorasi arsitektur kecerdasan LucidChat secara interaktif.
+            {t("landing.featuresSub", "Select a feature below to interactively explore LucidChat's intelligence architecture.")}
           </p>
         </div>
       </ScrollReveal>
@@ -755,7 +774,7 @@ export default function LandingPage() {
       <section id="model" className="py-14 border-y border-white/10 bg-white/[0.008] overflow-hidden">
         <ScrollReveal>
           <p className="text-center text-[11px] font-semibold tracking-[0.25em] text-zinc-500 uppercase mb-8">
-            DITENAGAI OLEH MODEL TERBAIK DUNIA
+            {t("landing.poweredBy", "POWERED BY THE WORLD'S BEST AI MODELS")}
           </p>
         </ScrollReveal>
 
@@ -790,10 +809,10 @@ export default function LandingPage() {
           <ScrollReveal>
             <div className="flex flex-wrap items-center justify-around gap-8 text-center">
               {[
-                { value: 15, suffix: "+", label: "Model AI Terintegrasi" },
-                { value: 100, suffix: "%", label: "Akses Gratis Tanpa API Key" },
-                { value: 8, suffix: "+", label: "Format Dokumen Didukung" },
-                { value: 24, suffix: "/7", label: "Ketersediaan Real-Time" },
+                { value: 15, suffix: "+", label: t("landing.statModels", "Integrated AI Models") },
+                { value: 100, suffix: "%", label: t("landing.statFree", "Free Access Without API Key") },
+                { value: 8, suffix: "+", label: t("landing.statFormats", "Supported File Formats") },
+                { value: 24, suffix: "/7", label: t("landing.statUptime", "Real-Time Availability") },
               ].map(({ value, suffix, label }, idx) => (
                 <div key={idx} className="space-y-1">
                   <div className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
@@ -812,13 +831,13 @@ export default function LandingPage() {
         <ScrollReveal>
           <div className="text-center mb-20 space-y-4">
             <span className="text-[11px] font-semibold tracking-[0.25em] text-zinc-400 uppercase">
-              ALUR KERJA
+              {t("landing.workflowTitle", "WORKFLOW")}
             </span>
             <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
-              Kemudahan Tanpa Hambatan
+              {t("landing.workflowHeading", "Seamless Simplicity")}
             </h2>
             <p className="text-sm text-zinc-400 max-w-xl mx-auto">
-              Mulai berinteraksi dengan AI tercanggih hanya dalam 3 langkah instan.
+              {t("landing.workflowSub", "Start interacting with cutting-edge AI in just 3 instant steps.")}
             </p>
           </div>
         </ScrollReveal>
@@ -828,18 +847,18 @@ export default function LandingPage() {
           {[
             {
               step: "01",
-              title: "Buat Akun",
-              desc: "Registrasi instan menggunakan email atau akun Google. Tanpa perlu memasukkan kartu kredit.",
+              title: t("landing.step1Title", "Create Account"),
+              desc: t("landing.step1Desc", "Instant registration using email or Google account. No credit card required."),
             },
             {
               step: "02",
-              title: "Pilih Otak AI",
-              desc: "Pilih model spesifik sesuai kebutuhan atau gunakan Auto-Routing untuk performa terbaik.",
+              title: t("landing.step2Title", "Choose AI Engine"),
+              desc: t("landing.step2Desc", "Select a specific AI model or use Auto-Routing for optimal performance."),
             },
             {
               step: "03",
-              title: "Mulai Kolaborasi",
-              desc: "Ketik teks, unggah berkas dokumen, atau bicara langsung dengan AI dalam percakapan hands-free.",
+              title: t("landing.step3Title", "Start Collaboration"),
+              desc: t("landing.step3Desc", "Type text, upload documents, or speak directly with AI in hands-free voice mode."),
             },
           ].map(({ step, title, desc }, idx) => (
             <ScrollReveal key={idx} delay={idx * 150}>
@@ -861,24 +880,24 @@ export default function LandingPage() {
           <div className="rounded-[36px] bg-gradient-to-b from-white/[0.04] to-transparent border border-white/15 p-8 sm:p-14 space-y-10 relative overflow-hidden backdrop-blur-2xl">
             <div className="space-y-4 max-w-xl">
               <span className="text-[11px] font-semibold tracking-[0.25em] text-zinc-400 uppercase">
-                KEUNGGULAN UTAMA
+                {t("landing.advTitle", "KEY ADVANTAGES")}
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-                Mengapa Memilih LucidChat?
+                {t("landing.advHeading", "Why Choose LucidChat?")}
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Dirancang khusus dengan standar estetika tinggi dan fleksibilitas tanpa kompromi.
+                {t("landing.advSub", "Crafted with high aesthetic standards and uncompromised flexibility.")}
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { icon: ShieldCheck, title: "Keamanan RLS", desc: "Data dan riwayat percakapan terlindungi enkripsi tingkat tinggi." },
-                { icon: Zap, title: "Respons Kilat", desc: "Inferensi ultra-fast tanpa antrean dengan latensi rendah." },
-                { icon: Cpu, title: "Tanpa API Key", desc: "Langsung gunakan semua model tanpa perlu membeli kredit API terpisah." },
-                { icon: Wand2, title: "Estetika Liquid Glass", desc: "Antarmuka obsidian glass yang menawan dan nyaman di mata." },
-                { icon: Layers, title: "Multi-Model Switching", desc: "Beralih model kapan saja di tengah-tengah sesi percakapan." },
-                { icon: Globe, title: "Web Crawling Live", desc: "Informasi tepercaya dari pencarian internet dan media sosial." },
+                { icon: ShieldCheck, title: lang === "id" ? "Keamanan RLS" : "RLS Security", desc: lang === "id" ? "Data dan riwayat percakapan terlindungi enkripsi tingkat tinggi." : "Data and chat history protected with enterprise-grade encryption." },
+                { icon: Zap, title: lang === "id" ? "Respons Kilat" : "Lightning Response", desc: lang === "id" ? "Inferensi ultra-fast tanpa antrean dengan latensi rendah." : "Ultra-fast inference without queues and ultra-low latency." },
+                { icon: Cpu, title: lang === "id" ? "Tanpa API Key" : "No API Key Needed", desc: lang === "id" ? "Langsung gunakan semua model tanpa perlu membeli kredit API terpisah." : "Use all AI models directly without purchasing separate API keys." },
+                { icon: Wand2, title: lang === "id" ? "Estetika Liquid Glass" : "Liquid Glass Aesthetics", desc: lang === "id" ? "Antarmuka obsidian glass yang menawan dan nyaman di mata." : "Stunning obsidian glass interface tailored for eye comfort." },
+                { icon: Layers, title: lang === "id" ? "Multi-Model Switching" : "Multi-Model Switching", desc: lang === "id" ? "Beralih model kapan saja di tengah-tengah sesi percakapan." : "Switch AI engines anytime in the middle of ongoing sessions." },
+                { icon: Globe, title: lang === "id" ? "Web Crawling Live" : "Live Web Crawling", desc: lang === "id" ? "Informasi tepercaya dari pencarian internet dan media sosial." : "Trusted real-time info crawled from web and social media." },
               ].map(({ icon: Icon, title, desc }, idx) => (
                 <div
                   key={idx}
@@ -901,24 +920,24 @@ export default function LandingPage() {
         <ScrollReveal>
           <div className="max-w-3xl mx-auto space-y-6 relative z-10">
             <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
-              Siap Mengakselerasi<br />Produktivitas Anda?
+              {t("landing.ctaTitle", "Ready to Accelerate Your Productivity?")}
             </h2>
             <p className="text-sm text-zinc-400 max-w-lg mx-auto leading-relaxed">
-              Bergabunglah sekarang dan rasakan kecerdasan kolektif AI dalam satu hub terpadu.
+              {t("landing.ctaSubtitle", "Join now and experience collective AI intelligence in one unified hub.")}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Link
                 href="/register"
                 className="group inline-flex items-center gap-2.5 px-10 py-4 rounded-full bg-white text-black font-bold text-sm shadow-[0_0_50px_rgba(255,255,255,0.25)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 transition-all duration-300"
               >
-                <span>Daftar Gratis Sekarang</span>
+                <span>{t("landing.ctaRegister", "Register Free Now")}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 px-10 py-4 rounded-full bg-white/[0.04] border border-white/15 hover:bg-white/[0.08] text-white font-medium text-sm transition-all duration-300"
               >
-                Sudah Punya Akun
+                {t("landing.ctaLogin", "Already Have Account")}
               </Link>
             </div>
           </div>
@@ -935,9 +954,9 @@ export default function LandingPage() {
             <span className="font-medium text-zinc-400">LucidChat AI &copy; 2026</span>
           </div>
           <div className="flex items-center gap-6 text-zinc-400">
-            <Link href="/chat" className="hover:text-white transition-colors">Chat Studio</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Masuk</Link>
-            <Link href="/register" className="hover:text-white transition-colors">Daftar</Link>
+            <Link href="/chat" className="hover:text-white transition-colors">{t("nav.globalChat", "Global Chat Studio")}</Link>
+            <Link href="/login" className="hover:text-white transition-colors">{t("auth.loginBtn", "Sign In")}</Link>
+            <Link href="/register" className="hover:text-white transition-colors">{t("auth.registerBtn", "Register")}</Link>
           </div>
         </div>
       </footer>
