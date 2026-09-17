@@ -207,7 +207,7 @@ export function SessionList({
               <Bot className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
               <span>Model Rooms AI</span>
               {totalRoomUnreads > 0 && (
-                <span className="flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-[0_0_10px_rgba(239,68,68,0.8)] border border-red-400/40 animate-bounce">
+                <span className="flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-md border border-red-400/40">
                   {totalRoomUnreads}
                 </span>
               )}

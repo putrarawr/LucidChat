@@ -120,11 +120,29 @@ export default function RoomsPage() {
     requestNotificationPermission();
   }, []);
 
-  // Sync total unread count to localStorage for global sidebar badge
+  // Load unread counts from localStorage on mount so navigating /chat -> /rooms preserves unreads
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("lucidchat_room_unreads_map");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            setUnreadCounts(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load unreads map:", e);
+      }
+    }
+  }, []);
+
+  // Sync total & map unread counts to localStorage for global sidebar badge & persistence
   useEffect(() => {
     if (typeof window !== "undefined") {
       const total = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
       localStorage.setItem("lucidchat_room_unreads_total", total.toString());
+      localStorage.setItem("lucidchat_room_unreads_map", JSON.stringify(unreadCounts));
       window.dispatchEvent(new Event("storage"));
     }
   }, [unreadCounts]);
@@ -578,9 +596,9 @@ export default function RoomsPage() {
                   </span>
                 </div>
 
-                {/* WhatsApp Style Unread Badge (1) */}
+                {/* WhatsApp Style Unread Badge (Static, No Animation) */}
                 {unread > 0 && (
-                  <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-[0_0_12px_rgba(239,68,68,0.8)] border border-red-400/50 animate-bounce">
+                  <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-md border border-red-400/50">
                     {unread}
                   </span>
                 )}
