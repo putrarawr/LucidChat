@@ -24,6 +24,9 @@ import {
   Image as ImageIcon,
   Mic,
   CheckCircle2,
+  Github,
+  Mail,
+  Bug,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { playClickSound } from "@/lib/sound";
@@ -946,17 +949,38 @@ export default function LandingPage() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="py-10 border-t border-white/10 text-xs text-zinc-500">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="LucidChat" className="w-full h-full object-cover" />
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                <img src="/logo.png" alt="LucidChat" className="w-full h-full object-cover" />
+              </div>
+              <span className="font-medium text-zinc-400">LucidChat AI &copy; 2026</span>
             </div>
-            <span className="font-medium text-zinc-400">LucidChat AI &copy; 2026</span>
+            <span className="hidden sm:inline text-white/10">•</span>
+            <span className="text-zinc-500 text-[11px]">Created with ⚡ by Putra</span>
           </div>
-          <div className="flex items-center gap-6 text-zinc-400">
+
+          <div className="flex flex-wrap items-center justify-center gap-5 text-zinc-400">
+            <a
+              href="https://github.com/putrarawr/LucidChat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+            >
+              <Github className="w-4 h-4" />
+              <span>GitHub Repo</span>
+            </a>
+            <a
+              href="mailto:putrarawr18@gmail.com"
+              className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              <span>{t("footer.reportBug", "Report Bug / Feedback")}</span>
+            </a>
             <Link href="/chat" className="hover:text-white transition-colors">{t("nav.globalChat", "Global Chat Studio")}</Link>
-            <Link href="/login" className="hover:text-white transition-colors">{t("auth.loginBtn", "Sign In")}</Link>
-            <Link href="/register" className="hover:text-white transition-colors">{t("auth.registerBtn", "Register")}</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">{t("nav.privacy", "Privacy Policy")}</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">{t("nav.terms", "Terms of Service")}</Link>
           </div>
         </div>
       </footer>

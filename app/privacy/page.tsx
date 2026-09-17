@@ -75,9 +75,21 @@ export default function PrivacyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">5. Hubungi Kami</h2>
-            <p className="text-xs text-zinc-400">
-              Jika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini, silakan hubungi tim pengembang LucidChat di <span className="text-white font-mono">support@lucidchat-ai.vercel.app</span>.
+            <h2 className="text-lg font-bold text-white">5. Hubungi Kami & Lapor Bug</h2>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Jika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini, ingin melaporkan kendala teknis (bug), atau memberikan saran fitur, silakan hubungi pengembang langsung di{" "}
+              <a href="mailto:putrarawr18@gmail.com" className="text-white underline font-mono hover:text-amber-300 transition-colors">
+                putrarawr18@gmail.com
+              </a>{" "}
+              atau berkontribusi via repository GitHub kami di{" "}
+              <a
+                href="https://github.com/putrarawr/LucidChat"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white underline font-mono hover:text-amber-300 transition-colors"
+              >
+                github.com/putrarawr/LucidChat
+              </a>.
             </p>
           </section>
         </div>
@@ -85,7 +97,17 @@ export default function PrivacyPage() {
         {/* Footer */}
         <div className="pt-8 border-t border-white/10 text-xs text-zinc-500 flex justify-between items-center">
           <span>LucidChat AI &copy; 2026</span>
-          <Link href="/terms" className="hover:text-white transition-colors">Syarat & Ketentuan</Link>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/putrarawr/LucidChat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white transition-colors"
+            >
+              GitHub Repo
+            </a>
+            <Link href="/terms" className="hover:text-white transition-colors">Syarat & Ketentuan</Link>
+          </div>
         </div>
       </div>
     </div>

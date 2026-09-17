@@ -14,6 +14,10 @@ import {
   MessageSquare,
   Code,
   Globe,
+  Bug,
+  Mail,
+  Github,
+  ExternalLink,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -42,7 +46,7 @@ export function SettingsModal({
   onSaveSuccess,
 }: SettingsModalProps) {
   const { lang, setLang, t } = useI18n();
-  const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "data">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "data" | "support">("profile");
 
   const [displayName, setDisplayName] = useState(userName);
   const [avatarUrl, setAvatarUrl] = useState(userAvatar);
@@ -219,6 +223,22 @@ export function SettingsModal({
           >
             <Shield className="w-3.5 h-3.5" />
             <span>Data</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              playClickSound();
+              setActiveTab("support");
+            }}
+            className={`flex items-center gap-1.5 py-1.5 transition-all border-b-2 ${
+              activeTab === "support"
+                ? "border-white text-white font-semibold"
+                : "border-transparent text-white/40 hover:text-white/80"
+            }`}
+          >
+            <Bug className="w-3.5 h-3.5 text-rose-400" />
+            <span>{t("settings.supportTab", "Pengembang & Lapor Bug")}</span>
           </button>
         </div>
 
@@ -447,6 +467,65 @@ export function SettingsModal({
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Reset Pengaturan</span>
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: DEVELOPER & BUG REPORT */}
+          {activeTab === "support" && (
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/10 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                    <Bug className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">
+                      {t("settings.reportBugTitle", "Lapor Bug & Beri Saran")}
+                    </h4>
+                    <p className="text-[10px] text-white/50">
+                      {t("settings.reportBugDesc", "Punya saran fitur atau menemukan kendala teknis? Hubungi pengembang langsung via Email atau buat issue di GitHub.")}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 pt-2">
+                  {/* EMAIL CARD */}
+                  <a
+                    href="mailto:putrarawr18@gmail.com"
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/80 group-hover:scale-105 transition-transform">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-white/40 block">Email Direct Contact</span>
+                        <span className="text-xs font-semibold text-white font-mono">putrarawr18@gmail.com</span>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-white/30 group-hover:text-white transition-colors" />
+                  </a>
+
+                  {/* GITHUB REPO CARD */}
+                  <a
+                    href="https://github.com/putrarawr/LucidChat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/80 group-hover:scale-105 transition-transform">
+                        <Github className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-white/40 block">GitHub Repository & Issues</span>
+                        <span className="text-xs font-semibold text-white font-mono">github.com/putrarawr/LucidChat</span>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-white/30 group-hover:text-white transition-colors" />
+                  </a>
                 </div>
               </div>
             </div>

@@ -17,6 +17,8 @@ import {
   LogOut,
   Bot,
   ExternalLink,
+  Github,
+  Mail,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -291,7 +293,23 @@ export function SessionList({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0 ml-1">
+          <div className="flex items-center gap-0.5 shrink-0 ml-1">
+            <a
+              href="https://github.com/putrarawr/LucidChat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200"
+              title="GitHub Repository (LucidChat)"
+            >
+              <Github className="w-4 h-4" />
+            </a>
+            <a
+              href="mailto:putrarawr18@gmail.com"
+              className="p-1.5 text-white/40 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-200"
+              title="Lapor Bug & Feedback (putrarawr18@gmail.com)"
+            >
+              <Mail className="w-4 h-4 text-rose-400/80 hover:text-rose-300" />
+            </a>
             {onOpenSettings && (
               <button
                 type="button"

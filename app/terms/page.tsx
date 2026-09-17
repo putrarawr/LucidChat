@@ -54,11 +54,40 @@ export default function TermsPage() {
               Hasil yang diberikan oleh model AI dapat mengandung ketidakakuratan. Pengguna bertanggung jawab penuh atas verifikasi informasi sebelum menggunakannya untuk keputusan penting.
             </p>
           </section>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-bold text-white">4. Kontak & Lapor Bug</h2>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Untuk pertanyaan, saran fitur, atau laporan masalah teknis (bug), Anda dapat menghubungi pengembang di{" "}
+              <a href="mailto:putrarawr18@gmail.com" className="text-white underline font-mono hover:text-amber-300 transition-colors">
+                putrarawr18@gmail.com
+              </a>{" "}
+              atau berkontribusi langsung pada repository open-source kami di{" "}
+              <a
+                href="https://github.com/putrarawr/LucidChat"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white underline font-mono hover:text-amber-300 transition-colors"
+              >
+                github.com/putrarawr/LucidChat
+              </a>.
+            </p>
+          </section>
         </div>
 
         <div className="pt-8 border-t border-white/10 text-xs text-zinc-500 flex justify-between items-center">
           <span>LucidChat AI &copy; 2026</span>
-          <Link href="/privacy" className="hover:text-white transition-colors">Kebijakan Privasi</Link>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/putrarawr/LucidChat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white transition-colors"
+            >
+              GitHub Repo
+            </a>
+            <Link href="/privacy" className="hover:text-white transition-colors">Kebijakan Privasi</Link>
+          </div>
         </div>
       </div>
     </div>
