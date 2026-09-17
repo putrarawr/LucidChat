@@ -62,18 +62,34 @@ export default function RegisterPage() {
     setSuccessMessage(null);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (error) {
-        setErrorMessage(error.message || "Gagal membuat akun. Coba lagi.");
-      } else {
+        if (error.message?.toLowerCase().includes("already registered")) {
+          setErrorMessage("Email ini sudah terdaftar. Silakan login atau gunakan email lain.");
+        } else {
+          setErrorMessage(error.message || "Gagal membuat akun. Coba lagi.");
+        }
+      } else if (data?.user?.identities?.length === 0) {
+        // User already exists in Supabase but tried to sign up again
+        setErrorMessage("Email ini sudah terdaftar. Silakan login atau gunakan email lain.");
+      } else if (data?.session) {
+        // Auto-confirm mode (no email verification required) — redirect immediately
         setSuccessMessage("Akun berhasil dibuat! Mengalihkan ke chat...");
         setTimeout(() => {
           window.location.href = "/chat";
         }, 1200);
+      } else {
+        // Email confirmation required — show verification message
+        setSuccessMessage(
+          "📧 Kami telah mengirim link konfirmasi ke " + email + ". Silakan cek inbox email Anda (dan folder spam) untuk mengaktifkan akun, lalu kembali ke halaman login."
+        );
       }
     } catch {
       setErrorMessage("Terjadi kesalahan saat membuat akun.");

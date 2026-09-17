@@ -11,8 +11,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showResendButton, setShowResendButton] = useState(false);
 
   const supabase = createClient();
 
@@ -23,6 +25,7 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setShowResendButton(false);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -31,11 +34,15 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setErrorMessage(
-          error.message === "Invalid login credentials"
-            ? "Email atau kata sandi salah. Periksa kembali atau buat akun baru."
-            : error.message || "Gagal masuk. Periksa email & password Anda."
-        );
+        const msg = error.message?.toLowerCase() || "";
+        if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+          setErrorMessage("Email Anda belum dikonfirmasi. Silakan cek inbox email Anda untuk link aktivasi.");
+          setShowResendButton(true);
+        } else if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
+          setErrorMessage("Email atau kata sandi salah. Periksa kembali atau buat akun baru.");
+        } else {
+          setErrorMessage(error.message || "Gagal masuk. Periksa email & password Anda.");
+        }
       } else {
         setSuccessMessage("Berhasil masuk! Mengalihkan...");
         setTimeout(() => {
@@ -46,6 +53,33 @@ export default function LoginPage() {
       setErrorMessage("Terjadi kesalahan saat masuk.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      setErrorMessage("Masukkan alamat email Anda terlebih dahulu.");
+      return;
+    }
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) {
+        setErrorMessage("Gagal mengirim ulang email konfirmasi: " + error.message);
+      } else {
+        setSuccessMessage("📧 Email konfirmasi telah dikirim ulang ke " + email + ". Silakan cek inbox dan folder spam Anda.");
+        setShowResendButton(false);
+      }
+    } catch {
+      setErrorMessage("Terjadi kesalahan saat mengirim ulang email konfirmasi.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -95,8 +129,18 @@ export default function LoginPage() {
 
           {/* Error / Success Messages */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 text-left">
-              {errorMessage}
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 text-left space-y-2">
+              <p>{errorMessage}</p>
+              {showResendButton && (
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-amber-300 text-[11px] font-semibold transition-all border border-white/10"
+                >
+                  {resending ? "Mengirim..." : "📧 Kirim Ulang Email Konfirmasi"}
+                </button>
+              )}
             </div>
           )}
           {successMessage && (
