@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw, ExternalLink, Globe, Zap, Activity, Hash, Cpu } from "lucide-react";
+import { User, Copy, Check, Eye, Volume2, VolumeX, Pencil, RefreshCw, ExternalLink, Globe, Zap, Activity, Hash, Cpu } from "lucide-react";
 import { AttachmentFile } from "./ChatInputBar";
 import { playClickSound } from "@/lib/sound";
 import { MermaidDiagram } from "@/components/artifact/MermaidDiagram";
@@ -463,7 +463,7 @@ export function MessageBubble({
             <User className="w-3 h-3" />
           )
         ) : (
-          <Sparkles className="w-3 h-3 text-white/70" />
+          <img src="/logo.png" alt="LucidChat AI" className="w-full h-full object-cover rounded-full p-0.5" />
         )}
       </div>
 
@@ -486,7 +486,7 @@ export function MessageBubble({
           </div>
         )}
 
-        <div className={`px-4 py-3 min-w-0 break-words max-w-full ${isUser ? "msg-user w-fit" : "msg-assistant w-full"}`}>
+        <div className={`px-4 py-3 min-w-0 break-words max-w-full ${isUser ? "msg-user w-fit rounded-3xl rounded-tr-md" : "msg-assistant w-full rounded-3xl rounded-tl-md"}`}>
           {isEditing ? (
             <div className="space-y-2 min-w-[260px]">
               <textarea

@@ -110,6 +110,7 @@ export default function RoomsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [roomPreviews, setRoomPreviews] = useState<Record<string, string>>({});
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previewClosedByUserRef = useRef(false);
@@ -670,17 +671,16 @@ export default function RoomsPage() {
                 {/* Room Header */}
                 <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/10 bg-[#08080e]/90 backdrop-blur-2xl z-30 animate-entrance-header">
                   <div className="flex items-center gap-3">
-                    {/* Back Button on Mobile / Desktop */}
+                    {/* Back Button on Mobile / Desktop (Icon Only, No Text) */}
                     <button
                       onClick={() => {
                         playClickSound();
                         setActiveModelIndex(null);
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white font-semibold text-xs shrink-0 cursor-pointer shadow-sm transition-all"
+                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
                       title="Kembali ke Daftar Room AI"
                     >
                       <ArrowLeft className="w-4 h-4 text-white" />
-                      <span className="font-medium text-xs text-white">Daftar Room</span>
                     </button>
 
                     <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0">
@@ -701,12 +701,14 @@ export default function RoomsPage() {
                   <div className="flex items-center gap-2">
                     {messages.length > 0 && (
                       <button
-                        onClick={handleClearRoomHistory}
-                        className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs text-zinc-300 hover:text-white transition-all flex items-center gap-1.5"
+                        onClick={() => {
+                          playClickSound();
+                          setIsConfirmClearOpen(true);
+                        }}
+                        className="p-2 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 hover:text-red-300 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
                         title="Bersihkan Obrolan Room Ini"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
-                        <span className="hidden sm:inline">Bersihkan</span>
+                        <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
                     )}
                   </div>
@@ -759,6 +761,45 @@ export default function RoomsPage() {
               </>
             )
           )}
+        </div>
+      )}
+
+      {/* Clear Room History Confirmation Glass Alert Modal */}
+      {isConfirmClearOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl animate-fade-in">
+          <div className="w-full max-w-sm rounded-3xl border border-white/20 bg-[#0e0e14]/95 p-6 shadow-[0_0_80px_rgba(0,0,0,0.9)] space-y-4 relative z-[100000]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white tracking-tight">Bersihkan Obrolan?</h3>
+                <p className="text-xs text-zinc-400">Ruang {activeRoom?.name}</p>
+              </div>
+            </div>
+            <p className="text-xs text-white/70 leading-relaxed">
+              Apakah Anda yakin ingin membersihkan seluruh percakapan di ruangan ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmClearOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmClearOpen(false);
+                  handleClearRoomHistory();
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-500 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] border border-red-400/40 transition-all"
+              >
+                Ya, Bersihkan
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
