@@ -13,6 +13,7 @@ import { SettingsModal } from "@/components/settings/SettingsModal";
 import { VoiceCallModal } from "@/components/chat/VoiceCallModal";
 import { X, PanelLeftOpen, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
+import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
 
 interface ChatRow {
   id: string;
@@ -275,6 +276,10 @@ export default function ChatPage() {
       handleSelectSession(urlChatId);
     }
   }, [urlChatId]);
+
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   const handleNewChat = () => {
     setMessages([]);
@@ -589,7 +594,15 @@ export default function ChatPage() {
         await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", activeChatId);
       }
 
+      playSuccessSound();
 
+      if (typeof document !== "undefined" && document.hidden) {
+        sendNativePushNotification(
+          `LucidChat - ${selectedModel.display_name}`,
+          finalCleanContent || accumulatedContent,
+          "/icon.png"
+        );
+      }
     } catch (err: unknown) {
       console.warn("Save assistant message error:", err);
     } finally {

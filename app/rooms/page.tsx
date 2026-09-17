@@ -11,13 +11,14 @@ import { ProviderType } from "@/lib/ai-clients";
 import {
   ArrowLeft,
   Search,
-  PanelLeftClose,
-  PanelLeftOpen,
   X,
   Trash2,
   ExternalLink,
+  Bot,
+  Sparkles,
 } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
+import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
 
 interface ChatRow {
   id: string;
@@ -75,15 +76,17 @@ const ROOM_MODELS = [
 ];
 
 export default function RoomsPage() {
-  const [activeModelIndex, setActiveModelIndex] = useState(0);
-  const activeRoom = ROOM_MODELS[activeModelIndex];
+  // Default: NO AI room opened initially (activeModelIndex = null)
+  const [activeModelIndex, setActiveModelIndex] = useState<number | null>(null);
+  const activeRoom = activeModelIndex !== null ? ROOM_MODELS[activeModelIndex] : null;
 
   const activeModelIndexRef = useRef(activeModelIndex);
   useEffect(() => {
     activeModelIndexRef.current = activeModelIndex;
   }, [activeModelIndex]);
 
-  const activeModelItem: ModelItem = useMemo(() => {
+  const activeModelItem: ModelItem | null = useMemo(() => {
+    if (!activeRoom) return null;
     return (
       DEFAULT_MODELS.find((m) => m.id === activeRoom.id) || {
         id: activeRoom.id,
@@ -104,7 +107,6 @@ export default function RoomsPage() {
   const [activeCodePreview, setActiveCodePreview] = useState<string | null>(null);
 
   const [userAvatar, setUserAvatar] = useState<string | undefined>();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [roomPreviews, setRoomPreviews] = useState<Record<string, string>>({});
@@ -113,13 +115,9 @@ export default function RoomsPage() {
   const previewClosedByUserRef = useRef(false);
   const supabase = useMemo(() => createClient(), []);
 
-  // Request Native Browser & Phone Push Notification Permission
+  // Request Native Browser & Mobile Push Notification Permission
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        Notification.requestPermission().catch(() => {});
-      }
-    }
+    requestNotificationPermission();
   }, []);
 
   // Sync total unread count to localStorage for global sidebar badge
@@ -242,8 +240,6 @@ export default function RoomsPage() {
     setActiveCodePreview(null);
     previewClosedByUserRef.current = false;
 
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
-
     const existingSessionId = roomSessions[targetRoom.id];
     if (existingSessionId) {
       setCurrentSessionId(existingSessionId);
@@ -278,6 +274,7 @@ export default function RoomsPage() {
 
   // Load initial room messages when activeModelIndex or roomSessions changes
   useEffect(() => {
+    if (activeModelIndex === null) return;
     const currentRoomId = ROOM_MODELS[activeModelIndex].id;
     if (roomSessions[currentRoomId] && currentSessionId !== roomSessions[currentRoomId]) {
       setCurrentSessionId(roomSessions[currentRoomId]);
@@ -285,12 +282,13 @@ export default function RoomsPage() {
     }
   }, [activeModelIndex, roomSessions, currentSessionId, loadRoomMessages]);
 
-  // Main Streaming Message Handler with Clean SSE Parsing & Push Notification
+  // Main Streaming Message Handler with Clean SSE Parsing & Native Push Notification
   const handleSendMessage = async (
     text: string,
     attachments?: AttachmentFile[],
     enableWebSearch?: boolean
   ) => {
+    if (activeModelIndex === null || !activeRoom || !activeModelItem) return;
     if (!text.trim() && (!attachments || attachments.length === 0)) return;
 
     const roomIndexAtStart = activeModelIndex;
@@ -466,25 +464,12 @@ export default function RoomsPage() {
           [targetRoom.id]: (prev[targetRoom.id] || 0) + 1,
         }));
 
-        // Send Native Push Notification to Device / Browser
-        if (
-          typeof window !== "undefined" &&
-          "Notification" in window &&
-          Notification.permission === "granted"
-        ) {
-          try {
-            const notif = new Notification(`LucidChat - ${targetRoom.name}`, {
-              body: accumulatedContent.slice(0, 100) + (accumulatedContent.length > 100 ? "..." : ""),
-              icon: "/icon.png",
-              tag: `room-${targetRoom.id}`,
-            });
-            notif.onclick = () => {
-              window.focus();
-            };
-          } catch (e) {
-            console.warn("Notification error:", e);
-          }
-        }
+        // Send Native Push Notification to Device (Android/iOS SW or Desktop)
+        sendNativePushNotification(
+          `LucidChat - ${targetRoom.name}`,
+          accumulatedContent,
+          "/icon.png"
+        );
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Gagal mendapatkan respons AI";
@@ -510,224 +495,256 @@ export default function RoomsPage() {
     }
   };
 
+  // Reusable Contact Rooms List Panel
+  const ContactRoomsList = (
+    <div className="w-full h-full p-4 flex flex-col justify-between overflow-hidden">
+      <div className="flex flex-col min-h-0 flex-1">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3.5 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/chat"
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all"
+              title="Kembali ke Chat Studio Global"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div>
+              <h1 className="font-bold text-sm text-white tracking-tight">Model Rooms AI</h1>
+              <p className="text-[10px] text-zinc-400">Ruang Obrolan Per AI</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="mt-3.5 relative shrink-0">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari Room AI..."
+            className="w-full pl-8 pr-3 py-2 rounded-full bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Model Contact Rooms List (WhatsApp Mobile View - No Green Dots, Spoiler Previews) */}
+        <div className="mt-4 overflow-y-auto flex-1 pr-1 space-y-2">
+          <div className="text-[9px] font-semibold tracking-[0.2em] text-zinc-500 uppercase px-2 mb-2">
+            Daftar Kontak Model AI
+          </div>
+
+          {filteredRooms.map((room) => {
+            const originalIndex = ROOM_MODELS.findIndex((r) => r.id === room.id);
+            const isActive = activeModelIndex === originalIndex;
+            const unread = unreadCounts[room.id] || 0;
+
+            return (
+              <div
+                key={room.id}
+                onClick={() => handleSelectRoom(originalIndex)}
+                className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-300 border ${
+                  isActive
+                    ? "bg-gradient-to-r from-white/15 via-white/10 to-white/5 border-white/30 text-white shadow-[0_0_25px_rgba(255,255,255,0.1)] scale-[1.01]"
+                    : "bg-white/[0.02] border-white/[0.06] text-zinc-400 hover:bg-white/[0.06] hover:border-white/15 hover:text-white"
+                }`}
+              >
+                {/* Model Avatar Icon (Clean, No Live Dot) */}
+                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-2 shrink-0 group-hover:scale-105 transition-transform shadow-inner">
+                  <ModelLogo modelId={room.id} provider={room.provider} className="w-5 h-5" />
+                </div>
+
+                {/* Info */}
+                <div className="flex flex-col min-w-0 flex-1 text-left">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-semibold text-white truncate text-xs">{room.name}</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-zinc-400 shrink-0">
+                      {room.provider}
+                    </span>
+                  </div>
+                  <span
+                    className="text-[10px] text-zinc-400 truncate mt-0.5"
+                    title={roomPreviews[room.id] || room.tagline}
+                  >
+                    {roomPreviews[room.id] ? roomPreviews[room.id] : room.tagline}
+                  </span>
+                </div>
+
+                {/* WhatsApp Style Unread Badge (1) */}
+                {unread > 0 && (
+                  <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-[0_0_12px_rgba(239,68,68,0.8)] border border-red-400/50 animate-bounce">
+                    {unread}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Footer Link back to Global Chat */}
+      <div className="pt-3 border-t border-white/10 shrink-0">
+        <Link
+          href="/chat"
+          className="w-full py-2.5 px-4 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all shadow-sm"
+        >
+          <span>Buka Chat Studio Global</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex h-[100dvh] h-screen w-screen overflow-hidden bg-[#050508] text-white font-sans relative animate-entrance-page">
+    <div className="fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden touch-none overscroll-none bg-[#050508] text-white font-sans flex relative animate-entrance-page">
       {/* Ambient background blur */}
       <div className="bg-orbs" />
       <div className="orb-center" />
 
-      {/* ═══ ROOMS SIDEBAR (WHATSAPP STYLE CONTACT LIST - NO GREEN LIVE DOTS) ═══ */}
-      <aside
-        className={`fixed top-0 left-0 bottom-0 z-50 w-80 p-4 sidebar-glass flex flex-col justify-between transition-transform duration-300 animate-entrance-sidebar ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex flex-col min-h-0 flex-1">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3.5 border-b border-white/10 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <Link
-                href="/chat"
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all"
-                title="Kembali ke Chat Studio Global"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <div>
-                <h1 className="font-bold text-sm text-white tracking-tight">Model Rooms</h1>
-                <p className="text-[10px] text-zinc-400">Ruang Obrolan Per AI</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Search bar */}
-          <div className="mt-3.5 relative shrink-0">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari Room AI..."
-              className="w-full pl-8 pr-3 py-2 rounded-full bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Model Contact Rooms List (WhatsApp Style - No Green Live Dots, With Unread Badges) */}
-          <div className="mt-4 overflow-y-auto flex-1 pr-1 space-y-2">
-            <div className="text-[9px] font-semibold tracking-[0.2em] text-zinc-500 uppercase px-2 mb-2">
-              Daftar Kontak Model AI
-            </div>
-
-            {filteredRooms.map((room) => {
-              const originalIndex = ROOM_MODELS.findIndex((r) => r.id === room.id);
-              const isActive = activeModelIndex === originalIndex;
-              const unread = unreadCounts[room.id] || 0;
-
-              return (
-                <div
-                  key={room.id}
-                  onClick={() => handleSelectRoom(originalIndex)}
-                  className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-300 border ${
-                    isActive
-                      ? "bg-gradient-to-r from-white/15 via-white/10 to-white/5 border-white/30 text-white shadow-[0_0_25px_rgba(255,255,255,0.1)] scale-[1.01]"
-                      : "bg-white/[0.02] border-white/[0.06] text-zinc-400 hover:bg-white/[0.06] hover:border-white/15 hover:text-white"
-                  }`}
-                >
-                  {/* Model Avatar Icon (Clean, No Live Dot) */}
-                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-2 shrink-0 group-hover:scale-105 transition-transform shadow-inner">
-                    <ModelLogo modelId={room.id} provider={room.provider} className="w-5 h-5" />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex flex-col min-w-0 flex-1 text-left">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-semibold text-white truncate text-xs">{room.name}</span>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-zinc-400 shrink-0">
-                        {room.provider}
-                      </span>
-                    </div>
-                    <span
-                      className="text-[10px] text-zinc-400 truncate mt-0.5"
-                      title={roomPreviews[room.id] || room.tagline}
-                    >
-                      {roomPreviews[room.id] ? roomPreviews[room.id] : room.tagline}
-                    </span>
-                  </div>
-
-                  {/* WhatsApp Style Unread Badge (1) */}
-                  {unread > 0 && (
-                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-[0_0_12px_rgba(239,68,68,0.8)] border border-red-400/50 animate-bounce">
-                      {unread}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer Link back to Global Chat */}
-        <div className="pt-3 border-t border-white/10 shrink-0">
-          <Link
-            href="/chat"
-            className="w-full py-2.5 px-4 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all shadow-sm"
-          >
-            <span>Buka Chat Studio Global</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </aside>
-
-      {/* ═══ MAIN CHAT STAGE ═══ */}
-      <div
-        className={`flex-1 flex flex-col h-full w-full relative z-10 transition-all duration-300 ${
-          isSidebarOpen ? "pl-0 md:pl-80" : "pl-0"
-        }`}
-      >
-        {/* Room Header */}
-        <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/10 bg-[#08080e]/90 backdrop-blur-2xl z-30 animate-entrance-header">
-          <div className="flex items-center gap-3">
-            {!isSidebarOpen && (
-              <button
-                onClick={() => {
-                  playClickSound();
-                  setIsSidebarOpen(true);
-                }}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-all"
-                title="Buka Daftar Room"
-              >
-                <PanelLeftOpen className="w-4 h-4" />
-              </button>
-            )}
-
-            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0">
-              <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-4 h-4" />
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-white tracking-tight">{activeRoom.name}</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-zinc-300 font-medium">
-                  {activeRoom.provider}
-                </span>
-              </div>
-              <p className="text-[10px] text-zinc-400">{activeRoom.tagline}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {messages.length > 0 && (
-              <button
-                onClick={handleClearRoomHistory}
-                className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs text-zinc-300 hover:text-white transition-all flex items-center gap-1.5"
-                title="Bersihkan Obrolan Room Ini"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
-                <span className="hidden sm:inline">Bersihkan</span>
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Messages Stream Container */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-          <div className="max-w-3xl mx-auto space-y-6">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 shadow-[0_0_40px_rgba(255,255,255,0.15)] animate-pulse">
-                  <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Ruang Obrolan {activeRoom.name}</h3>
-                  <p className="text-xs text-zinc-400 max-w-sm mt-1">
-                    {activeRoom.tagline}. Mulai ketik pesan untuk berkonsultasi langsung dengan model AI ini.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              messages.map((m) => (
-                <MessageBubble
-                  key={m.id}
-                  message={m}
-                  userAvatar={userAvatar}
-                  onOpenCodePreview={(code) => {
-                    playClickSound();
-                    setActiveCodePreview(code);
-                    previewClosedByUserRef.current = false;
-                  }}
-                />
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Chat Input Bar */}
-        <div className="p-4 md:p-6 bg-[#08080e]/80 backdrop-blur-xl border-t border-white/10 shrink-0 animate-entrance-input">
-          <div className="max-w-3xl mx-auto">
-            <ChatInputBar
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              selectedModel={activeModelItem}
-              hideModelSelector={true}
-            />
-          </div>
-        </div>
+      {/* ═══ DESKTOP SPLIT VIEW: LEFT CONTACT PANEL (w-80) ═══ */}
+      <div className="hidden md:flex w-80 shrink-0 h-full border-r border-white/10 sidebar-glass z-20 animate-entrance-sidebar">
+        {ContactRoomsList}
       </div>
+
+      {/* ═══ MOBILE VIEW: SHOW CONTACT LIST IF NO ROOM SELECTED ═══ */}
+      {activeModelIndex === null && (
+        <div className="flex md:hidden w-full h-full z-20 animate-fade-in">
+          {ContactRoomsList}
+        </div>
+      )}
+
+      {/* ═══ CHAT STAGE PANEL ═══ */}
+      {(activeModelIndex !== null || typeof window !== "undefined") && (
+        <div
+          className={`flex-1 flex flex-col h-full w-full min-h-0 relative z-10 overflow-hidden ${
+            activeModelIndex === null ? "hidden md:flex" : "flex"
+          }`}
+        >
+          {activeModelIndex === null ? (
+            /* DESKTOP WELCOME SCREEN (When no room is selected yet) */
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 animate-fade-in">
+              <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 shadow-[0_0_50px_rgba(255,255,255,0.15)] animate-pulse">
+                <Bot className="w-10 h-10 text-white" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl font-bold text-white tracking-tight">Model Rooms AI Studio</h2>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+                  Pilih salah satu kontak model AI dari daftar sebelah kiri untuk memulai obrolan terpisah tanpa mencampur riwayat obrolan global.
+                </p>
+              </div>
+              <div className="pt-2 flex items-center gap-2 text-zinc-500 text-[11px]">
+                <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Terisolasi & Notifikasi Real-time</span>
+              </div>
+            </div>
+          ) : (
+            /* ACTIVE ROOM CHAT STAGE */
+            activeRoom && (
+              <>
+                {/* Room Header */}
+                <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/10 bg-[#08080e]/90 backdrop-blur-2xl z-30 animate-entrance-header">
+                  <div className="flex items-center gap-3">
+                    {/* Back Button on Mobile / Desktop */}
+                    <button
+                      onClick={() => {
+                        playClickSound();
+                        setActiveModelIndex(null);
+                      }}
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-all flex items-center gap-1 text-xs"
+                      title="Kembali ke Daftar Room AI"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline font-medium">Daftar Room</span>
+                    </button>
+
+                    <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0">
+                      <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-4 h-4" />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-bold text-white tracking-tight">{activeRoom.name}</h2>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-zinc-300 font-medium">
+                          {activeRoom.provider}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400">{activeRoom.tagline}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {messages.length > 0 && (
+                      <button
+                        onClick={handleClearRoomHistory}
+                        className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs text-zinc-300 hover:text-white transition-all flex items-center gap-1.5"
+                        title="Bersihkan Obrolan Room Ini"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className="hidden sm:inline">Bersihkan</span>
+                      </button>
+                    )}
+                  </div>
+                </header>
+
+                {/* Messages Stream Container (Strict Height & Overflow) */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 min-h-0">
+                  <div className="max-w-3xl mx-auto space-y-6">
+                    {messages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-4">
+                        <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 shadow-[0_0_40px_rgba(255,255,255,0.15)] animate-pulse">
+                          <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">Ruang Obrolan {activeRoom.name}</h3>
+                          <p className="text-xs text-zinc-400 max-w-sm mt-1">
+                            {activeRoom.tagline}. Mulai ketik pesan untuk berkonsultasi langsung dengan model AI ini.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      messages.map((m) => (
+                        <MessageBubble
+                          key={m.id}
+                          message={m}
+                          userAvatar={userAvatar}
+                          onOpenCodePreview={(code) => {
+                            playClickSound();
+                            setActiveCodePreview(code);
+                            previewClosedByUserRef.current = false;
+                          }}
+                        />
+                      ))
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </div>
+
+                {/* Chat Input Bar (Fits Perfectly at Bottom of Screen on Mobile HP) */}
+                <div className="p-3 md:p-6 bg-[#08080e]/90 backdrop-blur-xl border-t border-white/10 shrink-0 animate-entrance-input pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                  <div className="max-w-3xl mx-auto">
+                    {activeModelItem && (
+                      <ChatInputBar
+                        onSendMessage={handleSendMessage}
+                        isLoading={isLoading}
+                        selectedModel={activeModelItem}
+                        hideModelSelector={true}
+                      />
+                    )}
+                  </div>
+                </div>
+              </>
+            )
+          )}
+        </div>
+      )}
 
       {/* Code Preview Artifact Overlay */}
       {activeCodePreview && (
