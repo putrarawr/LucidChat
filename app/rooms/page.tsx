@@ -676,11 +676,11 @@ export default function RoomsPage() {
                         playClickSound();
                         setActiveModelIndex(null);
                       }}
-                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-all flex items-center gap-1 text-xs"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white font-semibold text-xs shrink-0 cursor-pointer shadow-sm transition-all"
                       title="Kembali ke Daftar Room AI"
                     >
-                      <ArrowLeft className="w-4 h-4" />
-                      <span className="hidden sm:inline font-medium">Daftar Room</span>
+                      <ArrowLeft className="w-4 h-4 text-white" />
+                      <span className="font-medium text-xs text-white">Daftar Room</span>
                     </button>
 
                     <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0">
@@ -745,18 +745,16 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
-                {/* Chat Input Bar (Fits Perfectly at Bottom of Screen on Mobile HP) */}
-                <div className="p-3 md:p-6 bg-[#08080e]/90 backdrop-blur-xl border-t border-white/10 shrink-0 animate-entrance-input pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-                  <div className="max-w-3xl mx-auto">
-                    {activeModelItem && (
-                      <ChatInputBar
-                        onSendMessage={handleSendMessage}
-                        isLoading={isLoading}
-                        selectedModel={activeModelItem}
-                        hideModelSelector={true}
-                      />
-                    )}
-                  </div>
+                {/* Floating Chat Input Bar (No Dark Background Container Box) */}
+                <div className="p-3 md:p-4 w-full max-w-3xl mx-auto shrink-0 animate-entrance-input pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-transparent border-t-0">
+                  {activeModelItem && (
+                    <ChatInputBar
+                      onSendMessage={handleSendMessage}
+                      isLoading={isLoading}
+                      selectedModel={activeModelItem}
+                      hideModelSelector={true}
+                    />
+                  )}
                 </div>
               </>
             )
