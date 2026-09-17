@@ -142,7 +142,8 @@ interface ChatInputBarProps {
   onSendMessage: (text: string, attachments?: AttachmentFile[], enableWebSearch?: boolean) => void;
   isLoading?: boolean;
   selectedModel: ModelItem;
-  onSelectModel: (model: ModelItem) => void;
+  onSelectModel?: (model: ModelItem) => void;
+  hideModelSelector?: boolean;
   selectedLucidMode?: LucidMode | null;
   onSelectLucidMode?: (mode: LucidMode | null) => void;
   isArenaMode?: boolean;
@@ -156,6 +157,7 @@ export function ChatInputBar({
   isLoading,
   selectedModel,
   onSelectModel,
+  hideModelSelector = false,
   selectedLucidMode = null,
   onSelectLucidMode,
   isArenaMode = false,
@@ -461,7 +463,7 @@ export function ChatInputBar({
     }
     if (mode.defaultModelId) {
       const targetModel = DEFAULT_MODELS.find((m) => m.id === mode.defaultModelId);
-      if (targetModel) {
+      if (targetModel && onSelectModel) {
         onSelectModel(targetModel);
       }
     }
@@ -740,7 +742,9 @@ export function ChatInputBar({
                               key={m.id}
                               type="button"
                               onClick={() => {
-                                onSelectModel(m);
+                                if (onSelectModel) {
+                                  onSelectModel(m);
+                                }
                                 if (onSelectLucidMode) {
                                   onSelectLucidMode(null);
                                 }
@@ -951,21 +955,23 @@ export function ChatInputBar({
             )}
 
             {/* Unified Model & Lucid Combo Trigger Chip */}
-            <button
-              type="button"
-              onClick={handleToggleModelOpen}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-[10px] sm:text-xs text-white transition-all duration-200 ml-0.5 sm:ml-1 shadow-sm max-w-[170px] sm:max-w-[240px]"
-            >
-              {selectedLucidMode ? (
-                renderModeIcon(selectedLucidMode.icon)
-              ) : (
-                <ModelLogo modelId={selectedModel.id} provider={selectedModel.provider} className="w-3.5 h-3.5 text-white/90 shrink-0" />
-              )}
-              <span className="truncate font-medium text-[10px] sm:text-[11px]">
-                {selectedLucidMode ? selectedLucidMode.name : selectedModel.display_name}
-              </span>
-              <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 shrink-0 ${isModelOpen ? "rotate-180" : ""}`} />
-            </button>
+            {!hideModelSelector && (
+              <button
+                type="button"
+                onClick={handleToggleModelOpen}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.16] text-[10px] sm:text-xs text-white transition-all duration-200 ml-0.5 sm:ml-1 shadow-sm max-w-[170px] sm:max-w-[240px]"
+              >
+                {selectedLucidMode ? (
+                  renderModeIcon(selectedLucidMode.icon)
+                ) : (
+                  <ModelLogo modelId={selectedModel.id} provider={selectedModel.provider} className="w-3.5 h-3.5 text-white/90 shrink-0" />
+                )}
+                <span className="truncate font-medium text-[10px] sm:text-[11px]">
+                  {selectedLucidMode ? selectedLucidMode.name : selectedModel.display_name}
+                </span>
+                <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 shrink-0 ${isModelOpen ? "rotate-180" : ""}`} />
+              </button>
+            )}
           </div>
 
           {/* Right Toolbar Items: File Attachment Choice, Mic Voice Input, Hands-Free Voice Call, Send */}

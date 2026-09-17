@@ -107,6 +107,7 @@ export default function RoomsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [roomPreviews, setRoomPreviews] = useState<Record<string, string>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previewClosedByUserRef = useRef(false);
@@ -163,12 +164,38 @@ export default function RoomsPage() {
             .eq("user_id", user.id)
             .like("title", "[Room AI]%");
 
-          if (chatData) {
+          if (chatData && chatData.length > 0) {
             const map: Record<string, string> = {};
+            const chatIds: string[] = [];
             (chatData as ChatRow[]).forEach((c) => {
-              if (c.model_used) map[c.model_used] = c.id;
+              if (c.model_used) {
+                map[c.model_used] = c.id;
+                chatIds.push(c.id);
+              }
             });
             setRoomSessions(map);
+
+            // Fetch latest messages for each room to display as spoiler response previews
+            try {
+              const { data: latestMsgs } = await supabase
+                .from("messages")
+                .select("chat_id, role, content, created_at")
+                .in("chat_id", chatIds)
+                .order("created_at", { ascending: false });
+
+              if (latestMsgs) {
+                const prevs: Record<string, string> = {};
+                (chatData as ChatRow[]).forEach((c) => {
+                  const msg = latestMsgs.find((m) => m.chat_id === c.id);
+                  if (msg && msg.content) {
+                    prevs[c.model_used] = stripThinkTags(msg.content).trim();
+                  }
+                });
+                setRoomPreviews(prevs);
+              }
+            } catch (err) {
+              console.warn("Failed to fetch room previews:", err);
+            }
           }
         }
       } catch (err) {
@@ -375,11 +402,18 @@ export default function RoomsPage() {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.delta) {
                   accumulatedContent += parsed.delta;
+                  const currentClean = stripThinkTags(accumulatedContent).trim();
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantId ? { ...m, content: accumulatedContent } : m
                     )
                   );
+                  if (currentClean) {
+                    setRoomPreviews((prev) => ({
+                      ...prev,
+                      [targetRoom.id]: currentClean,
+                    }));
+                  }
                 }
               } catch {
                 // Ignore partial JSON chunks
@@ -403,9 +437,13 @@ export default function RoomsPage() {
         }
       }
 
-      // Save assistant message to Supabase
+      // Save assistant message to Supabase & update room preview spoiler
       if (activeChatId && currentUser && accumulatedContent) {
         const finalClean = stripThinkTags(accumulatedContent);
+        setRoomPreviews((prev) => ({
+          ...prev,
+          [targetRoom.id]: finalClean.trim(),
+        }));
         await supabase.from("messages").insert({
           chat_id: activeChatId,
           role: "assistant",
@@ -562,7 +600,12 @@ export default function RoomsPage() {
                         {room.provider}
                       </span>
                     </div>
-                    <span className="text-[10px] text-zinc-400 truncate mt-0.5">{room.tagline}</span>
+                    <span
+                      className="text-[10px] text-zinc-400 truncate mt-0.5"
+                      title={roomPreviews[room.id] || room.tagline}
+                    >
+                      {roomPreviews[room.id] ? roomPreviews[room.id] : room.tagline}
+                    </span>
                   </div>
 
                   {/* WhatsApp Style Unread Badge (1) */}
@@ -680,10 +723,7 @@ export default function RoomsPage() {
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
               selectedModel={activeModelItem}
-              onSelectModel={(m) => {
-                const idx = ROOM_MODELS.findIndex((r) => r.id === m.id);
-                if (idx !== -1) handleSelectRoom(idx);
-              }}
+              hideModelSelector={true}
             />
           </div>
         </div>
