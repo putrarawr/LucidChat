@@ -203,7 +203,7 @@ export function CodePreviewTabs({
             <button
               onClick={onClose}
               className="p-1.5 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl border border-white/15 transition-all shadow-sm"
-              title="Tutup Preview"
+              title="Close Preview"
             >
               <X className="w-4 h-4" />
             </button>

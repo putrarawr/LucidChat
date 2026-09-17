@@ -337,7 +337,7 @@ function ParsedMessageContent({
   onOpenCodePreview?: (code: string) => void;
 }) {
   let cleanText = stripThinkTags(content);
-  if (!cleanText) return <div className="text-[13px] text-white/70 italic">Halo! Ada yang bisa saya bantu hari ini?</div>;
+  if (!cleanText) return <div className="text-[13px] text-white/70 italic">Hello! How can I help you today?</div>;
 
   // Auto-close unclosed code block if truncated or streaming
   const codeBlockMatches = (cleanText.match(/```/g) || []).length;
@@ -514,7 +514,7 @@ export function MessageBubble({
             <DynamicLoadingText />
           ) : (
             <ParsedMessageContent
-              content={cleanContent || (isUser ? "" : "Halo! Ada yang bisa saya bantu hari ini?")}
+              content={cleanContent || (isUser ? "" : "Hello! How can I help you today?")}
               onOpenCodePreview={onOpenCodePreview}
             />
           )}

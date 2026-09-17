@@ -13,15 +13,14 @@ import {
   Search,
   X,
   Trash2,
-  ExternalLink,
   Bot,
   Sparkles,
-  Bell,
 } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
+import { VoiceCallModal } from "@/components/chat/VoiceCallModal";
 
 interface ChatRow {
   id: string;
@@ -38,43 +37,50 @@ const ROOM_MODELS = [
     id: "gemini/gemini-3.6-flash",
     name: "Gemini 3.6 Flash",
     provider: "Google",
-    tagline: "Inferensi kilat & multimodal",
+    taglineKey: "rooms.geminiTagline",
+    defaultTagline: "Lightning inference & multimodal",
   },
   {
     id: "openai/gpt-4o",
     name: "OpenAI GPT-4o",
     provider: "OpenAI",
-    tagline: "Penalaran cerdas & instruksi agen",
+    taglineKey: "rooms.gptTagline",
+    defaultTagline: "Advanced reasoning & agent instructions",
   },
   {
     id: "claude/claude-3-7-sonnet-20250219",
     name: "Claude 3.7 Sonnet",
     provider: "Anthropic",
-    tagline: "Kreativitas & analisis kode mendalam",
+    taglineKey: "rooms.claudeTagline",
+    defaultTagline: "Deep code analysis & creativity",
   },
   {
     id: "deepseek/deepseek-r1",
     name: "DeepSeek R1",
     provider: "DeepSeek",
-    tagline: "Model reasoning matematika & koding",
+    taglineKey: "rooms.deepseekTagline",
+    defaultTagline: "Math reasoning & code logic",
   },
   {
     id: "kimi/kimi-latest",
     name: "Kimi AI",
     provider: "Moonshot",
-    tagline: "Konteks panjang & pemindaian dokumen",
+    taglineKey: "rooms.kimiTagline",
+    defaultTagline: "Long context & document scanner",
   },
   {
     id: "qwen/qwen-2.5-coder-32b-instruct",
     name: "Qwen 2.5 Coder",
     provider: "Alibaba",
-    tagline: "Spesialis arsitektur & sintaksis kode",
+    taglineKey: "rooms.qwenTagline",
+    defaultTagline: "Code architecture & syntax specialist",
   },
   {
     id: "meta/llama-3.3-70b-instruct",
     name: "Llama 3.3 70B",
     provider: "Meta",
-    tagline: "Open-weights reasoning terkemuka",
+    taglineKey: "rooms.llamaTagline",
+    defaultTagline: "Leading open-weights reasoning model",
   },
 ];
 
@@ -111,10 +117,12 @@ export default function RoomsPage() {
   const [activeCodePreview, setActiveCodePreview] = useState<string | null>(null);
 
   const [userAvatar, setUserAvatar] = useState<string | undefined>();
+  const [userName, setUserName] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [roomPreviews, setRoomPreviews] = useState<Record<string, string>>({});
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
+  const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -515,252 +523,217 @@ export default function RoomsPage() {
   };
 
   const handleClearRoomHistory = async () => {
-    if (!currentSessionId) return;
-    setMessages([]);
+    if (!activeRoom || !currentSessionId) return;
+    playClickSound();
     try {
       await supabase.from("messages").delete().eq("chat_id", currentSessionId);
+      await supabase.from("chats").delete().eq("id", currentSessionId);
+
+      setMessages([]);
+      setRoomSessions((prev) => {
+        const next = { ...prev };
+        delete next[activeRoom.id];
+        return next;
+      });
+      setRoomPreviews((prev) => {
+        const next = { ...prev };
+        delete next[activeRoom.id];
+        return next;
+      });
+      setCurrentSessionId(undefined);
     } catch (err) {
-      console.warn("Clear room history error:", err);
+      console.warn("Failed to clear room history:", err);
     }
   };
 
-  // Reusable Contact Rooms List Panel
-  const ContactRoomsList = (
-    <div className="w-full h-full p-4 flex flex-col justify-between overflow-hidden">
-      <div className="flex flex-col min-h-0 flex-1">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/chat"
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all"
-              title="Kembali ke Chat Studio Global"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-bold text-sm text-white tracking-tight">{t("rooms.title", "Model Rooms AI")}</h1>
-              <p className="text-[10px] text-zinc-400">{t("rooms.subtitle", "Ruang Obrolan Per AI")}</p>
-            </div>
-          </div>
-        </div>
+  return (
+    <div className="flex h-[100dvh] w-full bg-[#08080c] text-white overflow-hidden relative font-sans">
+      {/* Background Ambient Glow */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-900/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Search bar */}
-        <div className="mt-3.5 relative shrink-0">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("rooms.searchPlaceholder", "Cari Room AI...")}
-            className="w-full pl-8 pr-3 py-2 rounded-full bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-
-        {/* Model Contact Rooms List (WhatsApp Mobile View - No Green Dots, Spoiler Previews) */}
-        <div className="mt-4 overflow-y-auto flex-1 pr-1 space-y-2">
-          <div className="text-[9px] font-semibold tracking-[0.2em] text-zinc-500 uppercase px-2 mb-2">
-            Daftar Kontak Model AI
-          </div>
-
-          {filteredRooms.map((room) => {
-            const originalIndex = ROOM_MODELS.findIndex((r) => r.id === room.id);
-            const isActive = activeModelIndex === originalIndex;
-            const unread = unreadCounts[room.id] || 0;
-
-            return (
-              <div
-                key={room.id}
-                onClick={() => handleSelectRoom(originalIndex)}
-                className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-300 border ${
-                  isActive
-                    ? "bg-gradient-to-r from-white/15 via-white/10 to-white/5 border-white/30 text-white shadow-[0_0_25px_rgba(255,255,255,0.1)] scale-[1.01]"
-                    : "bg-white/[0.02] border-white/[0.06] text-zinc-400 hover:bg-white/[0.06] hover:border-white/15 hover:text-white"
-                }`}
+      {/* Main Glass Split Panel */}
+      <div className="relative z-10 flex w-full h-full p-2 sm:p-4 md:p-6 gap-3 md:gap-4 max-w-[1600px] mx-auto">
+        {/* Left Side: Model Contacts Sidebar (Visible on desktop or when no active room selected on mobile) */}
+        <div
+          className={`flex flex-col bg-[#111118]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-4 transition-all duration-300 ${
+            activeRoom ? "hidden md:flex md:w-80 lg:w-96" : "w-full md:w-80 lg:w-96"
+          } shrink-0`}
+        >
+          {/* Top Bar Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2.5">
+              <Link
+                href="/chat"
+                className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 hover:text-white transition-all"
+                title={t("rooms.openGlobalChat", "Open Global Chat Studio")}
               >
-                {/* Model Avatar Icon (Clean, No Live Dot) */}
-                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-2 shrink-0 group-hover:scale-105 transition-transform shadow-inner">
-                  <ModelLogo modelId={room.id} provider={room.provider} className="w-5 h-5" />
-                </div>
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <div>
+                <h1 className="text-sm font-bold text-white tracking-tight">{t("rooms.title", "AI Model Rooms")}</h1>
+                <p className="text-[10px] text-zinc-400">{t("rooms.subtitle", "Dedicated Per-AI Chat Hub")}</p>
+              </div>
+            </div>
 
-                {/* Info */}
-                <div className="flex flex-col min-w-0 flex-1 text-left">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-semibold text-white truncate text-xs">{room.name}</span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-zinc-400 shrink-0">
-                      {room.provider}
+            {/* Floating Multi-Language Picker */}
+            <FloatingLanguagePicker variant="floating" />
+          </div>
+
+          {/* Search Contacts Bar */}
+          <div className="mt-3 relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("rooms.searchPlaceholder", "Search AI Room...")}
+              className="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Model Contact Rooms List */}
+          <div className="mt-4 overflow-y-auto flex-1 pr-1 space-y-2">
+            <div className="text-[9px] font-semibold tracking-[0.2em] text-zinc-500 uppercase px-2 mb-2">
+              {t("rooms.contactListTitle", "AI MODEL CONTACT LIST")}
+            </div>
+
+            {filteredRooms.map((room) => {
+              const originalIndex = ROOM_MODELS.findIndex((r) => r.id === room.id);
+              const isActive = activeModelIndex === originalIndex;
+              const unread = unreadCounts[room.id] || 0;
+              const taglineText = t(room.taglineKey, room.defaultTagline);
+
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => handleSelectRoom(originalIndex)}
+                  className={`group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-300 border ${
+                    isActive
+                      ? "bg-gradient-to-r from-white/15 via-white/10 to-white/5 border-white/30 text-white shadow-[0_0_25px_rgba(255,255,255,0.1)] scale-[1.01]"
+                      : "bg-white/[0.02] border-white/[0.06] text-zinc-400 hover:bg-white/[0.06] hover:border-white/15 hover:text-white"
+                  }`}
+                >
+                  {/* Model Avatar Icon */}
+                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-2 shrink-0 group-hover:scale-105 transition-transform shadow-inner">
+                    <ModelLogo modelId={room.id} provider={room.provider} className="w-5 h-5" />
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex flex-col min-w-0 flex-1 text-left">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-semibold text-white truncate text-xs">{room.name}</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-zinc-400 shrink-0">
+                        {room.provider}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[10px] text-zinc-400 truncate mt-0.5"
+                      title={roomPreviews[room.id] || taglineText}
+                    >
+                      {roomPreviews[room.id] ? roomPreviews[room.id] : taglineText}
                     </span>
                   </div>
-                  <span
-                    className="text-[10px] text-zinc-400 truncate mt-0.5"
-                    title={roomPreviews[room.id] || room.tagline}
-                  >
-                    {roomPreviews[room.id] ? roomPreviews[room.id] : room.tagline}
-                  </span>
+
+                  {/* Unread Badge */}
+                  {unread > 0 && (
+                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-md border border-red-400/50">
+                      {unread}
+                    </span>
+                  )}
                 </div>
-
-                {/* WhatsApp Style Unread Badge (Static, No Animation) */}
-                {unread > 0 && (
-                  <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-md border border-red-400/50">
-                    {unread}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Footer Link back to Global Chat */}
-      <div className="pt-3 border-t border-white/10 shrink-0">
-        <Link
-          href="/chat"
-          className="w-full py-2.5 px-4 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all shadow-sm"
-        >
-          <span>Buka Chat Studio Global</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </Link>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden touch-none overscroll-none bg-[#050508] text-white font-sans flex relative animate-entrance-page">
-      {/* Ambient background blur */}
-      <div className="bg-orbs" />
-      <div className="orb-center" />
-
-      {/* ═══ DESKTOP SPLIT VIEW: LEFT CONTACT PANEL (w-80) ═══ */}
-      <div className="hidden md:flex w-80 shrink-0 h-full border-r border-white/10 sidebar-glass z-20 animate-entrance-sidebar">
-        {ContactRoomsList}
-      </div>
-
-      {/* ═══ MOBILE VIEW: SHOW CONTACT LIST IF NO ROOM SELECTED ═══ */}
-      {activeModelIndex === null && (
-        <div className="flex md:hidden w-full h-full z-20 animate-fade-in">
-          {ContactRoomsList}
-        </div>
-      )}
-
-      {/* ═══ CHAT STAGE PANEL ═══ */}
-      {(activeModelIndex !== null || typeof window !== "undefined") && (
+        {/* Right Side: Active Chat Room Window */}
         <div
-          className={`flex-1 flex flex-col h-full w-full min-h-0 relative z-10 overflow-hidden ${
-            activeModelIndex === null ? "hidden md:flex" : "flex"
+          className={`flex-1 flex-col bg-[#111118]/80 backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden transition-all duration-300 relative ${
+            !activeRoom ? "hidden md:flex" : "flex"
           }`}
         >
-          {activeModelIndex === null ? (
-            /* DESKTOP WELCOME SCREEN (When no room is selected yet) */
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 animate-fade-in">
-              <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 shadow-[0_0_50px_rgba(255,255,255,0.15)] animate-pulse">
-                <Bot className="w-10 h-10 text-white" />
+          {!activeRoom ? (
+            /* Empty State: Select a Room */
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 my-auto">
+              <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 shadow-2xl">
+                <Bot className="w-8 h-8 text-white/70" />
               </div>
-              <div className="space-y-1.5">
-                <h2 className="text-xl font-bold text-white tracking-tight">Model Rooms AI Studio</h2>
-                <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-                  Pilih salah satu kontak model AI dari daftar sebelah kiri untuk memulai obrolan terpisah tanpa mencampur riwayat obrolan global.
+              <div className="space-y-1.5 max-w-sm">
+                <h2 className="text-xl font-bold text-white">{t("rooms.welcomeTitle", "AI Model Rooms Studio")}</h2>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {t("rooms.welcomeDesc", "Select an AI model contact from the list on the left to start an isolated conversation session without mixing your global chat history.")}
                 </p>
               </div>
-              <div className="pt-2 flex items-center gap-2 text-zinc-500 text-[11px]">
-                <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Terisolasi & Notifikasi Real-time</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] text-zinc-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>{t("rooms.welcomeBadge", "Isolated & Real-Time Notifications")}</span>
               </div>
             </div>
           ) : (
-            /* ACTIVE ROOM CHAT STAGE */
+            /* Active Room View */
             activeRoom && (
               <>
                 {/* Room Header */}
-                <header className="sticky top-0 left-0 right-0 w-full z-50 flex-none px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-white/10 bg-[#08080e]/95 backdrop-blur-2xl pt-[calc(0.5rem+env(safe-area-inset-top))] min-h-[56px]">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/[0.02]">
                   <div className="flex items-center gap-3">
-                    {/* Back Button on Mobile / Desktop (Icon Only, No Text) */}
+                    {/* Back Button on Mobile */}
                     <button
                       onClick={() => {
                         playClickSound();
                         setActiveModelIndex(null);
                       }}
-                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
-                      title="Kembali ke Daftar Room AI"
+                      className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:text-white"
+                      title={t("rooms.backToRooms", "Back to AI Rooms List")}
                     >
-                      <ArrowLeft className="w-4 h-4 text-white" />
+                      <ArrowLeft className="w-4 h-4" />
                     </button>
 
-                    <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0">
                       <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-4 h-4" />
                     </div>
-
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-bold text-white tracking-tight">{activeRoom.name}</h2>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-zinc-300 font-medium">
-                          {activeRoom.provider}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-zinc-400">{activeRoom.tagline}</p>
+                      <h2 className="text-sm font-bold text-white leading-tight">{activeRoom.name}</h2>
+                      <p className="text-[10px] text-zinc-400">{activeRoom.provider} Engine</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Floating Circle Multi-Language Picker */}
+                    {/* Floating Language Picker */}
                     <FloatingLanguagePicker variant="floating" />
 
-                    {/* Bell Button for Mobile Notification Activation & Test */}
+                    {/* Clear Room History Button */}
                     <button
-                      onClick={async () => {
-                        playClickSound();
-                        const granted = await requestNotificationPermission();
-                        if (granted) {
-                          sendNativePushNotification(
-                            "LucidChat AI",
-                            t("rooms.notifEnabledSuccess", "Notifikasi HP berhasil diaktifkan! Anda akan menerima pesan saat AI selesai merespons."),
-                            "/logo.png"
-                          );
-                          alert(t("rooms.notifEnabledSuccess", "✅ Notifikasi HP berhasil diaktifkan! Tes notifikasi telah dikirim ke HP Anda."));
-                        } else {
-                          alert(t("rooms.notifDenied", "⚠️ Izin notifikasi ditolak di HP/Browser Anda. Silakan beri izin notifikasi di pengaturan browser."));
-                        }
-                      }}
-                      className="p-2 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
-                      title="Aktifkan & Tes Notifikasi HP"
+                      onClick={() => setIsConfirmClearOpen(true)}
+                      className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/30 text-zinc-400 hover:text-red-400 transition-all duration-200"
+                      title={t("rooms.clearRoom", "Clear This Room Chat")}
                     >
-                      <Bell className="w-4 h-4 text-amber-300" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        playClickSound();
-                        setIsConfirmClearOpen(true);
-                      }}
-                      className="p-2 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 hover:text-red-300 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
-                      title="Bersihkan Obrolan Room Ini"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </header>
+                </div>
 
-                {/* Messages Stream Container (Strict Height & Overflow) */}
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 min-h-0">
-                  <div className="max-w-3xl mx-auto space-y-6">
+                {/* Messages Stream Container */}
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+                  <div className="max-w-3xl mx-auto space-y-3 min-h-full flex flex-col justify-end">
                     {messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-4">
-                        <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 shadow-[0_0_40px_rgba(255,255,255,0.15)] animate-pulse">
-                          <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-8 h-8" />
+                      <div className="my-auto py-12 flex flex-col items-center justify-center text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                          <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-6 h-6 opacity-80" />
                         </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-white">Ruang Obrolan {activeRoom.name}</h3>
-                          <p className="text-xs text-zinc-400 max-w-sm mt-1">
-                            {activeRoom.tagline}. Mulai ketik pesan untuk berkonsultasi langsung dengan model AI ini.
-                          </p>
-                        </div>
+                        <h3 className="text-base font-bold text-white">{t("rooms.welcomeGreeting", "Hello! How can I help you today?")}</h3>
+                        <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+                          {t("rooms.roomChatDesc", "Start typing messages to consult directly with this AI model.")}
+                        </p>
                       </div>
                     ) : (
                       messages.map((m) => (
@@ -780,7 +753,7 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
-                {/* Floating Chat Input Bar (No Dark Background Container Box) */}
+                {/* Floating Chat Input Bar */}
                 <div className="p-3 md:p-4 w-full max-w-3xl mx-auto shrink-0 animate-entrance-input pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-transparent border-t-0">
                   {activeModelItem && (
                     <ChatInputBar
@@ -788,6 +761,8 @@ export default function RoomsPage() {
                       isLoading={isLoading}
                       selectedModel={activeModelItem}
                       hideModelSelector={true}
+                      isHandsFreeMode={isHandsFreeMode}
+                      onToggleHandsFreeMode={() => setIsHandsFreeMode((prev) => !prev)}
                     />
                   )}
                 </div>
@@ -795,7 +770,7 @@ export default function RoomsPage() {
             )
           )}
         </div>
-      )}
+      </div>
 
       {/* Clear Room History Confirmation Glass Alert Modal */}
       {isConfirmClearOpen && (
@@ -806,12 +781,12 @@ export default function RoomsPage() {
                 <Trash2 className="w-5 h-5 text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white tracking-tight">Bersihkan Obrolan?</h3>
-                <p className="text-xs text-zinc-400">Ruang {activeRoom?.name}</p>
+                <h3 className="text-base font-bold text-white tracking-tight">{t("rooms.clearRoomTitle", "Clear Chat?")}</h3>
+                <p className="text-xs text-zinc-400">{activeRoom?.name}</p>
               </div>
             </div>
             <p className="text-xs text-white/70 leading-relaxed">
-              Apakah Anda yakin ingin membersihkan seluruh percakapan di ruangan ini? Tindakan ini tidak dapat dibatalkan.
+              {t("rooms.confirmClearDesc", "Are you sure you want to clear all chat history in this room? This action cannot be undone.")}
             </p>
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
@@ -819,7 +794,7 @@ export default function RoomsPage() {
                 onClick={() => setIsConfirmClearOpen(false)}
                 className="px-4 py-2 rounded-xl text-xs font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all"
               >
-                Batal
+                {t("sidebar.cancel", "Cancel")}
               </button>
               <button
                 type="button"
@@ -829,11 +804,24 @@ export default function RoomsPage() {
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-red-500 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] border border-red-400/40 transition-all"
               >
-                Ya, Bersihkan
+                {t("rooms.confirmClearBtn", "Yes, Clear")}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Hands-Free Voice Call Modal */}
+      {activeModelItem && (
+        <VoiceCallModal
+          isOpen={isHandsFreeMode}
+          onClose={() => setIsHandsFreeMode(false)}
+          selectedModel={activeModelItem}
+          userName={userName}
+          onSendMessage={(spokenText) => handleSendMessage(spokenText)}
+          isLoading={isLoading}
+          lastAiMessage={messages.filter((m) => m.role === "assistant").slice(-1)[0]?.content || ""}
+        />
       )}
 
       {/* Code Preview Artifact Overlay */}

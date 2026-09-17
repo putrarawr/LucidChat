@@ -5,6 +5,7 @@ import { PhoneOff, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { ModelItem } from "@/lib/model-types";
 import { ModelLogo } from "@/components/icons/ModelLogos";
 import { stripThinkTags } from "@/components/chat/MessageBubble";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 interface VoiceCallModalProps {
   isOpen: boolean;
@@ -27,17 +28,20 @@ export function VoiceCallModal({
   isLoading = false,
   lastAiMessage = "",
 }: VoiceCallModalProps) {
+  const { t } = useI18n();
   const [pulseScale, setPulseScale] = useState(1);
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [userTranscript, setUserTranscript] = useState("");
   const [aiSpeechText, setAiSpeechText] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const hasGreetedRef = useRef(false);
   const prevLoadingRef = useRef(false);
+  const ttsSafetyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Concentric ring animation effect
   useEffect(() => {
@@ -72,52 +76,33 @@ export function VoiceCallModal({
   const cleanTextForSpeech = (rawText: string) => {
     if (!rawText) return "";
     return rawText
-      // Remove thinking blocks
       .replace(/<think>[\s\S]*?<\/think>/gi, "")
-      // Remove code blocks
       .replace(/```[\s\S]*?```/g, "")
-      // Remove inline code
       .replace(/`([^`]+)`/g, "$1")
-      // Remove URLs
       .replace(/https?:\/\/\S+/gi, "")
-      // Remove markdown headers, bold, italics, strike
       .replace(/#{1,6}\s+/g, "")
       .replace(/[*_~]{1,3}/g, "")
-      // Remove list markers like "1. ", "- ", "* "
       .replace(/^\s*[-*+]\s+/gm, "")
       .replace(/^\s*\d+\.\s+/gm, "")
-      // Remove extra brackets / links [text](url) -> text
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      // Replace multiple newlines with single space
       .replace(/\s+/g, " ")
       .trim();
   };
 
-  // Configure subtle voice persona settings per AI Model without breaking TTS audio quality
   const getVoicePersona = (availableVoices: SpeechSynthesisVoice[]) => {
     const provider = selectedModel.provider?.toLowerCase() || "";
     const id = selectedModel.id?.toLowerCase() || "";
 
-    // Find Indonesian voices first, then Malay (very close & natural), then fallbacks
+    const enVoices = availableVoices.filter((v) => v.lang.toLowerCase().startsWith("en"));
     const idVoices = availableVoices.filter((v) => v.lang.toLowerCase().includes("id"));
-    const msVoices = availableVoices.filter((v) => v.lang.toLowerCase().includes("ms"));
 
     let selectedVoice: SpeechSynthesisVoice | null = null;
-
-    if (idVoices.length > 0) {
-      // If multiple Indonesian voices exist, map model provider to specific voice index
-      if (id.includes("claude") || provider === "anthropic") {
-        selectedVoice = idVoices[1 % idVoices.length];
-      } else if (id.includes("deepseek")) {
-        selectedVoice = idVoices[2 % idVoices.length] || idVoices[0];
-      } else {
-        selectedVoice = idVoices[0];
-      }
-    } else if (msVoices.length > 0) {
-      selectedVoice = msVoices[0];
+    if (enVoices.length > 0) {
+      selectedVoice = enVoices[0];
+    } else if (idVoices.length > 0) {
+      selectedVoice = idVoices[0];
     }
 
-    // Keep pitch & rate at clear, natural levels (distorted pitch causes robotic garbled sound)
     if (id.includes("gemini") || provider === "gemini") {
       return { voice: selectedVoice, pitch: 1.0, rate: 1.02 };
     } else if (id.includes("claude") || provider === "anthropic") {
@@ -129,8 +114,13 @@ export function VoiceCallModal({
     return { voice: selectedVoice, pitch: 1.0, rate: 1.0 };
   };
 
-  // Handle SpeechSynthesis (TTS)
+  // Handle SpeechSynthesis (TTS) with safety fallback timer for Chrome/Brave desktop
   const speakText = (text: string, onEndCallback?: () => void) => {
+    if (ttsSafetyTimerRef.current) {
+      clearTimeout(ttsSafetyTimerRef.current);
+      ttsSafetyTimerRef.current = null;
+    }
+
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       if (onEndCallback) onEndCallback();
       return;
@@ -143,21 +133,16 @@ export function VoiceCallModal({
     }
 
     const cleanText = cleanTextForSpeech(text);
-
     if (!cleanText) {
       if (onEndCallback) onEndCallback();
       return;
     }
 
-    // Limit text length for voice call mode so AI speaks concise responses
     const spokenExcerpt = cleanText.length > 350 ? cleanText.substring(0, 350) + "..." : cleanText;
-
     setAiSpeechText(spokenExcerpt);
     setCallStatus("speaking");
 
     const utterance = new SpeechSynthesisUtterance(spokenExcerpt);
-    utterance.lang = "id-ID";
-
     const avail = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
     const persona = getVoicePersona(avail);
 
@@ -168,21 +153,42 @@ export function VoiceCallModal({
     utterance.pitch = persona.pitch;
     utterance.rate = persona.rate;
 
-    utterance.onend = () => {
+    let callbackFired = false;
+    const finish = () => {
+      if (callbackFired) return;
+      callbackFired = true;
+      if (ttsSafetyTimerRef.current) {
+        clearTimeout(ttsSafetyTimerRef.current);
+        ttsSafetyTimerRef.current = null;
+      }
       if (onEndCallback) onEndCallback();
     };
 
+    utterance.onend = finish;
     utterance.onerror = (e) => {
       console.warn("SpeechSynthesis error:", e);
-      if (onEndCallback) onEndCallback();
+      finish();
     };
+
+    // Safety timeout in case browser TTS onend never fires (common Chrome bug)
+    const expectedDurationMs = Math.max(3000, (spokenExcerpt.length / 12) * 1000);
+    ttsSafetyTimerRef.current = setTimeout(() => {
+      finish();
+    }, expectedDurationMs);
 
     window.speechSynthesis.speak(utterance);
   };
 
   // Handle Speech Recognition (STT)
   const startListening = () => {
-    if (typeof window === "undefined") return;
+    if (ttsSafetyTimerRef.current) {
+      clearTimeout(ttsSafetyTimerRef.current);
+      ttsSafetyTimerRef.current = null;
+    }
+
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
 
     if (isMicMuted) {
       setCallStatus("idle");
@@ -192,6 +198,7 @@ export function VoiceCallModal({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
+      setErrorMessage(t("chat.sttNotSupported", "Speech recognition is not supported in this browser."));
       setCallStatus("idle");
       return;
     }
@@ -202,12 +209,13 @@ export function VoiceCallModal({
       }
 
       const recognition = new SpeechRecognition();
-      recognition.lang = "id-ID";
+      recognition.lang = "en-US";
       recognition.interimResults = true;
       recognition.continuous = false;
 
       recognition.onstart = () => {
         setCallStatus("listening");
+        setErrorMessage(null);
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,12 +236,17 @@ export function VoiceCallModal({
         }
       };
 
-      recognition.onerror = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onerror = (event: any) => {
+        console.warn("SpeechRecognition error:", event.error);
+        if (event.error === "not-allowed" || event.error === "permission-denied") {
+          setErrorMessage(t("chat.micDenied", "Microphone access denied. Please allow mic in browser settings."));
+        }
         setCallStatus("idle");
       };
 
       recognition.onend = () => {
-        // Handled via state
+        // Handled via results
       };
 
       recognitionRef.current = recognition;
@@ -244,12 +257,21 @@ export function VoiceCallModal({
     }
   };
 
+  // Force start listening when user clicks the Orb or Mic button (laptop click fix!)
+  const handleOrbClick = () => {
+    if (isLoading) return;
+    startListening();
+  };
+
   // Initial call setup & AI greeting on call start
   useEffect(() => {
     if (isOpen) {
       hasGreetedRef.current = false;
-      const nameToUse = userName ? userName.split(" ")[0] : "Kawan";
-      const greeting = `Halo ${nameToUse}! Suara Anda terhubung dengan ${selectedModel.display_name}. Silakan bicara.`;
+      setErrorMessage(null);
+      const nameToUse = userName ? userName.split(" ")[0] : "Friend";
+      const greeting = t("chat.voiceGreeting", "Hello {name}! You are connected with {model}. Please speak.")
+        .replace("{name}", nameToUse)
+        .replace("{model}", selectedModel.display_name);
 
       const timer = setTimeout(() => {
         hasGreetedRef.current = true;
@@ -260,6 +282,7 @@ export function VoiceCallModal({
 
       return () => {
         clearTimeout(timer);
+        if (ttsSafetyTimerRef.current) clearTimeout(ttsSafetyTimerRef.current);
         if (typeof window !== "undefined" && window.speechSynthesis) {
           window.speechSynthesis.cancel();
         }
@@ -268,6 +291,7 @@ export function VoiceCallModal({
         }
       };
     } else {
+      if (ttsSafetyTimerRef.current) clearTimeout(ttsSafetyTimerRef.current);
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
@@ -277,6 +301,7 @@ export function VoiceCallModal({
       setCallStatus("idle");
       setUserTranscript("");
       setAiSpeechText("");
+      setErrorMessage(null);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -299,19 +324,19 @@ export function VoiceCallModal({
 
   if (!isOpen) return null;
 
-  // Ultra-clean status text (No heavy badge bars)
-  let statusText = "Ketuk untuk bicara";
+  // Status text translation
+  let statusText = t("chat.tapToSpeak", "Tap orb or mic to speak");
   if (callStatus === "listening") {
-    statusText = "Mendengarkan...";
+    statusText = t("chat.listening", "Listening...");
   } else if (isLoading || callStatus === "thinking") {
-    statusText = "Berpikir...";
+    statusText = t("chat.thinking", "Thinking...");
   } else if (callStatus === "speaking") {
-    statusText = "Berbicara...";
+    statusText = t("chat.speaking", "Speaking...");
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#07070d]/98 backdrop-blur-3xl p-6 sm:p-10 select-none animate-fade-in font-sans">
-      {/* Sleek Minimal Header (No Slop Badges) */}
+    <div className="fixed inset-0 z-[99999] flex flex-col justify-between items-center bg-[#07070d]/98 backdrop-blur-3xl p-6 sm:p-10 select-none animate-fade-in font-sans">
+      {/* Sleek Minimal Header */}
       <div className="w-full max-w-md flex items-center justify-center pt-6 relative z-10">
         <div className="flex items-center gap-2 text-white/70 font-medium text-sm tracking-wide">
           <ModelLogo modelId={selectedModel.id} provider={selectedModel.provider} className="w-4 h-4 opacity-80 shrink-0" />
@@ -347,14 +372,10 @@ export function VoiceCallModal({
             </>
           )}
 
-          {/* Core Central Orb */}
+          {/* Core Central Orb - Clickable anytime on laptop/desktop */}
           <button
             type="button"
-            onClick={() => {
-              if (callStatus !== "listening" && !isLoading && callStatus !== "speaking") {
-                startListening();
-              }
-            }}
+            onClick={handleOrbClick}
             className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center transition-all duration-500 border shadow-2xl relative z-10 cursor-pointer ${
               callStatus === "speaking"
                 ? "bg-gradient-to-br from-blue-600/30 via-cyan-500/20 to-purple-600/30 border-cyan-400/40 shadow-[0_0_60px_rgba(6,182,212,0.35)]"
@@ -369,8 +390,15 @@ export function VoiceCallModal({
           </button>
         </div>
 
-        {/* Minimal Clean Status Indicator */}
+        {/* Status Indicator */}
         <p className="mt-6 text-xs font-medium tracking-wide text-white/50">{statusText}</p>
+
+        {/* Error message alert */}
+        {errorMessage && (
+          <p className="mt-2 text-xs text-red-400 font-medium bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-lg">
+            {errorMessage}
+          </p>
+        )}
 
         {/* Dynamic Transcript Subtitle Box */}
         <div className="mt-4 max-w-sm sm:max-w-md w-full px-4 text-center">
@@ -409,7 +437,7 @@ export function VoiceCallModal({
               ? "bg-red-500/20 border-red-500/40 text-red-400 hover:bg-red-500/30"
               : "bg-white/[0.06] border-white/10 text-white/70 hover:bg-white/15 hover:text-white"
           }`}
-          title={isMicMuted ? "Nyalakan Mikrofon" : "Matikan Mikrofon"}
+          title={isMicMuted ? t("chat.unmuteMic", "Unmute Microphone") : t("chat.muteMic", "Mute Microphone")}
         >
           {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
         </button>
@@ -419,7 +447,7 @@ export function VoiceCallModal({
           type="button"
           onClick={onClose}
           className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-[0_0_30px_rgba(220,38,38,0.45)] hover:scale-105 active:scale-95 transition-all duration-200 border border-red-400/40"
-          title="Tutup Panggilan Suara (End Call)"
+          title={t("chat.endCall", "End Voice Call")}
         >
           <PhoneOff className="w-7 h-7" />
         </button>
@@ -441,7 +469,7 @@ export function VoiceCallModal({
               ? "bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30"
               : "bg-white/[0.06] border-white/10 text-white/70 hover:bg-white/15 hover:text-white"
           }`}
-          title={isSpeakerMuted ? "Nyalakan Suara AI" : "Matikan Suara AI"}
+          title={isSpeakerMuted ? t("chat.unmuteSpeaker", "Unmute AI Speaker") : t("chat.muteSpeaker", "Mute AI Speaker")}
         >
           {isSpeakerMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
@@ -449,3 +477,4 @@ export function VoiceCallModal({
     </div>
   );
 }
+

@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
-import { playClickSound } from "@/lib/sound";
 import {
   GeminiLogo,
   OpenAILogo,
@@ -338,7 +337,7 @@ function InteractiveFeatureHub() {
                     ))}
                   </div>
                   <p className="text-xs text-zinc-400 italic">
-                    &ldquo;Halo! Saya siap mendengarkan. Ada yang ingin didiskusikan?&rdquo;
+                    &ldquo;{t("landing.voiceCallDemoResponse", "Hello! I am ready to listen. What would you like to discuss?")}&rdquo;
                   </p>
                 </div>
               )}
@@ -422,42 +421,51 @@ function InteractiveFeatureHub() {
 
 // ─── INTERACTIVE DEMO SECTION ───
 function InteractiveDemo() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
 
   const tabs = [
     {
       icon: MessageSquare,
-      label: "Multi-Model Chat",
-      prompt: "Jelaskan perbedaan arsitektur Transformer dan Mamba dalam komputasi AI",
-      response:
-        "Transformer mengandalkan mekanisme self-attention dengan kompleksitas komputasi O(n²), ideal untuk pemrosesan konteks tinggi secara paralel. Sementara Mamba (Structured State Space Model) memproses urutan data secara linier O(n) menggunakan selective state spaces, menghasilkan efisiensi memori luar biasa pada inferensi konteks panjang.",
+      label: t("chat.tabMultiModel", "Multi-Model Chat"),
+      prompt: t("landing.demoPrompt", "Explain the difference between Transformer and Mamba architectures in AI computing."),
+      response: t(
+        "landing.demoResponse",
+        "Transformers rely on self-attention mechanisms with O(n²) computational complexity, ideal for high-context parallel processing. Meanwhile, Mamba (Structured State Space Model) processes data sequences linearly O(n) using selective state spaces, achieving extraordinary memory efficiency in long-context inference."
+      ),
       model: "Gemini 3.6 Flash",
       ModelLogo: GeminiLogo,
     },
     {
       icon: ImageIcon,
-      label: "Scan Dokumen",
-      prompt: "Tolong rangkum isi berkas Laporan_Keuangan_Q3.pdf ini",
-      response:
-        "Dokumen berhasil dipindai. Pendapatan bersih naik 34% YoY menjadi Rp 4.2 Miliar, dipicu oleh pertumbuhan segmen SaaS enterprise. Beban operasional terkendali di Rp 1.1 Miliar.",
+      label: t("chat.tabScanDoc", "Scan Document"),
+      prompt: t("landing.demoPromptDoc", "Please summarize the contents of Financial_Report_Q3.pdf"),
+      response: t(
+        "landing.demoResponseDoc",
+        "Document scanned successfully. Net revenue increased 34% YoY to $4.2M, driven by enterprise SaaS segment growth. Operating expenses remained controlled at $1.1M."
+      ),
       model: "Claude 3.7 Sonnet",
       ModelLogo: ClaudeLogo,
     },
     {
       icon: Mic,
-      label: "Voice Call AI",
-      prompt: '[Hands-Free Call] "Bagaimana cara kerja quantum computing secara ringkas?"',
-      response:
-        '"Halo! Komputasi kuantum menggunakan qubit yang dapat berada dalam superposisi state 0 dan 1 sekaligus. Ini memungkinkan komputasi paralel masif untuk menyelesaikan kalkulasi kompleks dalam hitungan detik."',
+      label: t("chat.tabVoiceCall", "Voice Call AI"),
+      prompt: t("landing.demoPromptVoice", '[Hands-Free Call] "How does quantum computing work in simple terms?"'),
+      response: t(
+        "landing.demoResponseVoice",
+        '"Hello! Quantum computing uses qubits that can exist in superposition of state 0 and 1 simultaneously. This enables massive parallel computation to solve complex calculations in seconds."'
+      ),
       model: "GPT-4o",
       ModelLogo: OpenAILogo,
     },
     {
       icon: Globe,
-      label: "Web Search",
-      prompt: "Apa rilis model AI paling mutakhir minggu ini?",
-      response:
-        "Berdasarkan riset web real-time: Google merilis Gemini 3.6 Flash dengan peningkatan kecepatan inferensi 40%, Anthropic meluncurkan fitur Claude Artifacts 2.0, dan DeepSeek R1 mendominasi benchmark open-weight.",
+      label: t("chat.searchWebBtn", "Web Search"),
+      prompt: t("landing.demoPromptWeb", "What is the most cutting-edge AI model release this week?"),
+      response: t(
+        "landing.demoResponseWeb",
+        "Based on real-time web research: Google released Gemini 3.6 Flash with 40% faster inference speed, Anthropic launched Claude Artifacts 2.0 features, and DeepSeek R1 continues to dominate open-weights benchmarks."
+      ),
       model: "DeepSeek R1",
       ModelLogo: DeepSeekLogo,
     },
@@ -470,13 +478,13 @@ function InteractiveDemo() {
       <ScrollReveal>
         <div className="text-center space-y-4 mb-16 max-w-2xl mx-auto">
           <span className="text-[11px] font-semibold tracking-[0.25em] text-zinc-400 uppercase">
-            SIMULASI LANGSUNG
+            {t("landing.demoTitle", "LIVE SIMULATION")}
           </span>
           <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
-            Pengalaman Real-Time
+            {t("landing.demoHeading", "Real-Time Experience")}
           </h2>
           <p className="text-sm text-zinc-400 leading-relaxed">
-            Eksplorasi antarmuka percakapan LucidChat secara langsung melalui modul di bawah.
+            {t("landing.demoSub", "Explore LucidChat's conversational interface directly through the interactive module below.")}
           </p>
         </div>
       </ScrollReveal>
@@ -697,7 +705,7 @@ export default function LandingPage() {
               href="/register"
               className="group w-full sm:w-auto px-9 py-4 rounded-full bg-white text-black font-bold text-sm shadow-[0_0_50px_rgba(255,255,255,0.25)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-2.5"
             >
-              <span>{t("landing.startFree", "Mulai Gratis")}</span>
+              <span>{t("landing.startFree", "Start Free Now")}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <a

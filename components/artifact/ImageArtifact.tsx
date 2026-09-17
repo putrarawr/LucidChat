@@ -86,13 +86,13 @@ export function ImageArtifact({ prompt, imageUrl }: ImageArtifactProps) {
         {!isLoaded && !hasError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/[0.02] animate-pulse">
             <ImageIcon className="w-8 h-8 text-white/20" />
-            <span className="text-xs text-white/40 font-mono">Membuat Gambar AI...</span>
+            <span className="text-xs text-white/40 font-mono">Generating AI Image...</span>
           </div>
         )}
 
         {hasError ? (
           <div className="flex flex-col items-center justify-center p-6 text-center gap-2 text-red-400">
-            <span className="text-xs font-semibold">Gagal memuat gambar AI.</span>
+            <span className="text-xs font-semibold">Failed to load AI image.</span>
             <button
               onClick={handleRegenerate}
               className="mt-1 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs text-white transition-all"

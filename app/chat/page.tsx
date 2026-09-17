@@ -714,7 +714,7 @@ export default function ChatPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.15] text-[11px] text-white/50 hover:text-white/80 transition-all duration-200"
                 >
                   <X className="w-3 h-3" />
-                  Tutup Preview
+                  {t("chat.close", "Close")}
                 </button>
               )}
             </div>
@@ -749,7 +749,7 @@ export default function ChatPage() {
                         arenaMobileTab === "both" ? "bg-white/15 text-white border border-white/20 shadow-sm" : "text-white/50 hover:text-white"
                       }`}
                     >
-                      Semua
+                      {t("sidebar.allChats", "All")}
                     </button>
                   </div>
 
@@ -818,16 +818,20 @@ export default function ChatPage() {
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-5 my-auto min-h-[400px] animate-entrance-hero">
                   <div className="space-y-2">
                     <h2 className="text-3xl font-bold text-white tracking-[-0.03em]">
-                      {userName ? `Halo, ${userName.split(" ")[0]}!` : "Halo!"}
+                      {userName ? `${t("chat.greeting", "Hello")}, ${userName.split(" ")[0]}!` : `${t("chat.greeting", "Hello")}!`}
                     </h2>
                     <p className="text-xs text-white/40 max-w-sm leading-relaxed">
-                      Ada yang bisa saya bantu hari ini? Pilih dari 15+ model AI gratis atau minta buatkan komponen web HTML secara interaktif.
+                      {t("chat.heroSub", "How can I help you today? Choose from 15+ free AI models or request interactive web components.")}
                     </p>
                   </div>
 
                   {/* Quick suggestion chips */}
                   <div className="flex flex-wrap justify-center gap-2 max-w-md mt-2 animate-entrance-chips">
-                    {["Jelaskan quantum computing", "Buatkan landing page", "Analisis kode Python"].map((s) => (
+                    {[
+                      t("chat.chipQuantum", "Explain quantum computing"),
+                      t("chat.chipLanding", "Build a landing page"),
+                      t("chat.chipPython", "Analyze Python code"),
+                    ].map((s) => (
                       <button
                         key={s}
                         onClick={() => handleSendMessage(s)}
@@ -890,7 +894,7 @@ export default function ChatPage() {
             onMouseDown={handleMouseDown}
             onDoubleClick={() => setPreviewWidth(50)}
             className="hidden md:flex w-1.5 hover:w-2.5 bg-white/[0.06] hover:bg-white/[0.25] cursor-col-resize select-none h-full transition-all duration-150 relative z-30 items-center justify-center group"
-            title="Geser untuk mengubah ukuran panel (Klik 2x untuk reset 50%)"
+            title="Drag to resize panel (Double click to reset 50%)"
           >
             <div className="w-1 h-8 rounded-full bg-white/30 group-hover:bg-white/80 transition-colors" />
           </div>

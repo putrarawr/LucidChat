@@ -930,10 +930,10 @@ export function ChatInputBar({
                   ? "bg-white/20 text-white border border-white/30 shadow-[0_0_12px_rgba(255,255,255,0.25)]"
                   : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
               }`}
-              title={isWebSearchEnabled ? "Pencarian Web Terkini Aktif" : "Aktifkan Pencarian Web & Crawling Berita Terkini"}
+              title={isWebSearchEnabled ? t("chat.webSearchOn", "Web Search Active") : t("chat.webSearchOff", "Web Search Off")}
             >
               <Globe className={`w-3.5 h-3.5 ${isWebSearchEnabled ? "text-white animate-pulse" : "text-white/40"}`} />
-              <span className="hidden xs:inline sm:inline">Cari Web</span>
+              <span className="hidden xs:inline sm:inline">{t("chat.searchWebBtn", "Web Search")}</span>
             </button>
 
             {/* Mode Arena Button */}
@@ -949,10 +949,10 @@ export function ChatInputBar({
                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
                     : "bg-white/[0.04] text-white/50 border border-white/[0.08] hover:bg-white/[0.08] hover:text-white/80"
                 }`}
-                title={isArenaMode ? "Mode Arena Aktif (Bandingkan 2 AI Side-by-Side)" : "Aktifkan Mode Arena Bandingkan 2 AI"}
+                title={isArenaMode ? t("chat.arenaActiveBtn", "Arena Mode (Active)") : t("chat.arenaBtn", "Arena Mode")}
               >
                 <Swords className={`w-3.5 h-3.5 ${isArenaMode ? "text-amber-400 animate-pulse" : "text-white/40"}`} />
-                <span className="hidden xs:inline sm:inline">{isArenaMode ? "Mode Arena (Aktif)" : "Mode Arena"}</span>
+                <span className="hidden xs:inline sm:inline">{isArenaMode ? t("chat.arenaActiveBtn", "Arena Mode (Active)") : t("chat.arenaBtn", "Arena Mode")}</span>
               </button>
             )}
 
@@ -991,7 +991,7 @@ export function ChatInputBar({
                     ? "bg-white/20 text-white border border-white/20 shadow-sm"
                     : "hover:bg-white/[0.10] text-white/50 hover:text-white"
                 }`}
-                title="Lampirkan File atau Foto (Auto-Scan)"
+                title={t("chat.attachFile", "Attach Document / Image")}
               >
                 <Paperclip className="w-4 h-4" />
               </button>
@@ -1010,7 +1010,7 @@ export function ChatInputBar({
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-all text-left text-white/90 hover:text-white group"
                   >
                     <Paperclip className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" />
-                    <span className="text-xs font-medium">Unggah Dokumen & File</span>
+                    <span className="text-xs font-medium">{t("chat.attachDoc", "Upload Document & File")}</span>
                   </button>
 
                   {/* Option 2: Upload Foto / Gambar */}
@@ -1024,7 +1024,7 @@ export function ChatInputBar({
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-all text-left text-white/90 hover:text-white group"
                   >
                     <ImageIcon className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" />
-                    <span className="text-xs font-medium">Unggah Foto / Gambar</span>
+                    <span className="text-xs font-medium">{t("chat.attachImg", "Upload Image / Photo")}</span>
                   </button>
 
                   <div className="my-1 border-t border-white/10" />
@@ -1041,7 +1041,7 @@ export function ChatInputBar({
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] transition-all text-left text-white/90 hover:text-white group"
                   >
                     <Wand2 className="w-4 h-4 text-purple-400 group-hover:text-purple-300 shrink-0" />
-                    <span className="text-xs font-medium">Buat Gambar AI (/image)</span>
+                    <span className="text-xs font-medium">{t("chat.generateAiImg", "Generate AI Image (/image)")}</span>
                   </button>
                 </div>
               )}
