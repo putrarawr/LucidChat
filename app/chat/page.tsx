@@ -14,6 +14,7 @@ import { VoiceCallModal } from "@/components/chat/VoiceCallModal";
 import { X, PanelLeftOpen, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 interface ChatRow {
   id: string;
@@ -53,6 +54,7 @@ function generateSmartTitle(prompt: string): string {
 }
 
 export default function ChatPage() {
+  const { lang, setLang, t } = useI18n();
   const params = useParams();
   const urlChatId = params?.chatId as string | undefined;
 
@@ -702,15 +704,51 @@ export default function ChatPage() {
               )}
             </div>
 
-            {activeCodePreview && (
-              <button
-                onClick={handleClosePreview}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.15] text-[11px] text-white/50 hover:text-white/80 transition-all duration-200"
-              >
-                <X className="w-3 h-3" />
-                Tutup Preview
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {/* Glassmorphic Language Slider Switch Toggle */}
+              <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-[11px] font-semibold select-none relative shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClickSound();
+                    setLang("id");
+                  }}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
+                    lang === "id"
+                      ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
+                      : "text-white/40 hover:text-white/70"
+                  }`}
+                  title="Bahasa Indonesia"
+                >
+                  <span>🇮🇩 ID</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClickSound();
+                    setLang("en");
+                  }}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
+                    lang === "en"
+                      ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
+                      : "text-white/40 hover:text-white/70"
+                  }`}
+                  title="English"
+                >
+                  <span>🇬🇧 EN</span>
+                </button>
+              </div>
+
+              {activeCodePreview && (
+                <button
+                  onClick={handleClosePreview}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.10] hover:border-white/[0.15] text-[11px] text-white/50 hover:text-white/80 transition-all duration-200"
+                >
+                  <X className="w-3 h-3" />
+                  Tutup Preview
+                </button>
+              )}
+            </div>
           </header>
 
           {/* Messages Stream Container */}

@@ -78,7 +78,7 @@ const ROOM_MODELS = [
 ];
 
 export default function RoomsPage() {
-  const { t } = useI18n();
+  const { lang, setLang, t } = useI18n();
   // Default: NO AI room opened initially (activeModelIndex = null)
   const [activeModelIndex, setActiveModelIndex] = useState<number | null>(null);
   const activeRoom = activeModelIndex !== null ? ROOM_MODELS[activeModelIndex] : null;
@@ -708,6 +708,40 @@ export default function RoomsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Glassmorphic Language Slider Switch Toggle */}
+                    <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-[11px] font-semibold select-none relative shadow-inner">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playClickSound();
+                          setLang("id");
+                        }}
+                        className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
+                          lang === "id"
+                            ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
+                            : "text-white/40 hover:text-white/70"
+                        }`}
+                        title="Bahasa Indonesia"
+                      >
+                        <span>🇮🇩 ID</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playClickSound();
+                          setLang("en");
+                        }}
+                        className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
+                          lang === "en"
+                            ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
+                            : "text-white/40 hover:text-white/70"
+                        }`}
+                        title="English"
+                      >
+                        <span>🇬🇧 EN</span>
+                      </button>
+                    </div>
+
                     {/* Bell Button for Mobile Notification Activation & Test */}
                     <button
                       onClick={async () => {
