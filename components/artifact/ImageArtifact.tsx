@@ -42,7 +42,7 @@ export function ImageArtifact({ prompt, imageUrl }: ImageArtifactProps) {
     // Add random seed to refresh image
     const newSeed = Math.floor(Math.random() * 1000000);
     const cleanPrompt = encodeURIComponent(prompt.trim());
-    const newUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true&seed=${newSeed}`;
+    const newUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true&safe=true&model=flux&seed=${newSeed}`;
     setCurrentUrl(newUrl);
     setTimeout(() => setIsRefreshing(false), 800);
   };

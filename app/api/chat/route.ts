@@ -74,8 +74,9 @@ export async function POST(req: NextRequest) {
     // 1.2 Instant AI Image Generation Handler (/image, /draw)
     if (/^\/(image|draw)/i.test(lastUserMessage.trim())) {
       const promptText = lastUserMessage.trim().replace(/^\/(image|draw)\s*/i, "").trim() || "lukisan karya seni digital pemandangan indah masa depan 8k";
-      const cleanPrompt = encodeURIComponent(promptText);
-      const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true`;
+      const sfwEnhancedPrompt = `safe sfw masterpiece high quality highly detailed, ${promptText}`;
+      const cleanPrompt = encodeURIComponent(sfwEnhancedPrompt);
+      const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true&safe=true&model=flux`;
       const imageMarkdown = `Berikut adalah karya gambar AI hasil generasi untuk prompt **"${promptText}"**:\n\n![AI Generated Image](${imageUrl})`;
       const encoder = new TextEncoder();
       const stream = new ReadableStream({

@@ -89,6 +89,7 @@ export default function ChatPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previewClosedByUserRef = useRef(false);
   const lastPreviewUpdateRef = useRef(0);
   const supabase = useMemo(() => createClient(), []);
@@ -146,7 +147,11 @@ export default function ChatPage() {
   }, [isResizing]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
@@ -600,7 +605,7 @@ export default function ChatPage() {
         sendNativePushNotification(
           `LucidChat - ${selectedModel.display_name}`,
           finalCleanContent || accumulatedContent,
-          "/icon.png"
+          "/logo.png"
         );
       }
     } catch (err: unknown) {
@@ -709,7 +714,7 @@ export default function ChatPage() {
           </header>
 
           {/* Messages Stream Container */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className={`${isArenaMode ? "max-w-6xl" : "max-w-3xl"} w-full mx-auto space-y-2 h-full`}>
               {isArenaMode ? (
                 <div className="space-y-3 w-full min-w-0">
