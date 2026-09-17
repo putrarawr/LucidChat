@@ -9,8 +9,13 @@ import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
 
-export default function LoginPage() {
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
+
+function LoginContent() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +26,24 @@ export default function LoginPage() {
   const [showResendButton, setShowResendButton] = useState(false);
 
   const supabase = createClient();
+
+  // Check URL query parameters for verified email or error messages
+  useEffect(() => {
+    if (!searchParams) return;
+    const isVerified = searchParams.get("verified") === "true";
+    const emailParam = searchParams.get("email");
+    const errorParam = searchParams.get("error");
+
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+
+    if (isVerified) {
+      setSuccessMessage(t("auth.verifiedSuccess", "✅ Email verified successfully! You can now sign in with your password."));
+    } else if (errorParam) {
+      setErrorMessage(decodeURIComponent(errorParam));
+    }
+  }, [searchParams, t]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,5 +262,13 @@ export default function LoginPage() {
 
       <div className="fixed bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }

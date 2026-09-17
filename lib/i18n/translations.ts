@@ -208,6 +208,12 @@ export const translations: Record<Language, TranslationDictionary> = {
       strengthVeryStrong: "Very Strong",
       matchSuccess: "Passwords match",
       matchError: "Passwords do not match",
+      verifyTitle: "Check Your Email",
+      verifyDesc: "We sent a confirmation link to",
+      verifySub: "Please click the link in your email to activate your account.",
+      waitingVerification: "Waiting for email verification...",
+      goToLogin: "Go to Login Page",
+      verifiedSuccess: "Email verified successfully! You can now sign in.",
     },
     landing: {
       navFeatures: "Features",

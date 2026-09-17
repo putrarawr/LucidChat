@@ -4,16 +4,20 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/chat";
+  const next = searchParams.get("next");
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const target = next || (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true");
+      return NextResponse.redirect(`${origin}${target}`);
+    } else {
+      return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
     }
   }
 
-  // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/login?error=Could not authenticate user`);
+  // Fallback redirect to login
+  return NextResponse.redirect(`${origin}/login?verified=true`);
 }
+

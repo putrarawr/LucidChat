@@ -1,9 +1,9 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, ShieldCheck, Check, X } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, ShieldCheck, Check, X, Mail, Loader2, User } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -37,6 +37,7 @@ function getStrengthLevel(score: number, t: (k: string, f: string) => string): {
 
 export default function RegisterPage() {
   const { t } = useI18n();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -45,6 +46,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Verification popup modal states
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [isAutoVerified, setIsAutoVerified] = useState(false);
 
   const supabase = createClient();
 
@@ -56,7 +62,29 @@ export default function RegisterPage() {
   const strengthInfo = getStrengthLevel(strengthScore, t);
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
-  const canSubmit = strengthScore >= 4 && passwordsMatch && email.length > 0;
+  const canSubmit = displayName.trim().length > 0 && strengthScore >= 4 && passwordsMatch && email.length > 0;
+
+  // Auto-polling verification status while modal is open
+  useEffect(() => {
+    if (!isVerificationModalOpen || !registeredEmail) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && (user.email_confirmed_at || user.confirmed_at)) {
+          setIsAutoVerified(true);
+          clearInterval(interval);
+          setTimeout(() => {
+            window.location.href = `/login?verified=true&email=${encodeURIComponent(registeredEmail)}`;
+          }, 1000);
+        }
+      } catch (err) {
+        console.warn("Error polling user verification status:", err);
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isVerificationModalOpen, registeredEmail, supabase]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,12 +94,24 @@ export default function RegisterPage() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    const cleanName = displayName.trim();
+
     try {
+      // Save display name locally immediately
+      if (typeof window !== "undefined" && cleanName) {
+        localStorage.setItem("lucidchat_user_name", cleanName);
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: cleanName,
+            name: cleanName,
+            display_name: cleanName,
+          },
         },
       });
 
@@ -87,11 +127,11 @@ export default function RegisterPage() {
         setSuccessMessage("Account created successfully! Redirecting...");
         setTimeout(() => {
           window.location.href = "/chat";
-        }, 1200);
+        }, 1000);
       } else {
-        setSuccessMessage(
-          "📧 Confirmation link sent to " + email + ". Please check your inbox and spam folder."
-        );
+        // Confirmation email sent -> Show interactive popup modal!
+        setRegisteredEmail(email);
+        setIsVerificationModalOpen(true);
       }
     } catch {
       setErrorMessage("An error occurred while creating your account.");
@@ -101,7 +141,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[var(--surface-0)]">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[var(--surface-0)] font-sans">
       {/* Ambient Background */}
       <div className="bg-orbs" />
       <div className="orb-center" />
@@ -161,6 +201,22 @@ export default function RegisterPage() {
 
           {/* Form */}
           <form onSubmit={handleRegister} className="space-y-4 text-left">
+            {/* Display Name Column */}
+            <div>
+              <label className="text-[11px] font-medium text-white/60 mb-1.5 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-white/40" />
+                <span>{t("settings.displayName", "Display Name")}</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={t("settings.displayNamePlaceholder", "Enter your display name (e.g. Putra)...")}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors"
+              />
+            </div>
+
             {/* Email */}
             <div>
               <label className="text-[11px] font-medium text-white/60 mb-1.5 block">
@@ -328,7 +384,64 @@ export default function RegisterPage() {
         </div>
       </div>
 
+      {/* Verification Email Interactive Glass Popup Modal */}
+      {isVerificationModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl animate-fade-in font-sans">
+          <div className="w-full max-w-md rounded-3xl border border-white/20 bg-[#0e0e16]/95 p-7 sm:p-8 shadow-[0_0_90px_rgba(0,0,0,0.9)] text-center space-y-5 relative">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-lg shadow-emerald-950/40 animate-pulse">
+              <Mail className="w-8 h-8 text-emerald-400" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white tracking-tight">{t("auth.verifyTitle", "Check Your Email")}</h3>
+              <p className="text-xs text-zinc-300 leading-relaxed max-w-sm mx-auto">
+                {t("auth.verifyDesc", "We sent a confirmation link to")}{" "}
+                <span className="font-semibold text-emerald-300 break-all">{registeredEmail}</span>.{" "}
+                {t("auth.verifySub", "Please click the link in your email to activate your account.")}
+              </p>
+            </div>
+
+            {/* Status Indicator Bar */}
+            <div className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-zinc-300">
+              {isAutoVerified ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-medium text-emerald-400">
+                    {t("auth.verifiedSuccess", "Email verified successfully! Redirecting...")}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                  <span>{t("auth.waitingVerification", "Waiting for email verification...")}</span>
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `/login?email=${encodeURIComponent(registeredEmail)}`;
+                }}
+                className="w-full py-3 rounded-xl bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all shadow-lg active:scale-95"
+              >
+                {t("auth.goToLogin", "Go to Login Page")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsVerificationModalOpen(false)}
+                className="text-xs text-white/40 hover:text-white/80 transition-colors py-1"
+              >
+                {t("sidebar.cancel", "Close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
     </div>
   );
 }
+
