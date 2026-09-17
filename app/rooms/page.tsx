@@ -78,6 +78,11 @@ export default function RoomsPage() {
   const [activeModelIndex, setActiveModelIndex] = useState(0);
   const activeRoom = ROOM_MODELS[activeModelIndex];
 
+  const activeModelIndexRef = useRef(activeModelIndex);
+  useEffect(() => {
+    activeModelIndexRef.current = activeModelIndex;
+  }, [activeModelIndex]);
+
   const activeModelItem: ModelItem = useMemo(() => {
     return (
       DEFAULT_MODELS.find((m) => m.id === activeRoom.id) || {
@@ -101,10 +106,29 @@ export default function RoomsPage() {
   const [userAvatar, setUserAvatar] = useState<string | undefined>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previewClosedByUserRef = useRef(false);
   const supabase = useMemo(() => createClient(), []);
+
+  // Request Native Browser & Phone Push Notification Permission
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
+  }, []);
+
+  // Sync total unread count to localStorage for global sidebar badge
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const total = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+      localStorage.setItem("lucidchat_room_unreads_total", total.toString());
+      window.dispatchEvent(new Event("storage"));
+    }
+  }, [unreadCounts]);
 
   // Filtered rooms
   const filteredRooms = ROOM_MODELS.filter(
@@ -182,6 +206,10 @@ export default function RoomsPage() {
     playClickSound();
     setActiveModelIndex(index);
     const targetRoom = ROOM_MODELS[index];
+
+    // Clear unread badge for selected room
+    setUnreadCounts((prev) => ({ ...prev, [targetRoom.id]: 0 }));
+
     setMessages([]);
     setIsLoading(false);
     setActiveCodePreview(null);
@@ -230,7 +258,7 @@ export default function RoomsPage() {
     }
   }, [activeModelIndex, roomSessions, currentSessionId, loadRoomMessages]);
 
-  // Main Streaming Message Handler
+  // Main Streaming Message Handler with Clean SSE Parsing & Push Notification
   const handleSendMessage = async (
     text: string,
     attachments?: AttachmentFile[],
@@ -238,6 +266,8 @@ export default function RoomsPage() {
   ) => {
     if (!text.trim() && (!attachments || attachments.length === 0)) return;
 
+    const roomIndexAtStart = activeModelIndex;
+    const targetRoom = ROOM_MODELS[roomIndexAtStart];
     let activeChatId = currentSessionId;
 
     // Create room session on first message if needed
@@ -251,8 +281,8 @@ export default function RoomsPage() {
             .from("chats")
             .insert({
               user_id: user.id,
-              title: `[Room AI] ${activeRoom.name}`,
-              model_used: activeRoom.id,
+              title: `[Room AI] ${targetRoom.name}`,
+              model_used: targetRoom.id,
             })
             .select()
             .single();
@@ -260,7 +290,7 @@ export default function RoomsPage() {
           if (newChat) {
             activeChatId = newChat.id;
             setCurrentSessionId(newChat.id);
-            setRoomSessions((prev) => ({ ...prev, [activeRoom.id]: newChat.id }));
+            setRoomSessions((prev) => ({ ...prev, [targetRoom.id]: newChat.id }));
           }
         }
       } catch (err) {
@@ -325,15 +355,37 @@ export default function RoomsPage() {
       const decoder = new TextDecoder();
 
       if (reader) {
+        let lineBuffer = "";
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          accumulatedContent += chunk;
 
-          setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, content: accumulatedContent } : m))
-          );
+          const chunkStr = decoder.decode(value, { stream: true });
+          lineBuffer += chunkStr;
+          const lines = lineBuffer.split("\n");
+          lineBuffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith("data: ")) {
+              const dataStr = trimmed.replace("data: ", "").trim();
+              if (dataStr === "[DONE]") break;
+
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.delta) {
+                  accumulatedContent += parsed.delta;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId ? { ...m, content: accumulatedContent } : m
+                    )
+                  );
+                }
+              } catch {
+                // Ignore partial JSON chunks
+              }
+            }
+          }
         }
       }
 
@@ -361,6 +413,41 @@ export default function RoomsPage() {
           has_code: finalClean.includes("```"),
         });
       }
+
+      playSuccessSound();
+
+      // Check if user switched rooms or navigated away/hidden tab
+      const isUserAway =
+        (typeof document !== "undefined" && document.hidden) ||
+        activeModelIndexRef.current !== roomIndexAtStart;
+
+      if (isUserAway) {
+        // Add WhatsApp-style unread badge
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [targetRoom.id]: (prev[targetRoom.id] || 0) + 1,
+        }));
+
+        // Send Native Push Notification to Device / Browser
+        if (
+          typeof window !== "undefined" &&
+          "Notification" in window &&
+          Notification.permission === "granted"
+        ) {
+          try {
+            const notif = new Notification(`LucidChat - ${targetRoom.name}`, {
+              body: accumulatedContent.slice(0, 100) + (accumulatedContent.length > 100 ? "..." : ""),
+              icon: "/icon.png",
+              tag: `room-${targetRoom.id}`,
+            });
+            notif.onclick = () => {
+              window.focus();
+            };
+          } catch (e) {
+            console.warn("Notification error:", e);
+          }
+        }
+      }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Gagal mendapatkan respons AI";
       setMessages((prev) =>
@@ -386,14 +473,14 @@ export default function RoomsPage() {
   };
 
   return (
-    <div className="flex h-[100dvh] h-screen w-screen overflow-hidden bg-[#050508] text-white font-sans relative">
+    <div className="flex h-[100dvh] h-screen w-screen overflow-hidden bg-[#050508] text-white font-sans relative animate-entrance-page">
       {/* Ambient background blur */}
       <div className="bg-orbs" />
       <div className="orb-center" />
 
       {/* ═══ ROOMS SIDEBAR (WHATSAPP STYLE CONTACT LIST - NO GREEN LIVE DOTS) ═══ */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-50 w-80 p-4 sidebar-glass flex flex-col justify-between transition-transform duration-300 ${
+        className={`fixed top-0 left-0 bottom-0 z-50 w-80 p-4 sidebar-glass flex flex-col justify-between transition-transform duration-300 animate-entrance-sidebar ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -441,7 +528,7 @@ export default function RoomsPage() {
             )}
           </div>
 
-          {/* Model Contact Rooms List (WhatsApp Style - No Green Live Dots) */}
+          {/* Model Contact Rooms List (WhatsApp Style - No Green Live Dots, With Unread Badges) */}
           <div className="mt-4 overflow-y-auto flex-1 pr-1 space-y-2">
             <div className="text-[9px] font-semibold tracking-[0.2em] text-zinc-500 uppercase px-2 mb-2">
               Daftar Kontak Model AI
@@ -450,6 +537,7 @@ export default function RoomsPage() {
             {filteredRooms.map((room) => {
               const originalIndex = ROOM_MODELS.findIndex((r) => r.id === room.id);
               const isActive = activeModelIndex === originalIndex;
+              const unread = unreadCounts[room.id] || 0;
 
               return (
                 <div
@@ -476,6 +564,13 @@ export default function RoomsPage() {
                     </div>
                     <span className="text-[10px] text-zinc-400 truncate mt-0.5">{room.tagline}</span>
                   </div>
+
+                  {/* WhatsApp Style Unread Badge (1) */}
+                  {unread > 0 && (
+                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-[0_0_12px_rgba(239,68,68,0.8)] border border-red-400/50 animate-bounce">
+                      {unread}
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -501,7 +596,7 @@ export default function RoomsPage() {
         }`}
       >
         {/* Room Header */}
-        <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/10 bg-[#08080e]/90 backdrop-blur-2xl z-30">
+        <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/10 bg-[#08080e]/90 backdrop-blur-2xl z-30 animate-entrance-header">
           <div className="flex items-center gap-3">
             {!isSidebarOpen && (
               <button
@@ -522,12 +617,12 @@ export default function RoomsPage() {
 
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-white">{activeRoom.name}</h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-zinc-300">
+                <h2 className="text-sm font-bold text-white tracking-tight">{activeRoom.name}</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-zinc-300 font-medium">
                   {activeRoom.provider}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400">{activeRoom.tagline}</p>
+              <p className="text-[10px] text-zinc-400">{activeRoom.tagline}</p>
             </div>
           </div>
 
@@ -535,28 +630,28 @@ export default function RoomsPage() {
             {messages.length > 0 && (
               <button
                 onClick={handleClearRoomHistory}
-                className="p-2 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-zinc-400 hover:text-red-400 transition-all text-xs flex items-center gap-1.5 px-3"
-                title="Bersihkan Percakapan Room Ini"
+                className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs text-zinc-300 hover:text-white transition-all flex items-center gap-1.5"
+                title="Bersihkan Obrolan Room Ini"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
                 <span className="hidden sm:inline">Bersihkan</span>
               </button>
             )}
           </div>
         </header>
 
-        {/* Message Stream */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="max-w-3xl w-full mx-auto space-y-4">
+        {/* Messages Stream Container */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             {messages.length === 0 ? (
-              <div className="py-20 text-center space-y-4 max-w-md mx-auto">
-                <div className="w-16 h-16 mx-auto rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-3 shadow-2xl">
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 shadow-[0_0_40px_rgba(255,255,255,0.15)] animate-pulse">
                   <ModelLogo modelId={activeRoom.id} provider={activeRoom.provider} className="w-8 h-8" />
                 </div>
-                <div className="space-y-1">
+                <div>
                   <h3 className="text-lg font-bold text-white">Ruang Obrolan {activeRoom.name}</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Setiap obrolan di ruangan ini tersimpan khusus untuk model {activeRoom.name} dan tidak tercampur dengan riwayat chat global.
+                  <p className="text-xs text-zinc-400 max-w-sm mt-1">
+                    {activeRoom.tagline}. Mulai ketik pesan untuk berkonsultasi langsung dengan model AI ini.
                   </p>
                 </div>
               </div>
@@ -567,8 +662,9 @@ export default function RoomsPage() {
                   message={m}
                   userAvatar={userAvatar}
                   onOpenCodePreview={(code) => {
-                    previewClosedByUserRef.current = false;
+                    playClickSound();
                     setActiveCodePreview(code);
+                    previewClosedByUserRef.current = false;
                   }}
                 />
               ))
@@ -578,7 +674,7 @@ export default function RoomsPage() {
         </div>
 
         {/* Chat Input Bar */}
-        <div className="p-4 md:p-6 bg-[#08080e]/80 backdrop-blur-xl border-t border-white/10 shrink-0">
+        <div className="p-4 md:p-6 bg-[#08080e]/80 backdrop-blur-xl border-t border-white/10 shrink-0 animate-entrance-input">
           <div className="max-w-3xl mx-auto">
             <ChatInputBar
               onSendMessage={handleSendMessage}
@@ -597,22 +693,24 @@ export default function RoomsPage() {
       {activeCodePreview && (
         <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-2xl flex flex-col p-4 md:p-8 animate-fade-in">
           <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-            <span className="text-sm font-bold text-white">Live Code Artifact Preview</span>
+            <h3 className="font-bold text-sm text-white">Live Artifact Code Preview</h3>
             <button
-              onClick={() => setActiveCodePreview(null)}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+              onClick={() => {
+                playClickSound();
+                setActiveCodePreview(null);
+                previewClosedByUserRef.current = true;
+              }}
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex-1 bg-[#0d0d14] rounded-2xl overflow-hidden border border-white/15">
-            <iframe
-              srcDoc={activeCodePreview}
-              className="w-full h-full border-none bg-white"
-              title="Artifact Live Preview"
-              sandbox="allow-scripts allow-modals"
-            />
-          </div>
+          <iframe
+            srcDoc={activeCodePreview}
+            className="w-full flex-1 rounded-2xl border border-white/20 bg-white"
+            title="Artifact Live Preview"
+            sandbox="allow-scripts allow-modals"
+          />
         </div>
       )}
     </div>

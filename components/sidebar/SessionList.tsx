@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -68,6 +68,20 @@ export function SessionList({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [deleteConfirmSession, setDeleteConfirmSession] = useState<SessionItem | null>(null);
+  const [totalRoomUnreads, setTotalRoomUnreads] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const readUnreads = () => {
+        const val = localStorage.getItem("lucidchat_room_unreads_total");
+        if (val) setTotalRoomUnreads(parseInt(val, 10) || 0);
+        else setTotalRoomUnreads(0);
+      };
+      readUnreads();
+      window.addEventListener("storage", readUnreads);
+      return () => window.removeEventListener("storage", readUnreads);
+    }
+  }, []);
 
   // Filter out room chats from global history to keep /chat history separate from /rooms
   const historySessions = sessions.filter(
@@ -192,6 +206,11 @@ export function SessionList({
             <div className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
               <span>Model Rooms AI</span>
+              {totalRoomUnreads > 0 && (
+                <span className="flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-[0_0_10px_rgba(239,68,68,0.8)] border border-red-400/40 animate-bounce">
+                  {totalRoomUnreads}
+                </span>
+              )}
             </div>
             <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
           </Link>

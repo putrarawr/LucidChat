@@ -470,6 +470,23 @@ body::before {
   }
 }
 
+.animate-entrance-page {
+  animation: pageGlassFadeIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pageGlassFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
 .animate-entrance-sidebar {
   animation: sidebarGlassUnfold 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
