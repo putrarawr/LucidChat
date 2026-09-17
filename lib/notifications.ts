@@ -42,6 +42,11 @@ export const sendNativePushNotification = async (
     if (!granted) return;
   }
 
+  // Convert icon path to absolute URL so OS notification daemons (Firefox/Android/iOS) fetch the logo
+  const absoluteIcon = typeof window !== "undefined"
+    ? new URL(icon || "/logo.png", window.location.origin).href
+    : icon || "/logo.png";
+
   try {
     // 1. Try Service Worker Notification if registered (best for mobile devices)
     if ("serviceWorker" in navigator) {
@@ -50,8 +55,8 @@ export const sendNativePushNotification = async (
         if (registration && registration.showNotification) {
           await registration.showNotification(title, {
             body: body.length > 120 ? body.slice(0, 120) + "..." : body,
-            icon,
-            badge: icon,
+            icon: absoluteIcon,
+            badge: absoluteIcon,
             tag: "lucidchat-notification",
           });
           return;
@@ -64,8 +69,8 @@ export const sendNativePushNotification = async (
     // 2. Standard Web Notification API fallback (Desktop browsers)
     const notif = new Notification(title, {
       body: body.length > 120 ? body.slice(0, 120) + "..." : body,
-      icon,
-      badge: icon,
+      icon: absoluteIcon,
+      badge: absoluteIcon,
       tag: "lucidchat-notification",
     });
 

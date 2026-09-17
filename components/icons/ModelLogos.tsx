@@ -1,12 +1,15 @@
-import React from "react";
+import React, { useId } from "react";
 import { Globe, Sparkles } from "lucide-react";
 
 // 1. Google Gemini Official Multi-Color Star
 export function GeminiLogo({ className = "w-4 h-4" }: { className?: string }) {
+  const id = useId();
+  const gradId = `gemini-grad-${id.replace(/:/g, "")}`;
+
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
       <defs>
-        <linearGradient id="gemini-grad-logo" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#4285F4" />
           <stop offset="40%" stopColor="#9B51E0" />
           <stop offset="80%" stopColor="#E94235" />
@@ -15,7 +18,7 @@ export function GeminiLogo({ className = "w-4 h-4" }: { className?: string }) {
       </defs>
       <path
         d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"
-        fill="url(#gemini-grad-logo)"
+        fill={`url(#${gradId})`}
       />
     </svg>
   );
@@ -134,7 +137,7 @@ export function ModelLogo({
   if (id === "web-crawler-agent") {
     return <WebCrawlerLogo className={className} />;
   }
-  if (id.includes("gemini") || prov === "gemini") {
+  if (id.includes("gemini") || prov === "gemini" || prov === "google") {
     return <GeminiLogo className={className} />;
   }
   if (id.includes("gpt") || id.includes("o3") || id.includes("openai") || prov === "openai") {

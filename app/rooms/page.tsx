@@ -669,7 +669,7 @@ export default function RoomsPage() {
             activeRoom && (
               <>
                 {/* Room Header */}
-                <header className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/10 bg-[#08080e]/90 backdrop-blur-2xl z-30 animate-entrance-header">
+                <header className="shrink-0 px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-white/10 bg-[#08080e]/95 backdrop-blur-2xl z-50 pt-[calc(0.5rem+env(safe-area-inset-top))] min-h-[56px]">
                   <div className="flex items-center gap-3">
                     {/* Back Button on Mobile / Desktop (Icon Only, No Text) */}
                     <button
@@ -699,18 +699,16 @@ export default function RoomsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {messages.length > 0 && (
-                      <button
-                        onClick={() => {
-                          playClickSound();
-                          setIsConfirmClearOpen(true);
-                        }}
-                        className="p-2 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 hover:text-red-300 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
-                        title="Bersihkan Obrolan Room Ini"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        playClickSound();
+                        setIsConfirmClearOpen(true);
+                      }}
+                      className="p-2 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 hover:text-red-300 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"
+                      title="Bersihkan Obrolan Room Ini"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
                   </div>
                 </header>
 
