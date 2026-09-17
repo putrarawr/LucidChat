@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 interface ChatRow {
   id: string;
@@ -77,6 +78,7 @@ const ROOM_MODELS = [
 ];
 
 export default function RoomsPage() {
+  const { t } = useI18n();
   // Default: NO AI room opened initially (activeModelIndex = null)
   const [activeModelIndex, setActiveModelIndex] = useState<number | null>(null);
   const activeRoom = activeModelIndex !== null ? ROOM_MODELS[activeModelIndex] : null;
@@ -536,8 +538,8 @@ export default function RoomsPage() {
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div>
-              <h1 className="font-bold text-sm text-white tracking-tight">Model Rooms AI</h1>
-              <p className="text-[10px] text-zinc-400">Ruang Obrolan Per AI</p>
+              <h1 className="font-bold text-sm text-white tracking-tight">{t("rooms.title", "Model Rooms AI")}</h1>
+              <p className="text-[10px] text-zinc-400">{t("rooms.subtitle", "Ruang Obrolan Per AI")}</p>
             </div>
           </div>
         </div>
@@ -549,7 +551,7 @@ export default function RoomsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari Room AI..."
+            placeholder={t("rooms.searchPlaceholder", "Cari Room AI...")}
             className="w-full pl-8 pr-3 py-2 rounded-full bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 transition-all"
           />
           {searchQuery && (
@@ -714,12 +716,12 @@ export default function RoomsPage() {
                         if (granted) {
                           sendNativePushNotification(
                             "LucidChat AI",
-                            "Notifikasi HP berhasil diaktifkan! Anda akan menerima pesan saat AI selesai merespons.",
+                            t("rooms.notifEnabledSuccess", "Notifikasi HP berhasil diaktifkan! Anda akan menerima pesan saat AI selesai merespons."),
                             "/logo.png"
                           );
-                          alert("✅ Notifikasi HP berhasil diaktifkan! Tes notifikasi telah dikirim ke HP Anda.");
+                          alert(t("rooms.notifEnabledSuccess", "✅ Notifikasi HP berhasil diaktifkan! Tes notifikasi telah dikirim ke HP Anda."));
                         } else {
-                          alert("⚠️ Izin notifikasi ditolak di HP/Browser Anda. Silakan beri izin notifikasi di pengaturan browser.");
+                          alert(t("rooms.notifDenied", "⚠️ Izin notifikasi ditolak di HP/Browser Anda. Silakan beri izin notifikasi di pengaturan browser."));
                         }
                       }}
                       className="p-2 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-sm active:scale-95"

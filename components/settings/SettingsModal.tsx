@@ -12,9 +12,11 @@ import {
   Check,
   RotateCcw,
   MessageSquare,
-  Code
+  Code,
+  Globe,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -39,6 +41,7 @@ export function SettingsModal({
   onUpdateCustomSystemPrompt,
   onSaveSuccess,
 }: SettingsModalProps) {
+  const { lang, setLang, t } = useI18n();
   const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "data">("profile");
 
   const [displayName, setDisplayName] = useState(userName);
@@ -89,7 +92,7 @@ export function SettingsModal({
     if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(trimmedPrompt);
 
     if (onSaveSuccess) {
-      onSaveSuccess("Pengaturan berhasil disimpan");
+      onSaveSuccess(t("settings.saveSuccess", "Pengaturan berhasil disimpan"));
     }
 
     onClose();
@@ -358,8 +361,8 @@ export function SettingsModal({
                 <div className="flex items-center gap-2.5">
                   <Code className="w-4 h-4 text-white/70" />
                   <div>
-                    <h4 className="text-xs font-semibold text-white">Preview Kode Otomatis</h4>
-                    <p className="text-[10px] text-white/40">Buka panel split saat AI membuatkan kode HTML/JS</p>
+                    <h4 className="text-xs font-semibold text-white">{t("settings.autoCodePreview", "Preview Kode Otomatis")}</h4>
+                    <p className="text-[10px] text-white/40">{t("settings.autoCodePreviewDesc", "Buka panel split saat AI membuatkan kode HTML/JS")}</p>
                   </div>
                 </div>
                 <button
@@ -375,6 +378,51 @@ export function SettingsModal({
                     }`}
                   />
                 </button>
+              </div>
+
+              {/* Language Selector Card (i18n) */}
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <Globe className="w-4 h-4 text-amber-300" />
+                  <div>
+                    <h4 className="text-xs font-semibold text-white">{t("settings.language", "Bahasa Antarmuka (Language)")}</h4>
+                    <p className="text-[10px] text-white/40">{t("settings.languageDesc", "Pilih bahasa tampilan platform LucidChat")}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      setLang("id");
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all border ${
+                      lang === "id"
+                        ? "bg-white/15 border-white/30 text-white shadow-sm"
+                        : "bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    <span>🇮🇩 Bahasa Indonesia</span>
+                    {lang === "id" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      setLang("en");
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all border ${
+                      lang === "en"
+                        ? "bg-white/15 border-white/30 text-white shadow-sm"
+                        : "bg-white/[0.03] border-white/10 text-zinc-400 hover:text-white hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    <span>🇬🇧 English</span>
+                    {lang === "en" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                  </button>
+                </div>
               </div>
             </div>
           )}

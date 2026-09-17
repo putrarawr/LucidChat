@@ -101,6 +101,8 @@ const jsonLd = {
   }
 };
 
+import { I18nProvider } from "@/lib/i18n/I18nContext";
+
 export default function RootLayout({
   children,
 }: {
@@ -131,7 +133,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[var(--surface-0)] text-white select-none overflow-x-hidden font-sans">
-        {children}
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );

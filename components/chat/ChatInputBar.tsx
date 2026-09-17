@@ -4,6 +4,7 @@ import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
 import { ModelLogo, GeminiLogo, OpenAILogo, ClaudeLogo, DeepSeekLogo, KimiLogo, QwenLogo, LlamaLogo } from "@/components/icons/ModelLogos";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 export interface AttachmentFile {
   id: string;
@@ -165,6 +166,7 @@ export function ChatInputBar({
   isHandsFreeMode = false,
   onToggleHandsFreeMode,
 }: ChatInputBarProps) {
+  const { t } = useI18n();
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
@@ -892,7 +894,7 @@ export function ChatInputBar({
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Tanyakan sesuatu atau ketik '/' untuk perintah AI... (Bisa drag & drop file/foto)"
+            placeholder={t("chat.inputPlaceholder", "Tanyakan sesuatu atau ketik '/' untuk perintah AI... (Bisa drag & drop file/foto)")}
             rows={1}
             className="w-full bg-transparent text-white text-sm placeholder-white/30 outline-none resize-none min-h-[38px] max-h-[160px] py-1.5 scrollbar-thin"
           />

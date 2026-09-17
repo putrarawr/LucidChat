@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 export interface SessionItem {
   id: string;
@@ -64,6 +65,7 @@ export function SessionList({
   userName,
   userAvatar,
 }: SessionListProps) {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -137,10 +139,10 @@ export function SessionList({
               <div className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-white tracking-tight">Hapus Percakapan?</h3>
+              <h3 className="text-base font-bold text-white tracking-tight">{t("sidebar.confirmClearTitle", "Hapus Percakapan?")}</h3>
             </div>
             <p className="text-xs text-white/70 leading-relaxed">
-              Apakah Anda yakin ingin menghapus percakapan <strong className="text-white">&quot;{deleteConfirmSession.title}&quot;</strong>? Percakapan akan dihapus permanen.
+              {t("sidebar.confirmClearDesc", "Apakah Anda yakin ingin menghapus percakapan")} <strong className="text-white">&quot;{deleteConfirmSession.title}&quot;</strong>?
             </p>
             <div className="flex items-center justify-end gap-2.5 pt-3">
               <button
@@ -148,14 +150,14 @@ export function SessionList({
                 onClick={() => setDeleteConfirmSession(null)}
                 className="px-4 py-2 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/10 transition-all font-medium"
               >
-                Batal
+                {t("sidebar.cancel", "Batal")}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
                 className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-red-500/90 hover:bg-red-500 text-white border border-red-400/40 shadow-lg transition-all"
               >
-                Hapus Permanen
+                {t("sidebar.delete", "Hapus Permanen")}
               </button>
             </div>
           </div>
@@ -195,7 +197,7 @@ export function SessionList({
             className="w-full mt-3 py-2.5 px-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-semibold tracking-wide bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] hover:border-white/[0.15] shadow-sm text-white/80 hover:text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Chat Baru
+            {t("sidebar.newChat", "Chat Baru")}
           </button>
 
           {/* Dedicated Model Rooms Route Button */}
@@ -205,7 +207,7 @@ export function SessionList({
           >
             <div className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-              <span>Model Rooms AI</span>
+              <span>{t("sidebar.contactRooms", "Model Rooms AI")}</span>
               {totalRoomUnreads > 0 && (
                 <span className="flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-md border border-red-400/40">
                   {totalRoomUnreads}
@@ -222,7 +224,7 @@ export function SessionList({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari percakapan..."
+              placeholder={t("sidebar.searchPlaceholder", "Cari percakapan...")}
               className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-white placeholder-white/25 focus:outline-none focus:border-white/20 transition-all"
             />
             {searchQuery && (
