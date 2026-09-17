@@ -25,6 +25,8 @@ import {
   Mic,
   CheckCircle2,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n/I18nContext";
+import { playClickSound } from "@/lib/sound";
 import {
   GeminiLogo,
   OpenAILogo,
@@ -531,6 +533,7 @@ function InteractiveDemo() {
 // ─── MAIN LANDING PAGE ───
 // ═══════════════════════════════════════════════════════════
 export default function LandingPage() {
+  const { lang, setLang, t } = useI18n();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -594,24 +597,58 @@ export default function LandingPage() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-[13px] text-zinc-400 font-medium">
-            <a href="#fitur" className="hover:text-white transition-colors">Fitur</a>
-            <a href="#demo" className="hover:text-white transition-colors">Demo</a>
-            <a href="#model" className="hover:text-white transition-colors">Model AI</a>
-            <a href="#keunggulan" className="hover:text-white transition-colors">Keunggulan</a>
+            <a href="#fitur" className="hover:text-white transition-colors">{t("landing.navFeatures", "Fitur")}</a>
+            <a href="#demo" className="hover:text-white transition-colors">{t("landing.navDemo", "Demo")}</a>
+            <a href="#model" className="hover:text-white transition-colors">{t("landing.navModels", "Model AI")}</a>
+            <a href="#keunggulan" className="hover:text-white transition-colors">{t("landing.navAdvantages", "Keunggulan")}</a>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            {/* Glassmorphic Language Slider Switch Toggle */}
+            <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-semibold select-none relative shadow-inner">
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  setLang("id");
+                }}
+                className={`px-2.5 py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
+                  lang === "id"
+                    ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
+                    : "text-white/40 hover:text-white/70"
+                }`}
+                title="Bahasa Indonesia"
+              >
+                <span>🇮🇩 ID</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  setLang("en");
+                }}
+                className={`px-2.5 py-1 rounded-full transition-all duration-300 flex items-center gap-1 cursor-pointer z-10 ${
+                  lang === "en"
+                    ? "bg-white/20 text-white shadow-[0_0_12px_rgba(255,255,255,0.2)] font-bold scale-[1.03]"
+                    : "text-white/40 hover:text-white/70"
+                }`}
+                title="English"
+              >
+                <span>🇬🇧 EN</span>
+              </button>
+            </div>
+
             <Link
               href="/login"
               className="px-4 py-2 rounded-full text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-all duration-200"
             >
-              Masuk
+              {t("landing.navSignIn", "Masuk")}
             </Link>
             <Link
               href="/register"
               className="px-5 py-2.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              Daftar Gratis
+              {t("landing.navRegister", "Daftar Gratis")}
             </Link>
           </div>
 
@@ -625,12 +662,43 @@ export default function LandingPage() {
 
         {isMobileMenuOpen && (
           <div className="md:hidden px-6 pb-5 pt-2 border-t border-white/10 space-y-3 rounded-b-3xl bg-[#08080e]/95 backdrop-blur-2xl">
-            <a href="#fitur" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">Fitur</a>
-            <a href="#demo" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">Demo</a>
-            <a href="#model" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">Model AI</a>
+            {/* Language Switcher on Mobile */}
+            <div className="flex items-center justify-between py-2 border-b border-white/10">
+              <span className="text-xs text-zinc-400 font-medium">Language / Bahasa</span>
+              <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-semibold select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClickSound();
+                    setLang("id");
+                  }}
+                  className={`px-2.5 py-1 rounded-full transition-all ${
+                    lang === "id" ? "bg-white/20 text-white font-bold" : "text-white/40"
+                  }`}
+                >
+                  🇮🇩 ID
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClickSound();
+                    setLang("en");
+                  }}
+                  className={`px-2.5 py-1 rounded-full transition-all ${
+                    lang === "en" ? "bg-white/20 text-white font-bold" : "text-white/40"
+                  }`}
+                >
+                  🇬🇧 EN
+                </button>
+              </div>
+            </div>
+
+            <a href="#fitur" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">{t("landing.navFeatures", "Fitur")}</a>
+            <a href="#demo" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">{t("landing.navDemo", "Demo")}</a>
+            <a href="#model" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm text-zinc-300 hover:text-white">{t("landing.navModels", "Model AI")}</a>
             <div className="flex gap-2 pt-2">
-              <Link href="/login" className="flex-1 py-2.5 text-center rounded-full text-xs font-medium text-white bg-white/10 border border-white/15">Masuk</Link>
-              <Link href="/register" className="flex-1 py-2.5 text-center rounded-full text-xs font-semibold bg-white text-black">Daftar</Link>
+              <Link href="/login" className="flex-1 py-2.5 text-center rounded-full text-xs font-medium text-white bg-white/10 border border-white/15">{t("landing.navSignIn", "Masuk")}</Link>
+              <Link href="/register" className="flex-1 py-2.5 text-center rounded-full text-xs font-semibold bg-white text-black">{t("landing.navRegister", "Daftar")}</Link>
             </div>
           </div>
         )}
@@ -648,18 +716,15 @@ export default function LandingPage() {
         <div className="relative z-10 text-center max-w-4xl mx-auto space-y-6">
           <div className="hero-subtitle inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/15 text-[11px] font-semibold text-zinc-300 tracking-wider uppercase opacity-0 backdrop-blur-md">
             <Sparkles className="w-3.5 h-3.5 text-white" />
-            <span>PLATFORM MULTI-MODEL AI GENERASI BARU</span>
+            <span>{t("landing.heroBadge", "PLATFORM MULTI-MODEL AI GENERASI BARU")}</span>
           </div>
 
           <h1 className="hero-title text-5xl sm:text-7xl font-extrabold tracking-tight leading-[1.05] text-white opacity-0">
-            Satu Hub AI.{" "}
-            <span className="bg-gradient-to-r from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
-              Segala Kecerdasan.
-            </span>
+            {t("landing.heroTitle", "Satu Studio. Kapabilitas AI Tanpa Batas.")}
           </h1>
 
           <p className="hero-subtitle text-base sm:text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto opacity-0">
-            Akses 15+ model AI terkemuka dunia, panggilan suara hands-free, pemindaian dokumen otomatis, dan riset web real-time dalam antarmuka liquid glass yang elegan.
+            {t("landing.heroSubtitle", "Akses Gemini 3.6 Flash, OpenAI GPT-4o, Claude 3.7 Sonnet, DeepSeek R1, Kimi AI, Qwen, dan Llama 3.3 dalam satu antarmuka Liquid Glass modern.")}
           </p>
 
           <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 opacity-0">
@@ -667,14 +732,14 @@ export default function LandingPage() {
               href="/register"
               className="group w-full sm:w-auto px-9 py-4 rounded-full bg-white text-black font-bold text-sm shadow-[0_0_50px_rgba(255,255,255,0.25)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-2.5"
             >
-              <span>Mulai Gratis</span>
+              <span>{t("landing.startFree", "Mulai Gratis")}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <a
               href="#demo"
               className="w-full sm:w-auto px-9 py-4 rounded-full bg-white/[0.04] border border-white/15 hover:bg-white/[0.08] text-white font-medium text-sm transition-all duration-300 flex items-center justify-center backdrop-blur-md"
             >
-              Lihat Demo
+              {t("landing.exploreModels", "Jelajahi Model AI")}
             </a>
           </div>
         </div>

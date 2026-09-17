@@ -12,7 +12,7 @@ interface I18nContextProps {
 const I18nContext = createContext<I18nContextProps | undefined>(undefined);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Language>("id");
+  const [lang, setLangState] = useState<Language>("en");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -63,7 +63,7 @@ export function useI18n() {
   if (!context) {
     // Provide a safe fallback if used outside provider
     return {
-      lang: "id" as Language,
+      lang: "en" as Language,
       setLang: () => {},
       t: (path: string, fallback?: string) => fallback || path,
     };
