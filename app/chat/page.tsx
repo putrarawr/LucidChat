@@ -165,37 +165,40 @@ export default function ChatPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 1. Check local storage overrides first to prevent hard refresh resets
-        if (typeof window !== "undefined") {
-          const localName = localStorage.getItem("lucidchat_user_name");
-          const localAvatar = localStorage.getItem("lucidchat_user_avatar");
-          const localPrompt = localStorage.getItem("lucidchat_custom_system_prompt");
-
-          if (localName && localName.trim()) setUserName(localName.trim());
-          if (localAvatar && localAvatar.trim()) setUserAvatar(localAvatar.trim());
-          if (localPrompt && localPrompt.trim()) setCustomSystemPrompt(localPrompt.trim());
-        }
-
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           setUserEmail(user.email);
           const meta = user.user_metadata || {};
-          const name = meta.full_name || meta.name || meta.custom_claims?.global_name;
+          const metaName = meta.full_name || meta.name || meta.display_name || meta.custom_claims?.global_name;
+          const metaAvatar = meta.avatar_url || meta.picture;
 
-          // Only set fallback from auth if not already present in localStorage
-          const hasLocalName = typeof window !== "undefined" && !!localStorage.getItem("lucidchat_user_name");
-          if (!hasLocalName) {
-            if (name) {
-              setUserName(name);
-            } else if (user.email) {
-              const rawName = user.email.split("@")[0];
-              setUserName(rawName.charAt(0).toUpperCase() + rawName.slice(1));
+          if (typeof window !== "undefined") {
+            const lastUserId = localStorage.getItem("lucidchat_last_user_id");
+            // If user logged in as a different account, clear old cached profile from localStorage
+            if (lastUserId && lastUserId !== user.id) {
+              localStorage.removeItem("lucidchat_user_name");
+              localStorage.removeItem("lucidchat_user_avatar");
+              localStorage.removeItem("lucidchat_custom_system_prompt");
             }
-          }
+            localStorage.setItem("lucidchat_last_user_id", user.id);
 
-          const hasLocalAvatar = typeof window !== "undefined" && !!localStorage.getItem("lucidchat_user_avatar");
-          if (!hasLocalAvatar && (meta.avatar_url || meta.picture)) {
-            setUserAvatar(meta.avatar_url || meta.picture);
+            const localName = localStorage.getItem("lucidchat_user_name");
+            const localAvatar = localStorage.getItem("lucidchat_user_avatar");
+            const localPrompt = localStorage.getItem("lucidchat_custom_system_prompt");
+
+            // Name priority: custom local setting -> user_metadata -> email prefix fallback
+            let effectiveName = localName && localName.trim() ? localName.trim() : (metaName || "");
+            if (!effectiveName && user.email) {
+              const rawName = user.email.split("@")[0];
+              effectiveName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+            }
+            setUserName(effectiveName);
+
+            // Avatar priority: user_metadata avatar (e.g. Google OAuth photo or Supabase update) -> local storage -> fallback empty
+            const effectiveAvatar = metaAvatar || (localAvatar && localAvatar.trim() ? localAvatar.trim() : "");
+            setUserAvatar(effectiveAvatar);
+
+            if (localPrompt && localPrompt.trim()) setCustomSystemPrompt(localPrompt.trim());
           }
 
           const { data: chatData } = await supabase
@@ -352,6 +355,12 @@ export default function ChatPage() {
 
   const handleLogout = async () => {
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("lucidchat_user_name");
+        localStorage.removeItem("lucidchat_user_avatar");
+        localStorage.removeItem("lucidchat_last_user_id");
+        localStorage.removeItem("lucidchat_custom_system_prompt");
+      }
       await supabase.auth.signOut();
     } catch (err) {
       console.warn("Sign out err:", err);

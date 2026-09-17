@@ -23,6 +23,8 @@ import { useI18n } from "@/lib/i18n/I18nContext";
 
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
 
+import { createClient } from "@/lib/supabase/client";
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -90,6 +92,20 @@ export function SettingsModal({
       localStorage.setItem("lucidchat_sound_enabled", soundEnabled ? "true" : "false");
       localStorage.setItem("lucidchat_autoscroll", autoScroll ? "true" : "false");
       localStorage.setItem("lucidchat_auto_code_preview", autoOpenPreview ? "true" : "false");
+    }
+
+    try {
+      const supabase = createClient();
+      supabase.auth.updateUser({
+        data: {
+          full_name: trimmedName,
+          display_name: trimmedName,
+          avatar_url: trimmedAvatar,
+          picture: trimmedAvatar,
+        },
+      }).catch(console.warn);
+    } catch (e) {
+      console.warn("Could not sync user metadata:", e);
     }
 
     if (onUpdateUserName) onUpdateUserName(trimmedName);
