@@ -54,7 +54,7 @@ function generateSmartTitle(prompt: string): string {
 }
 
 export default function ChatPage() {
-  const { lang, setLang, t } = useI18n();
+  const { lang, setLang } = useI18n();
   const params = useParams();
   const urlChatId = params?.chatId as string | undefined;
 
