@@ -173,32 +173,35 @@ export default function ChatPage() {
           const metaAvatar = meta.avatar_url || meta.picture;
 
           if (typeof window !== "undefined") {
-            const lastUserId = localStorage.getItem("lucidchat_last_user_id");
-            // If user logged in as a different account, clear old cached profile from localStorage
-            if (lastUserId && lastUserId !== user.id) {
-              localStorage.removeItem("lucidchat_user_name");
-              localStorage.removeItem("lucidchat_user_avatar");
-              localStorage.removeItem("lucidchat_custom_system_prompt");
-            }
-            localStorage.setItem("lucidchat_last_user_id", user.id);
+            // Delete old legacy unscoped keys that leaked across accounts
+            localStorage.removeItem("lucidchat_user_name");
+            localStorage.removeItem("lucidchat_user_avatar");
+            localStorage.removeItem("lucidchat_custom_system_prompt");
 
-            const localName = localStorage.getItem("lucidchat_user_name");
-            const localAvatar = localStorage.getItem("lucidchat_user_avatar");
-            const localPrompt = localStorage.getItem("lucidchat_custom_system_prompt");
+            // User-scoped profile keys
+            const userKeyName = `lucidchat_${user.id}_user_name`;
+            const userKeyAvatar = `lucidchat_${user.id}_user_avatar`;
+            const userKeyPrompt = `lucidchat_${user.id}_custom_system_prompt`;
 
-            // Name priority: custom local setting -> user_metadata -> email prefix fallback
-            let effectiveName = localName && localName.trim() ? localName.trim() : (metaName || "");
+            const localName = localStorage.getItem(userKeyName);
+            const localAvatar = localStorage.getItem(userKeyAvatar);
+            const localPrompt = localStorage.getItem(userKeyPrompt);
+
+            // Name priority: custom local setting for this user -> user metadata -> email prefix
+            let effectiveName = (localName && localName.trim()) ? localName.trim() : (metaName || "");
             if (!effectiveName && user.email) {
               const rawName = user.email.split("@")[0];
               effectiveName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
             }
             setUserName(effectiveName);
 
-            // Avatar priority: user_metadata avatar (e.g. Google OAuth photo or Supabase update) -> local storage -> fallback empty
-            const effectiveAvatar = metaAvatar || (localAvatar && localAvatar.trim() ? localAvatar.trim() : "");
+            // Avatar priority: user_metadata avatar (e.g. Google OAuth photo or Supabase update) -> local storage for this user -> fallback empty
+            const effectiveAvatar = metaAvatar || ((localAvatar && localAvatar.trim()) ? localAvatar.trim() : "");
             setUserAvatar(effectiveAvatar);
 
-            if (localPrompt && localPrompt.trim()) setCustomSystemPrompt(localPrompt.trim());
+            if (localPrompt && localPrompt.trim()) {
+              setCustomSystemPrompt(localPrompt.trim());
+            }
           }
 
           const { data: chatData } = await supabase
@@ -356,10 +359,11 @@ export default function ChatPage() {
   const handleLogout = async () => {
     try {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("lucidchat_user_name");
-        localStorage.removeItem("lucidchat_user_avatar");
-        localStorage.removeItem("lucidchat_last_user_id");
-        localStorage.removeItem("lucidchat_custom_system_prompt");
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("lucidchat_")) {
+            localStorage.removeItem(key);
+          }
+        });
       }
       await supabase.auth.signOut();
     } catch (err) {

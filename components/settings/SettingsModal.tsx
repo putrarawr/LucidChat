@@ -59,58 +59,59 @@ export function SettingsModal({
   const [autoOpenPreview, setAutoOpenPreview] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedName = localStorage.getItem("lucidchat_user_name") ?? userName;
-      const storedAvatar = localStorage.getItem("lucidchat_user_avatar") ?? userAvatar;
-      const storedPrompt = localStorage.getItem("lucidchat_custom_system_prompt") ?? customSystemPrompt;
-      const storedSound = localStorage.getItem("lucidchat_sound_enabled") !== "false";
-      const storedScroll = localStorage.getItem("lucidchat_autoscroll") !== "false";
-      const storedPreview = localStorage.getItem("lucidchat_auto_code_preview") !== "false";
+    if (isOpen) {
+      setDisplayName(userName);
+      setAvatarUrl(userAvatar);
+      setSystemPrompt(customSystemPrompt);
 
-      setDisplayName(storedName);
-      setAvatarUrl(storedAvatar);
-      setSystemPrompt(storedPrompt);
-      setSoundEnabled(storedSound);
-      setAutoScroll(storedScroll);
-      setAutoOpenPreview(storedPreview);
+      if (typeof window !== "undefined") {
+        const storedSound = localStorage.getItem("lucidchat_sound_enabled") !== "false";
+        const storedScroll = localStorage.getItem("lucidchat_autoscroll") !== "false";
+        const storedPreview = localStorage.getItem("lucidchat_auto_code_preview") !== "false";
+
+        setSoundEnabled(storedSound);
+        setAutoScroll(storedScroll);
+        setAutoOpenPreview(storedPreview);
+      }
     }
   }, [isOpen, userName, userAvatar, customSystemPrompt]);
 
   if (!isOpen) return null;
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     playClickSound();
 
     const trimmedName = displayName.trim();
     const trimmedAvatar = avatarUrl.trim();
     const trimmedPrompt = systemPrompt.trim();
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lucidchat_user_name", trimmedName);
-      localStorage.setItem("lucidchat_user_avatar", trimmedAvatar);
-      localStorage.setItem("lucidchat_custom_system_prompt", trimmedPrompt);
-      localStorage.setItem("lucidchat_sound_enabled", soundEnabled ? "true" : "false");
-      localStorage.setItem("lucidchat_autoscroll", autoScroll ? "true" : "false");
-      localStorage.setItem("lucidchat_auto_code_preview", autoOpenPreview ? "true" : "false");
-    }
-
-    try {
-      const supabase = createClient();
-      supabase.auth.updateUser({
-        data: {
-          full_name: trimmedName,
-          display_name: trimmedName,
-          avatar_url: trimmedAvatar,
-          picture: trimmedAvatar,
-        },
-      }).catch(console.warn);
-    } catch (e) {
-      console.warn("Could not sync user metadata:", e);
-    }
-
     if (onUpdateUserName) onUpdateUserName(trimmedName);
     if (onUpdateUserAvatar) onUpdateUserAvatar(trimmedAvatar);
     if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(trimmedPrompt);
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && typeof window !== "undefined") {
+        localStorage.setItem(`lucidchat_${user.id}_user_name`, trimmedName);
+        localStorage.setItem(`lucidchat_${user.id}_user_avatar`, trimmedAvatar);
+        localStorage.setItem(`lucidchat_${user.id}_custom_system_prompt`, trimmedPrompt);
+        localStorage.setItem("lucidchat_sound_enabled", soundEnabled ? "true" : "false");
+        localStorage.setItem("lucidchat_autoscroll", autoScroll ? "true" : "false");
+        localStorage.setItem("lucidchat_auto_code_preview", autoOpenPreview ? "true" : "false");
+
+        await supabase.auth.updateUser({
+          data: {
+            full_name: trimmedName,
+            display_name: trimmedName,
+            avatar_url: trimmedAvatar,
+            picture: trimmedAvatar,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("Could not sync user metadata:", e);
+    }
 
     if (onSaveSuccess) {
       onSaveSuccess(t("settings.saveSuccess", "Settings saved successfully"));
