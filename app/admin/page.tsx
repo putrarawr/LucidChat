@@ -42,6 +42,15 @@ interface RegisteredUserRecord {
   createdAt: string;
 }
 
+interface PresenceItem {
+  user_id?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+  provider?: "Google" | "Email";
+  online_at?: string;
+}
+
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -217,7 +226,7 @@ export default function AdminDashboardPage() {
         // 3. Subscribe to real-time presence & live registered user dynamic updates
         const channel = supabaseClient.channel("online-presence");
         channel.on("presence", { event: "sync" }, () => {
-          const state = channel.presenceState<any>();
+          const state = channel.presenceState<PresenceItem>();
           const presences = Object.values(state).flat();
           const count = Math.max(1, presences.length);
           setRealtimeCount(count);
@@ -225,7 +234,7 @@ export default function AdminDashboardPage() {
           // Merge live active user presences directly into registered user table live without refresh!
           setRegisteredUsers((prev) => {
             const map = new Map(prev.map((u) => [u.id || u.email, u]));
-            presences.forEach((p: any) => {
+            presences.forEach((p: PresenceItem) => {
               if (p.email && p.user_id && !p.email.includes("lucidchat.dev")) {
                 map.set(p.user_id, {
                   id: p.user_id,
