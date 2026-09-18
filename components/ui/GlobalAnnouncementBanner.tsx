@@ -16,13 +16,21 @@ export function GlobalAnnouncementBanner() {
   const [activeAnnouncement, setActiveAnnouncement] = useState<Announcement | null>(null);
 
   useEffect(() => {
-    // 1. Check existing un-dismissed announcements from local storage
     const dismissed = getDismissedAnnouncementIds();
-    const stored = getStoredAnnouncements();
-    const pending = stored.find((a) => !dismissed.includes(a.id));
-    if (pending) {
-      setActiveAnnouncement(pending);
-    }
+
+    // 1. Fetch latest server announcement for new logins / fresh browser sessions
+    fetch("/api/announcements")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.announcement) {
+          const ann = data.announcement as Announcement;
+          saveAnnouncementLocally(ann);
+          if (!dismissed.includes(ann.id)) {
+            setActiveAnnouncement(ann);
+          }
+        }
+      })
+      .catch((err) => console.warn("Could not fetch server announcement:", err));
 
     // 2. Subscribe to Supabase Realtime Broadcast for live mass announcements
     const supabase = createClient();

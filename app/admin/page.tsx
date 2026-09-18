@@ -271,7 +271,6 @@ export default function AdminDashboardPage() {
     setBroadcastSuccess(null);
 
     try {
-      const supabase = createClient();
       const newAnn: Announcement = {
         id: `ann_${Date.now()}`,
         title: annTitle.trim(),
@@ -281,6 +280,15 @@ export default function AdminDashboardPage() {
         author: userEmail || "LucidChat Admin",
       };
 
+      // 1. Post to API route for persistent server retrieval by new logins/browsers
+      await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAnn),
+      }).catch(console.warn);
+
+      // 2. Broadcast live via Supabase Realtime channel
+      const supabase = createClient();
       const channel = supabase.channel("global-announcements");
       await channel.subscribe();
       await channel.send({
@@ -292,7 +300,7 @@ export default function AdminDashboardPage() {
       saveAnnouncementLocally(newAnn);
       setSentHistory((prev) => [newAnn, ...prev]);
 
-      setBroadcastSuccess("✅ Mass announcement broadcasted live to all active users!");
+      setBroadcastSuccess("✅ Mass announcement broadcasted live & saved for all users!");
       setAnnTitle("");
       setAnnContent("");
       setTimeout(() => setBroadcastSuccess(null), 5000);
