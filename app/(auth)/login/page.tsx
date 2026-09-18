@@ -73,7 +73,8 @@ function LoginContent() {
       } else {
         setSuccessMessage(t("auth.processing", "Berhasil masuk! Mengalihkan..."));
         setTimeout(() => {
-          window.location.href = "/chat";
+          const target = email.trim().toLowerCase() === "putrarawr18@gmail.com" ? "/admin" : "/chat";
+          window.location.href = target;
         }, 800);
       }
     } catch {
@@ -234,11 +235,17 @@ function LoginContent() {
           {/* Google OAuth */}
           <GoogleOneTap
             buttonText={t("auth.googleLogin", "Continue with Google")}
-            onSuccess={() => {
+            onSuccess={async () => {
               setSuccessMessage(t("auth.processing", "Berhasil masuk! Mengalihkan..."));
-              setTimeout(() => {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const target = user?.email?.toLowerCase() === "putrarawr18@gmail.com" ? "/admin" : "/chat";
+                setTimeout(() => {
+                  window.location.href = target;
+                }, 600);
+              } catch {
                 window.location.href = "/chat";
-              }, 600);
+              }
             }}
             onError={(msg) => setErrorMessage(msg)}
           />

@@ -96,7 +96,7 @@ export function RealtimeUsersPill({
   }
 
   return (
-    <div className={`fixed bottom-5 left-5 z-40 group ${className}`}>
+    <div className={`fixed bottom-5 right-5 z-30 pointer-events-auto group ${className}`}>
       <div
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}

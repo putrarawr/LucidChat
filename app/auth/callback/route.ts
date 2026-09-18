@@ -14,7 +14,8 @@ export async function GET(request: Request) {
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const target = next || (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true");
+      const isAdminEmail = data?.user?.email?.toLowerCase() === "putrarawr18@gmail.com";
+      const target = next || (isAdminEmail ? "/admin" : (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true"));
       return NextResponse.redirect(`${origin}${target}`);
     }
   }
@@ -22,7 +23,8 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { data, error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
-      const target = next || (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true");
+      const isAdminEmail = data?.user?.email?.toLowerCase() === "putrarawr18@gmail.com";
+      const target = next || (isAdminEmail ? "/admin" : (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true"));
       return NextResponse.redirect(`${origin}${target}`);
     }
   }
