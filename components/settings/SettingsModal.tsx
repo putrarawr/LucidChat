@@ -17,6 +17,9 @@ import {
   Bug,
   Mail,
   ExternalLink,
+  Key,
+  Zap,
+  Cpu,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -49,7 +52,7 @@ export function SettingsModal({
   onSaveSuccess,
 }: SettingsModalProps) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "data" | "support">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "byok" | "data" | "support">("profile");
 
   const [displayName, setDisplayName] = useState(userName);
   const [avatarUrl, setAvatarUrl] = useState(userAvatar);
@@ -57,6 +60,19 @@ export function SettingsModal({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const [autoOpenPreview, setAutoOpenPreview] = useState(true);
+
+  // BYOK Custom Keys & Endpoint State
+  const [openRouterKey, setOpenRouterKey] = useState("");
+  const [groqKey, setGroqKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [customEndpointUrl, setCustomEndpointUrl] = useState("");
+  const [customEndpointKey, setCustomEndpointKey] = useState("");
+
+  const [quotaInfo, setQuotaInfo] = useState<{ used: number; max: number; resetInMs: number }>({
+    used: 0,
+    max: 50,
+    resetInMs: 0,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -72,7 +88,24 @@ export function SettingsModal({
         setSoundEnabled(storedSound);
         setAutoScroll(storedScroll);
         setAutoOpenPreview(storedPreview);
+
+        // Load BYOK Keys
+        setOpenRouterKey(localStorage.getItem("lucidchat_custom_openrouter_key") || "");
+        setGroqKey(localStorage.getItem("lucidchat_custom_groq_key") || "");
+        setGeminiKey(localStorage.getItem("lucidchat_custom_gemini_key") || "");
+        setCustomEndpointUrl(localStorage.getItem("lucidchat_custom_base_url") || "");
+        setCustomEndpointKey(localStorage.getItem("lucidchat_custom_endpoint_key") || "");
       }
+
+      // Fetch current quota status
+      fetch("/api/user/quota")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.quota) {
+            setQuotaInfo(data.quota);
+          }
+        })
+        .catch(() => {});
     }
   }, [isOpen, userName, userAvatar, customSystemPrompt]);
 
@@ -92,22 +125,33 @@ export function SettingsModal({
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && typeof window !== "undefined") {
-        localStorage.setItem(`lucidchat_${user.id}_user_name`, trimmedName);
-        localStorage.setItem(`lucidchat_${user.id}_user_avatar`, trimmedAvatar);
-        localStorage.setItem(`lucidchat_${user.id}_custom_system_prompt`, trimmedPrompt);
+      if (typeof window !== "undefined") {
+        if (user) {
+          localStorage.setItem(`lucidchat_${user.id}_user_name`, trimmedName);
+          localStorage.setItem(`lucidchat_${user.id}_user_avatar`, trimmedAvatar);
+          localStorage.setItem(`lucidchat_${user.id}_custom_system_prompt`, trimmedPrompt);
+        }
         localStorage.setItem("lucidchat_sound_enabled", soundEnabled ? "true" : "false");
         localStorage.setItem("lucidchat_autoscroll", autoScroll ? "true" : "false");
         localStorage.setItem("lucidchat_auto_code_preview", autoOpenPreview ? "true" : "false");
 
-        await supabase.auth.updateUser({
-          data: {
-            full_name: trimmedName,
-            display_name: trimmedName,
-            avatar_url: trimmedAvatar,
-            picture: trimmedAvatar,
-          },
-        });
+        // Save BYOK Keys
+        localStorage.setItem("lucidchat_custom_openrouter_key", openRouterKey.trim());
+        localStorage.setItem("lucidchat_custom_groq_key", groqKey.trim());
+        localStorage.setItem("lucidchat_custom_gemini_key", geminiKey.trim());
+        localStorage.setItem("lucidchat_custom_base_url", customEndpointUrl.trim());
+        localStorage.setItem("lucidchat_custom_endpoint_key", customEndpointKey.trim());
+
+        if (user) {
+          await supabase.auth.updateUser({
+            data: {
+              full_name: trimmedName,
+              display_name: trimmedName,
+              avatar_url: trimmedAvatar,
+              picture: trimmedAvatar,
+            },
+          });
+        }
       }
     } catch (e) {
       console.warn("Could not sync user metadata:", e);
@@ -225,6 +269,22 @@ export function SettingsModal({
           >
             <Volume2 className="w-3.5 h-3.5" />
             <span>{t("settings.interfaceTab", "Interface & Sound")}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              playClickSound();
+              setActiveTab("byok");
+            }}
+            className={`flex items-center gap-1.5 py-1.5 transition-all border-b-2 ${
+              activeTab === "byok"
+                ? "border-amber-400 text-amber-300 font-semibold"
+                : "border-transparent text-white/40 hover:text-white/80"
+            }`}
+          >
+            <Key className="w-3.5 h-3.5 text-amber-400" />
+            <span>API Keys & BYOK</span>
           </button>
 
           <button
@@ -433,7 +493,120 @@ export function SettingsModal({
             </div>
           )}
 
-          {/* TAB 4: DATA */}
+          {/* TAB 4: API KEYS & BYOK (Bring Your Own Key) */}
+          {activeTab === "byok" && (
+            <div className="space-y-4">
+              {/* Daily Quota Status Card */}
+              <div className="p-4 rounded-xl border border-white/12 bg-gradient-to-br from-white/[0.05] to-white/[0.02] space-y-3">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <div className="flex items-center gap-2 text-white">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <span>Kuota Server Gratis Hari Ini</span>
+                  </div>
+                  <span className="text-white/80 font-mono text-[11px] px-2 py-0.5 rounded-md bg-white/10">
+                    {quotaInfo.used} / {quotaInfo.max} Chat
+                  </span>
+                </div>
+                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      quotaInfo.used >= quotaInfo.max ? "bg-rose-500" : "bg-emerald-400"
+                    }`}
+                    style={{ width: `${Math.min(100, (quotaInfo.used / quotaInfo.max) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  💡 <strong>Bypass Kuota Batas Harian:</strong> Masukkan API Key / Custom Endpoint Anda sendiri di bawah untuk membuka <strong>Akses Unlimited tanpa Batas Harian</strong>!
+                </p>
+              </div>
+
+              {/* API Keys Form Fields */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-white tracking-wide flex items-center gap-2">
+                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Kunci API Pribadi (Bring Your Own Key)</span>
+                </h4>
+
+                <div>
+                  <label className="block text-xs font-medium text-white/80 mb-1">
+                    OpenRouter API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={openRouterKey}
+                    onChange={(e) => setOpenRouterKey(e.target.value)}
+                    placeholder="sk-or-v1-..."
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
+                  />
+                  <p className="text-[10px] text-white/40 mt-1">Dapatkan di openrouter.ai/keys</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-white/80 mb-1">
+                    Groq API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={groqKey}
+                    onChange={(e) => setGroqKey(e.target.value)}
+                    placeholder="gsk_..."
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
+                  />
+                  <p className="text-[10px] text-white/40 mt-1">Dapatkan gratis di console.groq.com/keys</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-white/80 mb-1">
+                    Google Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={geminiKey}
+                    onChange={(e) => setGeminiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
+                  />
+                  <p className="text-[10px] text-white/40 mt-1">Dapatkan gratis di aistudio.google.com/app/apikey</p>
+                </div>
+
+                {/* Custom OpenAI-Compatible BaseURL */}
+                <div className="pt-2 border-t border-white/10 space-y-3">
+                  <h4 className="text-xs font-bold text-white tracking-wide flex items-center gap-2">
+                    <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Custom AI Endpoint / Proxy (Ollama / LiteLLM / Custom Server)</span>
+                  </h4>
+
+                  <div>
+                    <label className="block text-xs font-medium text-white/80 mb-1">
+                      Custom OpenAI BaseURL
+                    </label>
+                    <input
+                      type="text"
+                      value={customEndpointUrl}
+                      onChange={(e) => setCustomEndpointUrl(e.target.value)}
+                      placeholder="http://localhost:11434/v1 atau https://api.proxy.com/v1"
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-emerald-400/60 font-mono transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-white/80 mb-1">
+                      Custom Endpoint API Key (Optional)
+                    </label>
+                    <input
+                      type="password"
+                      value={customEndpointKey}
+                      onChange={(e) => setCustomEndpointKey(e.target.value)}
+                      placeholder="Custom API Key if required..."
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-emerald-400/60 font-mono transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: DATA */}
           {activeTab === "data" && (
             <div className="space-y-3">
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">

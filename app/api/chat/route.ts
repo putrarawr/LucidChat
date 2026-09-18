@@ -39,12 +39,40 @@ export async function POST(req: NextRequest) {
 
     const userId = user?.id || "demo-user-session";
 
-    const { messages, modelId, provider, lucidMode, customSystemPrompt, attachments, enableWebSearch } = await req.json();
+    const {
+      messages,
+      modelId,
+      provider,
+      lucidMode,
+      customSystemPrompt,
+      attachments,
+      enableWebSearch,
+      customApiKey,
+      customBaseUrl,
+      customOpenRouterKey,
+      customGroqKey,
+      customGeminiKey,
+    } = await req.json();
 
-    // 1. Rate Limiting Check
+    const isCustomKeyUsed = Boolean(
+      customApiKey || customBaseUrl || customOpenRouterKey || customGroqKey || customGeminiKey
+    );
+
+    // 1. Rate Limiting & Daily Quota Checks
     const allowed = await checkRateLimit(userId);
     if (!allowed) {
-      return new Response("Rate limit tercapai. Silakan coba lagi dalam 1 menit.", { status: 429 });
+      return new Response("Terlalu banyak permintaan. Silakan coba lagi dalam 1 menit.", { status: 429 });
+    }
+
+    const { checkDailyQuota } = await import("@/lib/rate-limit");
+    const dailyQuota = await checkDailyQuota(userId, isCustomKeyUsed);
+    if (!dailyQuota.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "Batas kuota harian server tercapai (50 chat/hari). Masukkan API Key / Endpoint Anda sendiri di Settings (BYOK) untuk akses Unlimited tanpa batas!"
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // Combine system instructions with custom Lucid Mode guidelines if provided
@@ -208,7 +236,9 @@ export async function POST(req: NextRequest) {
       const actualModelId = activeId.includes('/') ? activeId.substring(activeId.indexOf('/') + 1) : activeId;
 
       if (activeProv === "gemini") {
-        const geminiModel = googleAI.getGenerativeModel({ model: actualModelId || "gemini-3.6-flash" });
+        const { GoogleGenerativeAI } = await import("@google/generative-ai");
+        const clientGemini = customGeminiKey ? new GoogleGenerativeAI(customGeminiKey) : googleAI;
+        const geminiModel = clientGemini.getGenerativeModel({ model: actualModelId || "gemini-3.6-flash" });
         const promptText = `${finalSystemPrompt}\n\nUser Question:\n${lastUserMessage}`;
         
         const geminiPayload = imagePartsGemini.length > 0 ? [promptText, ...imagePartsGemini] : [promptText];
@@ -358,7 +388,27 @@ export async function POST(req: NextRequest) {
           },
         });
       } else {
-        const client = getOpenAIClient(activeProv as Exclude<ProviderType, 'gemini' | 'claude'>);
+        const { default: OpenAI } = await import("openai");
+        let client: InstanceType<typeof OpenAI>;
+
+        if (customBaseUrl || customApiKey) {
+          client = new OpenAI({
+            apiKey: customApiKey || "dummy-key",
+            baseURL: customBaseUrl || undefined,
+          });
+        } else if (activeProv === "openrouter" && customOpenRouterKey) {
+          client = new OpenAI({
+            apiKey: customOpenRouterKey,
+            baseURL: "https://openrouter.ai/api/v1",
+          });
+        } else if (activeProv === "groq" && customGroqKey) {
+          client = new OpenAI({
+            apiKey: customGroqKey,
+            baseURL: "https://api.groq.com/openai/v1",
+          });
+        } else {
+          client = getOpenAIClient(activeProv as Exclude<ProviderType, 'gemini' | 'claude'>);
+        }
 
         const userContentPayload = imagePartsOpenAI.length > 0
           ? [{ type: "text", text: lastUserMessage }, ...imagePartsOpenAI]

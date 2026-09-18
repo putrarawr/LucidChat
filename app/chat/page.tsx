@@ -456,6 +456,12 @@ export default function ChatPage() {
       let accumulatedContent = "";
 
       try {
+        const customOpenRouterKey = typeof window !== "undefined" ? localStorage.getItem("lucidchat_custom_openrouter_key") || "" : "";
+        const customGroqKey = typeof window !== "undefined" ? localStorage.getItem("lucidchat_custom_groq_key") || "" : "";
+        const customGeminiKey = typeof window !== "undefined" ? localStorage.getItem("lucidchat_custom_gemini_key") || "" : "";
+        const customBaseUrl = typeof window !== "undefined" ? localStorage.getItem("lucidchat_custom_base_url") || "" : "";
+        const customApiKey = typeof window !== "undefined" ? localStorage.getItem("lucidchat_custom_endpoint_key") || "" : "";
+
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -467,12 +473,21 @@ export default function ChatPage() {
             customSystemPrompt: [selectedLucidMode?.systemPrompt, customSystemPrompt].filter(Boolean).join("\n\n"),
             attachments,
             enableWebSearch: enableWebSearch || (selectedLucidMode?.forceWebSearch ?? false),
+            customOpenRouterKey,
+            customGroqKey,
+            customGeminiKey,
+            customBaseUrl,
+            customApiKey,
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP error ${response.status}`);
+          const errText = errorData.error || `HTTP error ${response.status}`;
+          if (response.status === 429 && errText.includes("kuota harian")) {
+            setIsSettingsOpen(true);
+          }
+          throw new Error(errText);
         }
 
         if (!response.body) return "";
