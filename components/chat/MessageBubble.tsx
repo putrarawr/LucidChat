@@ -248,7 +248,7 @@ function parseInlineMarkdown(text: string) {
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       const boldText = part.slice(2, -2);
       return (
-        <strong key={index} className="font-bold text-white tracking-wide">
+        <strong key={index} className="font-semibold text-white tracking-wide">
           {boldText}
         </strong>
       );
@@ -257,7 +257,7 @@ function parseInlineMarkdown(text: string) {
     if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
       const codeText = part.slice(1, -1);
       return (
-        <code key={index} className="px-1.5 py-0.5 rounded-md bg-white/10 text-white font-mono text-[11px] border border-white/10">
+        <code key={index} className="px-1.5 py-0.5 rounded-md bg-white/[0.08] text-emerald-300 font-mono text-[12px] border border-white/10 shadow-2xs">
           {codeText}
         </code>
       );
@@ -266,7 +266,7 @@ function parseInlineMarkdown(text: string) {
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
       const italicText = part.slice(1, -1);
       return (
-        <em key={index} className="italic text-white/80">
+        <em key={index} className="italic text-white/85">
           {italicText}
         </em>
       );
@@ -280,7 +280,7 @@ function FormattedTextSegment({ text }: { text: string }) {
   const lines = text.split("\n");
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {lines.map((line, lineIndex) => {
         const trimmed = line.trim();
         const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
@@ -289,11 +289,11 @@ function FormattedTextSegment({ text }: { text: string }) {
           const level = headingMatch[1].length;
           const headingText = headingMatch[2];
 
-          let fontClass = "text-sm font-bold text-white mt-3 mb-1 tracking-tight";
-          if (level === 1) fontClass = "text-lg font-bold text-white mt-4 mb-2 tracking-tight";
-          if (level === 2) fontClass = "text-base font-bold text-white mt-3.5 mb-1.5 tracking-tight";
-          if (level === 3) fontClass = "text-sm font-bold text-white mt-3 mb-1 tracking-tight";
-          if (level >= 4) fontClass = "text-xs font-semibold text-white/90 mt-2.5 mb-1 tracking-wider";
+          let fontClass = "text-[13.5px] md:text-sm font-semibold text-white mt-3 mb-1 tracking-tight";
+          if (level === 1) fontClass = "text-base md:text-lg font-bold text-white mt-4 mb-2 tracking-tight pb-1 border-b border-white/10";
+          if (level === 2) fontClass = "text-sm md:text-base font-bold text-white mt-3.5 mb-1.5 tracking-tight";
+          if (level === 3) fontClass = "text-[13.5px] md:text-sm font-semibold text-white/95 mt-3 mb-1 tracking-tight";
+          if (level >= 4) fontClass = "text-xs font-semibold text-white/80 mt-2.5 mb-1 tracking-wider uppercase";
 
           return (
             <div key={lineIndex} className={fontClass}>
@@ -302,14 +302,42 @@ function FormattedTextSegment({ text }: { text: string }) {
           );
         }
 
+        // Blockquote support
+        if (trimmed.startsWith("> ")) {
+          const quoteText = trimmed.replace(/^>\s+/, "");
+          return (
+            <div key={lineIndex} className="my-1.5 pl-3 py-1 border-l-2 border-emerald-400/60 bg-white/[0.03] rounded-r-lg text-[13.5px] text-white/80 italic">
+              {parseInlineMarkdown(quoteText)}
+            </div>
+          );
+        }
+
+        // Bullet list support
         const isBullet = trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ");
         if (isBullet) {
           const bulletText = trimmed.replace(/^[*•-]\s+/, "");
           return (
-            <div key={lineIndex} className="flex items-start gap-2 pl-2 my-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0 mt-2" />
-              <div className="text-[13px] leading-[1.65] text-white/90">
+            <div key={lineIndex} className="flex items-start gap-2.5 pl-1.5 my-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shrink-0 mt-2.5" />
+              <div className="text-[13.5px] md:text-[14px] leading-[1.68] text-white/90">
                 {parseInlineMarkdown(bulletText)}
+              </div>
+            </div>
+          );
+        }
+
+        // Numbered list support
+        const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numberedMatch) {
+          const num = numberedMatch[1];
+          const itemText = numberedMatch[2];
+          return (
+            <div key={lineIndex} className="flex items-start gap-2 pl-1.5 my-1">
+              <span className="text-[12px] font-mono font-medium text-emerald-400/90 shrink-0 mt-0.5 min-w-[20px]">
+                {num}.
+              </span>
+              <div className="text-[13.5px] md:text-[14px] leading-[1.68] text-white/90">
+                {parseInlineMarkdown(itemText)}
               </div>
             </div>
           );
@@ -320,7 +348,7 @@ function FormattedTextSegment({ text }: { text: string }) {
         }
 
         return (
-          <div key={lineIndex} className="text-[13px] leading-[1.65] text-white/90 break-words">
+          <div key={lineIndex} className="text-[13.5px] md:text-[14px] leading-[1.68] text-white/90 break-words">
             {parseInlineMarkdown(line)}
           </div>
         );
@@ -447,38 +475,39 @@ export function MessageBubble({
   };
 
   return (
-    <div className={`group flex gap-2.5 my-2.5 w-full min-w-0 ${isUser ? "flex-row-reverse" : "flex-row"} animate-slide-up`}>
+    <div className={`group flex gap-3 my-3 w-full min-w-0 ${isUser ? "flex-row-reverse" : "flex-row"} animate-slide-up`}>
       {/* Avatar Icon */}
       <div
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border overflow-hidden mt-0.5 ${
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border overflow-hidden mt-0.5 transition-transform duration-200 group-hover:scale-105 ${
           isUser
-            ? "bg-white/12 border-white/20 text-white"
-            : "bg-white/[0.04] border-white/[0.08] text-white/70"
+            ? "bg-white/12 border-white/20 text-white shadow-md"
+            : "bg-white/[0.06] border-emerald-500/30 text-emerald-400 shadow-md shadow-emerald-500/10 p-0.5"
         }`}
       >
         {isUser ? (
           userAvatar ? (
             <img src={userAvatar} alt="User Avatar" className="w-full h-full object-cover rounded-full" />
           ) : (
-            <User className="w-3 h-3" />
+            <User className="w-3.5 h-3.5 text-white/90" />
           )
         ) : (
           <img src="/logo.png" alt="LucidChat AI" className="w-full h-full object-cover rounded-full p-0.5" />
         )}
       </div>
 
-      {/* Bubble Container - items-end for user keeps bubble snug next to avatar */}
-      <div className={`flex flex-col gap-1 min-w-0 w-full ${isUser ? "items-end max-w-[85%]" : "items-start max-w-full"}`}>
+      {/* Bubble Container */}
+      <div className={`flex flex-col gap-1.5 min-w-0 w-full ${isUser ? "items-end max-w-[85%]" : "items-start max-w-full"}`}>
         {/* Render Attachments if Present */}
         {message.attachments && message.attachments.length > 0 && (
           <div className={`flex flex-wrap gap-2 ${isUser ? "justify-end" : "justify-start"} mb-1`}>
             {message.attachments.map((att, i) => (
-              <div key={i} className="overflow-hidden rounded-xl border border-white/10 max-w-[200px]">
+              <div key={i} className="overflow-hidden rounded-xl border border-white/15 bg-black/30 backdrop-blur-md max-w-[220px] shadow-sm">
                 {att.type === "image" ? (
-                  <img src={att.content} alt={att.name} className="w-full h-auto object-cover max-h-48" />
+                  <img src={att.content} alt={att.name} className="w-full h-auto object-cover max-h-52" />
                 ) : (
-                  <div className="p-2 bg-white/5 text-[10px] text-white/70 font-mono truncate">
-                    {att.name}
+                  <div className="p-2.5 bg-white/5 text-[11px] text-white/80 font-mono truncate flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>{att.name}</span>
                   </div>
                 )}
               </div>
@@ -486,25 +515,26 @@ export function MessageBubble({
           </div>
         )}
 
-        <div className={`px-4 py-3 min-w-0 break-words max-w-full ${isUser ? "msg-user w-fit rounded-3xl rounded-tr-md" : "msg-assistant w-full rounded-3xl rounded-tl-md"}`}>
+        {/* Main Message Bubble */}
+        <div className={`px-4.5 py-3.5 min-w-0 break-words max-w-full ${isUser ? "msg-user w-fit rounded-[20px] rounded-tr-[4px]" : "msg-assistant w-full rounded-[20px] rounded-tl-[4px]"}`}>
           {isEditing ? (
-            <div className="space-y-2 min-w-[260px]">
+            <div className="space-y-2.5 min-w-[280px]">
               <textarea
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 rows={3}
-                className="w-full p-2.5 rounded-xl bg-black/40 border border-white/20 text-xs text-white outline-none resize-none"
+                className="w-full p-3 rounded-xl bg-black/50 border border-white/25 text-xs text-white outline-none resize-none focus:border-emerald-400/80 transition-colors"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="px-2.5 py-1 rounded-lg text-[10px] text-white/50 hover:bg-white/10"
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/60 hover:bg-white/10 transition-all"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="px-3 py-1 rounded-lg text-[10px] font-semibold bg-white text-black hover:bg-white/90"
+                  className="px-3.5 py-1.5 rounded-lg text-[11px] font-semibold bg-white text-black hover:bg-white/90 shadow-sm transition-all"
                 >
                   Kirim Ulang
                 </button>
@@ -514,7 +544,7 @@ export function MessageBubble({
             <DynamicLoadingText />
           ) : (
             <ParsedMessageContent
-              content={cleanContent || (isUser ? "" : "Hello! How can I help you today?")}
+              content={cleanContent || (isUser ? "" : "Halo! Ada yang bisa saya bantu hari ini?")}
               onOpenCodePreview={onOpenCodePreview}
             />
           )}
@@ -522,22 +552,22 @@ export function MessageBubble({
 
         {/* Real-time Performance & Token Stats Pill Bar */}
         {!isUser && message.stats && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1 text-[10px] font-mono text-white/40 select-none">
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5 px-1 text-[10px] font-mono text-white/45 select-none">
             {message.stats.ttftMs !== undefined && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Time-to-First-Token (Latency ms)">
-                <Zap className="w-3 h-3 text-amber-400/80" />
+              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all" title="Time-to-First-Token (Latency ms)">
+                <Zap className="w-3 h-3 text-amber-400/90" />
                 <span>{message.stats.ttftMs}ms TTFT</span>
               </span>
             )}
             {message.stats.tokensPerSec !== undefined && message.stats.tokensPerSec > 0 && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Tokens per Second (Kecepatan real-time)">
-                <Activity className="w-3 h-3 text-emerald-400/80" />
+              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all" title="Tokens per Second (Kecepatan real-time)">
+                <Activity className="w-3 h-3 text-emerald-400/90" />
                 <span>{message.stats.tokensPerSec} t/s</span>
               </span>
             )}
             {message.stats.totalTokens !== undefined && message.stats.totalTokens > 0 && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Total Token Terhitung">
-                <Hash className="w-3 h-3 text-blue-400/80" />
+              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all" title="Total Token Terhitung">
+                <Hash className="w-3 h-3 text-blue-400/90" />
                 <span>{message.stats.totalTokens} tokens</span>
                 {message.isStreaming && (
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping ml-0.5" />
@@ -545,8 +575,8 @@ export function MessageBubble({
               </span>
             )}
             {message.stats.provider && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" title="Active AI Provider">
-                <Cpu className="w-3 h-3 text-purple-400/80" />
+              <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all" title="Active AI Provider">
+                <Cpu className="w-3 h-3 text-purple-400/90" />
                 <span className="capitalize">{message.stats.provider}</span>
               </span>
             )}
@@ -556,13 +586,13 @@ export function MessageBubble({
         {/* Action Toolbar (Always Visible) */}
         {!message.isStreaming && !isEditing && (
           <div
-            className={`flex items-center gap-1 pt-1.5 px-1 ${
+            className={`flex items-center gap-1 pt-1 px-1 transition-opacity duration-200 ${
               isUser ? "justify-end" : "justify-start"
             }`}
           >
             <button
               onClick={handleCopy}
-              className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/50 hover:text-white transition-all shadow-sm"
+              className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.07] hover:bg-white/10 hover:border-white/15 text-white/50 hover:text-white transition-all shadow-xs"
               title="Salin Teks"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -570,8 +600,8 @@ export function MessageBubble({
 
             <button
               onClick={handleToggleSpeech}
-              className={`p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 transition-all shadow-sm ${
-                isSpeaking ? "text-emerald-400 border-emerald-500/30" : "text-white/50 hover:text-white"
+              className={`p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.07] hover:bg-white/10 hover:border-white/15 transition-all shadow-xs ${
+                isSpeaking ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" : "text-white/50 hover:text-white"
               }`}
               title={isSpeaking ? "Hentikan Suara" : "Bacakan Respons (Text-to-Speech)"}
             >
@@ -581,7 +611,7 @@ export function MessageBubble({
             {isUser && onEditMessage && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/50 hover:text-white transition-all shadow-sm"
+                className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.07] hover:bg-white/10 hover:border-white/15 text-white/50 hover:text-white transition-all shadow-xs"
                 title="Edit Pesan"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -591,11 +621,11 @@ export function MessageBubble({
             {!isUser && onRegenerate && (
               <button
                 onClick={() => onRegenerate(message.id)}
-                className="px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 text-white/70 hover:text-white transition-all shadow-sm flex items-center gap-1 text-[11px]"
+                className="px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.07] hover:bg-white/10 hover:border-white/15 text-white/70 hover:text-white transition-all shadow-xs flex items-center gap-1.5"
                 title="Restart / Regenerate Respons AI"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-amber-400/80" />
-                <span className="text-[10px] font-medium text-white/80">Restart</span>
+                <RefreshCw className="w-3 h-3 text-amber-400/90" />
+                <span className="text-[10.5px] font-medium text-white/80">Restart</span>
               </button>
             )}
           </div>
