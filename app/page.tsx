@@ -38,6 +38,9 @@ import {
   LlamaLogo,
 } from "@/components/icons/ModelLogos";
 
+import { RealtimeUsersPill } from "@/components/ui/RealtimeUsersPill";
+import { GlobalAnnouncementBanner } from "@/components/ui/GlobalAnnouncementBanner";
+
 // Dynamically import Three.js scene (client-only, no SSR)
 const HeroScene = dynamic(() => import("@/components/landing/HeroScene"), {
   ssr: false,
@@ -935,6 +938,10 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Realtime Active Users Floating Pill & Global Mass Announcement Banner */}
+      <GlobalAnnouncementBanner />
+      <RealtimeUsersPill />
     </div>
   );
 }

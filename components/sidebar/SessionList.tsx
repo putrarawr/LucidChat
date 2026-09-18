@@ -22,6 +22,8 @@ import {
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
+import { getEffectiveAvatarUrl } from "@/lib/avatar";
+
 export interface SessionItem {
   id: string;
   title: string;
@@ -272,17 +274,11 @@ export function SessionList({
         {/* Bottom Profile / Logout */}
         <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            {userAvatar ? (
-              <img
-                src={userAvatar}
-                alt={userName || "User Avatar"}
-                className="w-7 h-7 rounded-full border border-white/10 object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-white/[0.10] border border-white/[0.10] flex items-center justify-center text-[10px] font-semibold text-white/70 shrink-0">
-                {userName ? userName[0].toUpperCase() : userEmail ? userEmail[0].toUpperCase() : "U"}
-              </div>
-            )}
+            <img
+              src={getEffectiveAvatarUrl(userEmail, userAvatar)}
+              alt={userName || "User Avatar"}
+              className="w-7 h-7 rounded-full border border-white/10 object-cover shrink-0 bg-slate-800"
+            />
             <div className="flex flex-col min-w-0 flex-1">
               <span className="text-[11px] font-medium text-white/80 truncate">
                 {userName || userEmail || "Guest User"}

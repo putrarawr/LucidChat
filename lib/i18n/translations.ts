@@ -48,6 +48,12 @@ export const translations: Record<Language, TranslationDictionary> = {
       terms: "Terms of Service",
       backHome: "Back to Home",
     },
+    pill: {
+      onlineNow: "Online Realtime",
+      usersActive: "Active Now",
+      realtimeCommunity: "LucidChat Realtime Community",
+      activeConnections: "active connection(s) currently chatting & exploring.",
+    },
     sidebar: {
       newChat: "New Chat",
       searchPlaceholder: "Search chat history...",

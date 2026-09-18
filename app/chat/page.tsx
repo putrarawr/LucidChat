@@ -16,6 +16,9 @@ import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
+import { getEffectiveAvatarUrl } from "@/lib/avatar";
+import { RealtimeUsersPill } from "@/components/ui/RealtimeUsersPill";
+import { GlobalAnnouncementBanner } from "@/components/ui/GlobalAnnouncementBanner";
 
 interface ChatRow {
   id: string;
@@ -195,8 +198,8 @@ export default function ChatPage() {
             }
             setUserName(effectiveName);
 
-            // Avatar priority: user_metadata avatar (e.g. Google OAuth photo or Supabase update) -> local storage for this user -> fallback empty
-            const effectiveAvatar = metaAvatar || ((localAvatar && localAvatar.trim()) ? localAvatar.trim() : "");
+            // Avatar priority: user_metadata avatar -> local storage -> email-based avatar fallback
+            const effectiveAvatar = getEffectiveAvatarUrl(user.email, metaAvatar || localAvatar);
             setUserAvatar(effectiveAvatar);
 
             if (localPrompt && localPrompt.trim()) {
@@ -969,6 +972,10 @@ export default function ChatPage() {
           <span className="text-xs font-medium tracking-wide text-zinc-200">{toastMessage}</span>
         </div>
       )}
+
+      {/* Realtime Active Users Floating Pill & Global Mass Announcement Banner */}
+      <GlobalAnnouncementBanner />
+      <RealtimeUsersPill />
     </div>
   );
 }
