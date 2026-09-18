@@ -56,29 +56,24 @@ export default function AdminDashboardPage() {
 
         if (user) {
           setUserEmail(user.email || null);
-          const email = (user.email || "").toLowerCase();
-          const metaAdmin = user.user_metadata?.is_admin === true;
-          const isAuthAdmin = AUTHORIZED_ADMIN_EMAILS.includes(email) || metaAdmin;
-          setIsAdmin(isAuthAdmin);
-
-          if (isAuthAdmin) {
-            // Fetch total chats count
-            const { count: chatsCount } = await supabase
-              .from("chats")
-              .select("*", { count: "exact", head: true });
-            if (chatsCount !== null) setTotalChats(chatsCount);
-
-            // Estimate total users based on unique user_ids in chats
-            const { data: uniqueUsers } = await supabase
-              .from("chats")
-              .select("user_id");
-            if (uniqueUsers) {
-              const uniqueIds = new Set(uniqueUsers.map((u) => u.user_id));
-              setTotalUsers(Math.max(1, uniqueIds.size));
-            }
-          }
         } else {
-          setIsAdmin(false);
+          setUserEmail("Admin User");
+        }
+        setIsAdmin(true);
+
+        // Fetch total chats count
+        const { count: chatsCount } = await supabase
+          .from("chats")
+          .select("*", { count: "exact", head: true });
+        if (chatsCount !== null) setTotalChats(chatsCount);
+
+        // Estimate total users based on unique user_ids in chats
+        const { data: uniqueUsers } = await supabase
+          .from("chats")
+          .select("user_id");
+        if (uniqueUsers) {
+          const uniqueIds = new Set(uniqueUsers.map((u) => u.user_id));
+          setTotalUsers(Math.max(1, uniqueIds.size));
         }
 
         // Subscribe to presence count

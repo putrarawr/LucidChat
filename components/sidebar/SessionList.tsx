@@ -18,6 +18,7 @@ import {
   Bot,
   ExternalLink,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -305,6 +306,13 @@ export function SessionList({
             >
               <Mail className="w-4 h-4 text-rose-400/80 hover:text-rose-300" />
             </a>
+            <Link
+              href="/admin"
+              className="p-1.5 text-emerald-400/80 hover:text-emerald-300 hover:bg-white/[0.08] rounded-xl transition-all duration-200"
+              title="Admin Control Center & Mass Announcement"
+            >
+              <ShieldCheck className="w-4 h-4" />
+            </Link>
             {onOpenSettings && (
               <button
                 type="button"
