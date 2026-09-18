@@ -82,7 +82,6 @@ export default function AdminDashboardPage() {
         }
 
         // Subscribe to presence count
-        const supabase = createClient();
         const channel = supabase.channel("online-presence");
         channel.on("presence", { event: "sync" }, () => {
           const state = channel.presenceState();
