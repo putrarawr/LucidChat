@@ -72,10 +72,26 @@ export async function POST(req: NextRequest) {
 
     // 1.2 Instant AI Image Generation Handler (/image, /draw)
     if (/^\/(image|draw)/i.test(lastUserMessage.trim())) {
-      const promptText = lastUserMessage.trim().replace(/^\/(image|draw)\s*/i, "").trim() || "lukisan karya seni digital pemandangan indah masa depan 8k";
-      const sfwEnhancedPrompt = `safe sfw masterpiece high quality highly detailed, ${promptText}`;
-      const cleanPrompt = encodeURIComponent(sfwEnhancedPrompt);
-      const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true&safe=true&model=flux`;
+      const promptText = lastUserMessage.trim().replace(/^\/(image|draw)\s*/i, "").trim() || "beautiful futuristic cityscape landscape panoramic view 8k";
+
+      // Detect if prompt is about scenery/landscape/non-human subjects
+      const isSceneryPrompt = /(pemandangan|landscape|kota|city|cityscape|building|gedung|alam|nature|mountain|gunung|laut|sea|ocean|sunset|sunrise|matahari|langit|sky|hutan|forest|taman|garden|arsitektur|architecture|ruang|room|interior|exterior|jalan|street|desa|village|pantai|beach|danau|lake|sungai|river|planet|galaxy|galaksi|universe|space|luar angkasa|futuristic|cyberpunk|steampunk|abstract|abstrak|pattern|tekstur|texture|food|makanan|vehicle|kendaraan|mobil|car|pesawat|airplane|kapal|ship)/i.test(promptText);
+
+      // Build prompt: use scene-neutral quality tags instead of portrait-biased "masterpiece" tags
+      let enhancedPrompt: string;
+      if (isSceneryPrompt) {
+        // For scenery: explicitly state no people/humans to prevent portrait bias
+        enhancedPrompt = `${promptText}, ultra high quality, 8k resolution, professional photography, cinematic lighting, sharp focus, no people, no person, no human, no woman, no man, no character, no figure, no face, pure scenery`;
+      } else {
+        // For general prompts: neutral quality prefix without portrait-biased terms
+        enhancedPrompt = `${promptText}, ultra high quality, 8k resolution, highly detailed, professional, sharp focus`;
+      }
+
+      // Add random seed to prevent cached/repeated results
+      const randomSeed = Math.floor(Math.random() * 2147483647);
+      const cleanPrompt = encodeURIComponent(enhancedPrompt);
+      const negativePrompt = isSceneryPrompt ? encodeURIComponent("person, people, woman, man, girl, boy, human, face, portrait, character, figure, body, anime, nsfw") : encodeURIComponent("nsfw, nude, explicit");
+      const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&nologo=true&safe=true&model=flux&seed=${randomSeed}&negative=${negativePrompt}`;
       const imageMarkdown = `Berikut adalah karya gambar AI hasil generasi untuk prompt **"${promptText}"**:\n\n![AI Generated Image](${imageUrl})`;
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
