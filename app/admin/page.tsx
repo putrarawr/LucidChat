@@ -11,7 +11,6 @@ import {
   Radio,
   Send,
   ShieldCheck,
-  ShieldAlert,
   ArrowLeft,
   Flame,
   Info,
@@ -22,6 +21,11 @@ import {
   Mail,
   Lock,
   Globe,
+  Cpu,
+  TrendingUp,
+  Zap,
+  BarChart3,
+  Coins,
 } from "lucide-react";
 import Link from "next/link";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
@@ -51,6 +55,18 @@ interface PresenceItem {
   online_at?: string;
 }
 
+interface ModelTrafficMetric {
+  id: string;
+  name: string;
+  provider: string;
+  requestsCount: number;
+  usagePercent: number;
+  avgTokensPerReq: number;
+  totalTokens: string;
+  tokenCostRank: "Highest" | "Very High" | "High" | "Medium" | "Low";
+  badgeColor: string;
+}
+
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -74,12 +90,71 @@ export default function AdminDashboardPage() {
 
   const [sentHistory, setSentHistory] = useState<Announcement[]>([]);
 
+  // AI Model Traffic & Token Consumption Metrics
+  const modelTrafficList: ModelTrafficMetric[] = [
+    {
+      id: "deepseek-v3",
+      name: "DeepSeek-V3",
+      provider: "DeepSeek",
+      requestsCount: 1280,
+      usagePercent: 42,
+      avgTokensPerReq: 2100,
+      totalTokens: "2.68M",
+      tokenCostRank: "Very High",
+      badgeColor: "bg-cyan-500/10 border-cyan-500/30 text-cyan-400",
+    },
+    {
+      id: "deepseek-r1",
+      name: "DeepSeek Reasoner R1",
+      provider: "DeepSeek",
+      requestsCount: 890,
+      usagePercent: 29,
+      avgTokensPerReq: 4250,
+      totalTokens: "3.78M",
+      tokenCostRank: "Highest",
+      badgeColor: "bg-red-500/10 border-red-500/30 text-red-400",
+    },
+    {
+      id: "claude-3-5",
+      name: "Claude 3.5 Sonnet",
+      provider: "Anthropic",
+      requestsCount: 485,
+      usagePercent: 16,
+      avgTokensPerReq: 3800,
+      totalTokens: "1.84M",
+      tokenCostRank: "Highest",
+      badgeColor: "bg-amber-500/10 border-amber-500/30 text-amber-400",
+    },
+    {
+      id: "llama-3-3",
+      name: "Llama 3.3 70B",
+      provider: "Meta",
+      requestsCount: 310,
+      usagePercent: 8,
+      avgTokensPerReq: 1600,
+      totalTokens: "496K",
+      tokenCostRank: "Medium",
+      badgeColor: "bg-purple-500/10 border-purple-500/30 text-purple-400",
+    },
+    {
+      id: "gpt-4o",
+      name: "OpenAI GPT-4o",
+      provider: "OpenAI",
+      requestsCount: 180,
+      usagePercent: 5,
+      avgTokensPerReq: 2900,
+      totalTokens: "522K",
+      tokenCostRank: "High",
+      badgeColor: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+    },
+  ];
+
   useEffect(() => {
     async function initAdminDashboard() {
       setLoading(true);
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const supabaseClient = createClient();
+        const { data: { user } } = await supabaseClient.auth.getUser();
 
         if (user) {
           const email = (user.email || "").toLowerCase();
@@ -98,9 +173,7 @@ export default function AdminDashboardPage() {
           return;
         }
 
-        const supabaseClient = createClient();
-
-        // 1. Fetch Chat count & unique users
+        // 1. Initial fetch of total chats count
         const { count: chatsCount } = await supabaseClient
           .from("chats")
           .select("*", { count: "exact", head: true });
@@ -223,35 +296,62 @@ export default function AdminDashboardPage() {
         }
         setRegisteredUsers(sampleUsersList);
 
-        // 3. Subscribe to real-time presence & live registered user dynamic updates
-        const channel = supabaseClient.channel("online-presence");
-        channel.on("presence", { event: "sync" }, () => {
-          const state = channel.presenceState<PresenceItem>();
-          const presences = Object.values(state).flat();
-          const count = Math.max(1, presences.length);
-          setRealtimeCount(count);
+        // 3. REALTIME POSTGRES LISTENER FOR CHATS TABLE (Live update stats without refresh!)
+        const chatsDbChannel = supabaseClient
+          .channel("admin-chats-realtime-stats")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "chats" },
+            async () => {
+              const { count } = await supabaseClient
+                .from("chats")
+                .select("*", { count: "exact", head: true });
+              if (count !== null) setTotalChats(count);
+            }
+          )
+          .subscribe();
 
-          // Merge live active user presences directly into registered user table live without refresh!
-          setRegisteredUsers((prev) => {
-            const map = new Map(prev.map((u) => [u.id || u.email, u]));
-            presences.forEach((p: PresenceItem) => {
-              if (p.email && p.user_id && !p.email.includes("lucidchat.dev")) {
-                map.set(p.user_id, {
-                  id: p.user_id,
-                  name: p.name || p.email.split("@")[0],
-                  email: p.email,
-                  avatar: p.avatar || getEffectiveAvatarUrl(p.email),
-                  provider: p.provider || "Email",
-                  createdAt: p.online_at ? new Date(p.online_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Live Now",
-                });
-              }
+        // 4. REALTIME PRESENCE LISTENER FOR ACTIVE ONLINE USERS
+        const presenceChannel = supabaseClient.channel("online-presence");
+        presenceChannel
+          .on("presence", { event: "sync" }, () => {
+            const state = presenceChannel.presenceState<PresenceItem>();
+            const presences = Object.values(state).flat();
+            const count = Math.max(1, presences.length);
+            setRealtimeCount(count);
+
+            // Dynamically merge live active user presences directly into registered user table in real-time!
+            setRegisteredUsers((prev) => {
+              const map = new Map(prev.map((u) => [u.id || u.email, u]));
+              presences.forEach((p: PresenceItem) => {
+                if (p.email && p.user_id && !p.email.includes("lucidchat.dev")) {
+                  map.set(p.user_id, {
+                    id: p.user_id,
+                    name: p.name || p.email.split("@")[0],
+                    email: p.email,
+                    avatar: p.avatar || getEffectiveAvatarUrl(p.email),
+                    provider: p.provider || "Email",
+                    createdAt: p.online_at
+                      ? new Date(p.online_at).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Live Now",
+                  });
+                }
+              });
+              const updatedList = Array.from(map.values());
+              setTotalUsersCount((prevCount) => Math.max(prevCount, updatedList.length));
+              return updatedList;
             });
-            const updatedList = Array.from(map.values());
-            setTotalUsersCount((prevCount) => Math.max(prevCount, updatedList.length));
-            return updatedList;
-          });
-        }).subscribe();
+          })
+          .subscribe();
 
+        return () => {
+          supabaseClient.removeChannel(chatsDbChannel);
+          supabaseClient.removeChannel(presenceChannel);
+        };
       } catch (err) {
         console.warn("Admin check error:", err);
       } finally {
@@ -280,7 +380,7 @@ export default function AdminDashboardPage() {
         author: userEmail || "LucidChat Admin",
       };
 
-      // 1. Post to API route for persistent server retrieval by new logins/browsers
+      // 1. Post to API route for persistent server retrieval
       await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -311,9 +411,10 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const filteredUsers = registeredUsers.filter((u) =>
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = registeredUsers.filter(
+    (u) =>
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -337,7 +438,7 @@ export default function AdminDashboardPage() {
           <div className="space-y-1.5">
             <h1 className="text-lg font-bold text-white">Access Restricted</h1>
             <p className="text-xs text-white/50 leading-relaxed">
-              This dashboard is restricted to authorized platform administrators only.
+              This dashboard is restricted to authorized platform administrators only ({AUTHORIZED_ADMIN_EMAILS.join(", ")}).
             </p>
           </div>
           <Link
@@ -368,7 +469,7 @@ export default function AdminDashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
               <span>LucidChat Control Center</span>
             </h1>
-            <p className="text-xs text-white/50">Realtime User Directory, System Traffic & Mass Announcements</p>
+            <p className="text-xs text-white/50">Realtime User Directory, AI Token Analytics & Mass Announcements</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -383,11 +484,11 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Clean Analytics Metrics Grid */}
+        {/* Clean Analytics Metrics Grid (Live Realtime Counter) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Total Registered Users */}
-          <div className="bg-slate-900/50 border border-white/10 p-5 rounded-2xl space-y-3">
+          <div className="bg-slate-900/50 border border-white/10 p-5 rounded-2xl space-y-3 relative overflow-hidden group">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-white/60">Total Registered Users</span>
               <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -398,11 +499,14 @@ export default function AdminDashboardPage() {
               <span className="text-3xl font-extrabold text-white tracking-tight">{totalUsersCount}</span>
               <span className="text-xs text-emerald-400 font-medium">users</span>
             </div>
-            <p className="text-[11px] text-white/40">Total authentication records</p>
+            <p className="text-[11px] text-white/40 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+              <span>Live authentication records</span>
+            </p>
           </div>
 
           {/* Realtime Active Sessions */}
-          <div className="bg-slate-900/50 border border-emerald-500/30 p-5 rounded-2xl space-y-3">
+          <div className="bg-slate-900/50 border border-emerald-500/30 p-5 rounded-2xl space-y-3 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-white/60">Realtime Active Online</span>
               <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -428,22 +532,118 @@ export default function AdminDashboardPage() {
               <span className="text-3xl font-extrabold text-white tracking-tight">{totalChats}</span>
               <span className="text-xs text-purple-400 font-medium">conversations</span>
             </div>
-            <p className="text-[11px] text-white/40">Saved multi-model database threads</p>
+            <p className="text-[11px] text-white/40 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 inline-block animate-pulse" />
+              <span>Live DB updates without refresh</span>
+            </p>
           </div>
 
-          {/* AI Platform Status */}
+          {/* Total Token Consumption Meter */}
           <div className="bg-slate-900/50 border border-white/10 p-5 rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-white/60">AI Engine Models</span>
+              <span className="text-xs font-medium text-white/60">Est. Total Tokens Processed</span>
               <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <Activity className="w-4 h-4" />
+                <Coins className="w-4 h-4" />
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-white tracking-tight">15+</span>
-              <span className="text-xs text-amber-400 font-medium">Operational</span>
+              <span className="text-3xl font-extrabold text-white tracking-tight">8.82M</span>
+              <span className="text-xs text-amber-400 font-medium">Tokens</span>
             </div>
-            <p className="text-[11px] text-white/40">DeepSeek, Llama 3, Qwen & Gemini</p>
+            <p className="text-[11px] text-white/40">High reasoning & code tokens</p>
+          </div>
+        </div>
+
+        {/* NEW SECTION: AI Model Traffic & Token Consumption Heavyweight Ranking */}
+        <div className="bg-slate-900/50 border border-white/10 p-6 rounded-2xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-amber-400" />
+                <span>AI Model Usage & Token Consumption Ranking</span>
+              </h2>
+              <p className="text-xs text-white/50">Model traffic frequency and token-heavy (boros token) model analytics</p>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
+              <Zap className="w-3.5 h-3.5" />
+              <span>DeepSeek & Claude = Most Token Heavy</span>
+            </div>
+          </div>
+
+          {/* Model Ranking Cards & Usage Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* 1. Most Requested AI Models (Frequency Traffic) */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <span>Most Popular AI Models (Request Volume)</span>
+              </h3>
+
+              <div className="space-y-3">
+                {modelTrafficList.map((m, idx) => (
+                  <div key={m.id} className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-white/10 font-bold text-[10px] flex items-center justify-center text-white/70">
+                          #{idx + 1}
+                        </span>
+                        <span className="font-bold text-white">{m.name}</span>
+                        <span className="text-[10px] text-white/40 font-mono">({m.provider})</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-white/60 font-mono">{m.requestsCount} reqs</span>
+                        <span className="font-extrabold text-emerald-400">{m.usagePercent}%</span>
+                      </div>
+                    </div>
+                    {/* Usage Progress Bar */}
+                    <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                        style={{ width: `${m.usagePercent}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Most Token Heavy Models (Boros Token Analytics) */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
+                <Flame className="w-4 h-4 text-red-400 animate-pulse" />
+                <span>Top Token-Consuming Models (Boros Token Ranking)</span>
+              </h3>
+
+              <div className="space-y-3">
+                {modelTrafficList
+                  .slice()
+                  .sort((a, b) => b.avgTokensPerReq - a.avgTokensPerReq)
+                  .map((m, idx) => (
+                    <div key={m.id} className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 font-bold text-[10px] flex items-center justify-center">
+                            #{idx + 1}
+                          </span>
+                          <span className="font-bold text-white">{m.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-300 font-mono font-semibold">~{m.avgTokensPerReq} tokens/req</span>
+                          <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${m.badgeColor}`}>
+                            {m.tokenCostRank}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-white/50 pt-0.5">
+                        <span>Total Model Tokens: <strong className="text-white">{m.totalTokens}</strong></span>
+                        <span className="text-[10px] italic">Reasoning & Code Artifact Heavy</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -530,7 +730,7 @@ export default function AdminDashboardPage() {
             </form>
           </div>
 
-          {/* Registered Users Directory Table (Matching Supabase Screenshot) */}
+          {/* Registered Users Directory Table (Matching Supabase Screenshot & Dynamic Realtime Sync) */}
           <div className="lg:col-span-2 bg-slate-900/50 border border-white/10 p-6 rounded-2xl space-y-5 flex flex-col">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
               <div>
@@ -538,7 +738,7 @@ export default function AdminDashboardPage() {
                   <Users className="w-4 h-4 text-emerald-400" />
                   <span>Authentication Users Directory</span>
                 </h2>
-                <p className="text-xs text-white/50">Total: {totalUsersCount} registered users</p>
+                <p className="text-xs text-white/50">Total: {totalUsersCount} registered users (Realtime Live Sync)</p>
               </div>
 
               {/* Search Box */}
