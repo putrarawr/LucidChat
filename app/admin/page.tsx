@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Announcement, AnnouncementType, saveAnnouncementLocally } from "@/lib/announcements";
 import { getEffectiveAvatarUrl } from "@/lib/avatar";
 import {
-  Activity,
   Users,
   MessageSquare,
   Radio,
@@ -16,16 +15,20 @@ import {
   Info,
   AlertTriangle,
   CheckCircle2,
-  Sparkles,
   Search,
   Mail,
   Lock,
   Globe,
-  Cpu,
   TrendingUp,
   Zap,
   BarChart3,
-  Coins,
+  Clock,
+  Trophy,
+  PieChart,
+  Activity,
+  Plus,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
@@ -37,6 +40,7 @@ const AUTHORIZED_ADMIN_EMAILS = [
   "lucidchat18@gmail.com",
 ];
 
+// ─── Interfaces ──────────────────────────────────────────────────────
 interface RegisteredUserRecord {
   id: string;
   email: string;
@@ -44,6 +48,7 @@ interface RegisteredUserRecord {
   avatar: string;
   provider: "Google" | "Email";
   createdAt: string;
+  lastSignIn: string | null;
 }
 
 interface PresenceItem {
@@ -55,31 +60,119 @@ interface PresenceItem {
   online_at?: string;
 }
 
-interface ModelTrafficMetric {
-  id: string;
-  name: string;
-  provider: string;
-  requestsCount: number;
-  usagePercent: number;
-  avgTokensPerReq: number;
-  totalTokens: string;
-  tokenCostRank: "Highest" | "Very High" | "High" | "Medium" | "Low";
-  badgeColor: string;
+interface ModelTrafficItem {
+  modelId: string;
+  displayName: string;
+  count: number;
+  percent: number;
 }
 
+interface ActivityEvent {
+  id: string;
+  type: "chat_created" | "chat_deleted" | "chat_updated" | "user_joined";
+  description: string;
+  timestamp: string;
+  modelUsed?: string;
+}
+
+interface TopUserItem {
+  userId: string;
+  email: string;
+  name: string;
+  avatar: string;
+  chatCount: number;
+}
+
+// ─── Helper: Model ID to Display Name ────────────────────────────────
+function modelDisplayName(modelId: string): string {
+  const map: Record<string, string> = {
+    "deepseek/deepseek-chat": "DeepSeek V3",
+    "deepseek/deepseek-reasoner": "DeepSeek R1",
+    "gemini/gemini-3.6-flash": "Gemini 3.6 Flash",
+    "gemini/gemini-1.5-pro": "Gemini 1.5 Pro",
+    "openai/gpt-4o": "GPT-4o",
+    "openai/gpt-4o-mini": "GPT-4o Mini",
+    "openai/o3-mini": "OpenAI o3-mini",
+    "claude/claude-3-7-sonnet-20250219": "Claude 3.7 Sonnet",
+    "claude/claude-3-5-haiku-20241022": "Claude 3.5 Haiku",
+    "groq/llama-3.3-70b-versatile": "Llama 3.3 70B",
+    "groq/qwen/qwen3.6-27b": "Qwen 3.6 27B",
+    "web-crawler-agent": "Web Crawler Agent",
+    "kimi/moonshot-v1-8k": "Kimi Moonshot 8K",
+    "kimi/moonshot-v1-32k": "Kimi Moonshot 32K",
+    "kimi/kimi-latest": "Kimi Latest",
+    "bazaarlink/gpt-4o": "Bazaarlink GPT-4o",
+    "bazaarlink/claude-3-5-sonnet": "Bazaarlink Claude 3.5",
+    "requestly/gpt-4o-mini": "Requestly GPT-4o Mini",
+    "requestly/claude-3-haiku": "Requestly Claude 3 Haiku",
+    "openrouter/qwen/qwen-2.5-coder-32b-instruct": "Qwen 2.5 Coder 32B",
+    "openrouter/nvidia/nemotron-3.5-lightning:free": "NVIDIA Nemotron 3.5",
+    "cerebras/qwen-3.8-27b": "Qwen 3.8 27B (Cerebras)",
+    "ollama/llama3.2": "Llama 3.2 (Local)",
+  };
+  return map[modelId] || modelId;
+}
+
+// ─── Helper: Relative Time ───────────────────────────────────────────
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffSec = Math.floor((now - then) / 1000);
+  if (diffSec < 10) return "just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
+
+// ─── Model Badge Color ──────────────────────────────────────────────
+function modelBadgeColor(modelId: string): string {
+  if (modelId.includes("deepseek")) return "bg-cyan-500/10 border-cyan-500/30 text-cyan-400";
+  if (modelId.includes("gemini")) return "bg-blue-500/10 border-blue-500/30 text-blue-400";
+  if (modelId.includes("claude")) return "bg-amber-500/10 border-amber-500/30 text-amber-400";
+  if (modelId.includes("gpt") || modelId.includes("openai") || modelId.includes("o3")) return "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
+  if (modelId.includes("llama")) return "bg-purple-500/10 border-purple-500/30 text-purple-400";
+  if (modelId.includes("qwen")) return "bg-rose-500/10 border-rose-500/30 text-rose-400";
+  if (modelId.includes("kimi") || modelId.includes("moonshot")) return "bg-indigo-500/10 border-indigo-500/30 text-indigo-400";
+  if (modelId.includes("web-crawler")) return "bg-teal-500/10 border-teal-500/30 text-teal-400";
+  return "bg-white/10 border-white/20 text-white/60";
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── ADMIN DASHBOARD COMPONENT ──────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  // Stats
+  // Core Stats
   const [realtimeCount, setRealtimeCount] = useState<number>(1);
   const [totalChats, setTotalChats] = useState<number>(0);
-  const [totalUsersCount, setTotalUsersCount] = useState<number>(45);
+  const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
 
-  // Users Directory
+  // Real Users from Supabase Auth
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUserRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // AI Model Traffic (Real from DB)
+  const [modelTraffic, setModelTraffic] = useState<ModelTrafficItem[]>([]);
+
+  // Live Activity Feed
+  const [activityFeed, setActivityFeed] = useState<ActivityEvent[]>([]);
+
+  // Peak Hours Heatmap
+  const [peakHours, setPeakHours] = useState<number[]>(new Array(24).fill(0));
+
+  // Provider Analytics
+  const [providerStats, setProviderStats] = useState({ google: 0, email: 0 });
+
+  // Top Active Users
+  const [topUsers, setTopUsers] = useState<TopUserItem[]>([]);
 
   // Announcement Form State
   const [annTitle, setAnnTitle] = useState("");
@@ -88,67 +181,112 @@ export default function AdminDashboardPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastSuccess, setBroadcastSuccess] = useState<string | null>(null);
 
-  const [sentHistory, setSentHistory] = useState<Announcement[]>([]);
+  // Active online user emails for green dot indicators
+  const [onlineEmails, setOnlineEmails] = useState<Set<string>>(new Set());
 
-  // AI Model Traffic & Token Consumption Metrics
-  const modelTrafficList: ModelTrafficMetric[] = [
-    {
-      id: "deepseek-v3",
-      name: "DeepSeek-V3",
-      provider: "DeepSeek",
-      requestsCount: 1280,
-      usagePercent: 42,
-      avgTokensPerReq: 2100,
-      totalTokens: "2.68M",
-      tokenCostRank: "Very High",
-      badgeColor: "bg-cyan-500/10 border-cyan-500/30 text-cyan-400",
-    },
-    {
-      id: "deepseek-r1",
-      name: "DeepSeek Reasoner R1",
-      provider: "DeepSeek",
-      requestsCount: 890,
-      usagePercent: 29,
-      avgTokensPerReq: 4250,
-      totalTokens: "3.78M",
-      tokenCostRank: "Highest",
-      badgeColor: "bg-red-500/10 border-red-500/30 text-red-400",
-    },
-    {
-      id: "claude-3-5",
-      name: "Claude 3.5 Sonnet",
-      provider: "Anthropic",
-      requestsCount: 485,
-      usagePercent: 16,
-      avgTokensPerReq: 3800,
-      totalTokens: "1.84M",
-      tokenCostRank: "Highest",
-      badgeColor: "bg-amber-500/10 border-amber-500/30 text-amber-400",
-    },
-    {
-      id: "llama-3-3",
-      name: "Llama 3.3 70B",
-      provider: "Meta",
-      requestsCount: 310,
-      usagePercent: 8,
-      avgTokensPerReq: 1600,
-      totalTokens: "496K",
-      tokenCostRank: "Medium",
-      badgeColor: "bg-purple-500/10 border-purple-500/30 text-purple-400",
-    },
-    {
-      id: "gpt-4o",
-      name: "OpenAI GPT-4o",
-      provider: "OpenAI",
-      requestsCount: 180,
-      usagePercent: 5,
-      avgTokensPerReq: 2900,
-      totalTokens: "522K",
-      tokenCostRank: "High",
-      badgeColor: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
-    },
-  ];
+  // ─── Fetch Real Users from Supabase Auth API ────────────────────────
+  const fetchRealUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        const users: RegisteredUserRecord[] = (data.users || []).map((u: {
+          id: string;
+          email: string;
+          name: string;
+          avatar: string;
+          provider: "Google" | "Email";
+          createdAt: string;
+          lastSignIn: string | null;
+        }) => ({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          avatar: u.avatar || getEffectiveAvatarUrl(u.email),
+          provider: u.provider,
+          createdAt: new Date(u.createdAt).toLocaleDateString("en-GB", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }),
+          lastSignIn: u.lastSignIn,
+        }));
+        setRegisteredUsers(users);
+        setTotalUsersCount(users.length);
 
+        // Provider analytics
+        let google = 0, email = 0;
+        users.forEach((u: RegisteredUserRecord) => {
+          if (u.provider === "Google") google++;
+          else email++;
+        });
+        setProviderStats({ google, email });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch users:", err);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  // ─── Compute Model Traffic from Chats Data ─────────────────────────
+  const computeModelTraffic = useCallback((chats: { model_used: string; created_at: string; user_id: string }[]) => {
+    // Model frequency
+    const modelCounts: Record<string, number> = {};
+    chats.forEach((c) => {
+      const m = c.model_used || "unknown";
+      modelCounts[m] = (modelCounts[m] || 0) + 1;
+    });
+
+    const total = chats.length || 1;
+    const trafficList: ModelTrafficItem[] = Object.entries(modelCounts)
+      .sort(([, a], [, b]) => b - a)
+      .map(([modelId, count]) => ({
+        modelId,
+        displayName: modelDisplayName(modelId),
+        count,
+        percent: Math.round((count / total) * 100),
+      }));
+
+    setModelTraffic(trafficList);
+
+    // Peak hours heatmap
+    const hours = new Array(24).fill(0);
+    chats.forEach((c) => {
+      const h = new Date(c.created_at).getHours();
+      hours[h]++;
+    });
+    setPeakHours(hours);
+
+    // Top active users
+    const userChatCounts: Record<string, number> = {};
+    chats.forEach((c) => {
+      userChatCounts[c.user_id] = (userChatCounts[c.user_id] || 0) + 1;
+    });
+    const sortedTopUsers = Object.entries(userChatCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10);
+
+    setTopUsers(sortedTopUsers.map(([userId, chatCount]) => {
+      const foundUser = registeredUsers.find((u) => u.id === userId);
+      return {
+        userId,
+        email: foundUser?.email || userId.slice(0, 8) + "...",
+        name: foundUser?.name || "Unknown User",
+        avatar: foundUser?.avatar || getEffectiveAvatarUrl(""),
+        chatCount,
+      };
+    }));
+  }, [registeredUsers]);
+
+  // ─── Add Activity Event ────────────────────────────────────────────
+  const addActivity = useCallback((event: ActivityEvent) => {
+    setActivityFeed((prev) => [event, ...prev].slice(0, 30));
+  }, []);
+
+  // ─── Main Init Effect ──────────────────────────────────────────────
   useEffect(() => {
     async function initAdminDashboard() {
       setLoading(true);
@@ -173,145 +311,91 @@ export default function AdminDashboardPage() {
           return;
         }
 
-        // 1. Initial fetch of total chats count
+        // 1. Fetch total chats count
         const { count: chatsCount } = await supabaseClient
           .from("chats")
           .select("*", { count: "exact", head: true });
         if (chatsCount !== null) setTotalChats(chatsCount);
 
-        // 2. Fetch distinct users from chats table
-        const { data: chatUsers } = await supabaseClient
+        // 2. Fetch all chats with model_used for analytics
+        const { data: allChats } = await supabaseClient
           .from("chats")
-          .select("user_id, updated_at");
+          .select("model_used, created_at, user_id, title, updated_at")
+          .order("created_at", { ascending: false });
 
-        const sampleUsersList: RegisteredUserRecord[] = [
-          {
-            id: "b57f38b8-e2c7-4855-84f5-e547919cb5ec",
-            name: "Nishino RBLX",
-            email: "nishinorblx@gmail.com",
-            avatar: getEffectiveAvatarUrl("nishinorblx@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "f3f1acbe-4947-4f0f-8b4e-285b258cd7f5",
-            name: "Orune company",
-            email: "orunecompany@gmail.com",
-            avatar: getEffectiveAvatarUrl("orunecompany@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "54035oc4-80e4-4e52-85ff-d87a8683ad8f",
-            name: "putrarawr08",
-            email: "putrarawr08@gmail.com",
-            avatar: getEffectiveAvatarUrl("putrarawr08@gmail.com"),
-            provider: "Email",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "2a152d91-ca1a-4498-894a-88a82784abcf",
-            name: "Putra Dev Lucid Chat",
-            email: "putrarawr37@gmail.com",
-            avatar: getEffectiveAvatarUrl("putrarawr37@gmail.com"),
-            provider: "Email",
-            createdAt: "Fri 18 Sep 2026",
-          },
-          {
-            id: "de5bd578-4f0f-46ed-9559-ef3d415c4b18",
-            name: "Adam Saddour",
-            email: "saddour.adam@gmail.com",
-            avatar: getEffectiveAvatarUrl("saddour.adam@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "f4a3c833-cd71-4eea-9dc0-b12ee91c3db8",
-            name: "putra hebat",
-            email: "septiyanbintang70@gmail.com",
-            avatar: getEffectiveAvatarUrl("septiyanbintang70@gmail.com"),
-            provider: "Email",
-            createdAt: "Fri 18 Sep 2026",
-          },
-          {
-            id: "451f81f0-f04c-4fe3-b27-c6191d184a0e",
-            name: "putra",
-            email: "septiyanbintangramadhanputra@gmail.com",
-            avatar: getEffectiveAvatarUrl("septiyanbintangramadhanputra@gmail.com"),
-            provider: "Google",
-            createdAt: "Sat 12 Sep 2026",
-          },
-          {
-            id: "2f93c689-2ca2-4d9b-8431-40f052b36dc9",
-            name: "szafqu hub",
-            email: "szafquhub@gmail.com",
-            avatar: getEffectiveAvatarUrl("szafquhub@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "c8473578-f8a0-472c-b748-d4b856cee78f",
-            name: "Test User",
-            email: "test20251234560@gmail.com",
-            avatar: getEffectiveAvatarUrl("test20251234560@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "5975f298-2500-428e-b00e-4237185edb86",
-            name: "Mạnh Trần Quang",
-            email: "tqmanh2412@gmail.com",
-            avatar: getEffectiveAvatarUrl("tqmanh2412@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "0989e36e-0679-4621-b528-11efb52b8068",
-            name: "putra lucid",
-            email: "uyungoke58@gmail.com",
-            avatar: getEffectiveAvatarUrl("uyungoke58@gmail.com"),
-            provider: "Email",
-            createdAt: "Fri 18 Sep 2026",
-          },
-          {
-            id: "e82a7dcc-8a1d-4743-9437-2de0490b5527",
-            name: "văn hùng nguyễn",
-            email: "vanhung2770@gmail.com",
-            avatar: getEffectiveAvatarUrl("vanhung2770@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-          {
-            id: "28dc0872-e49c-4670-8740-1a7409ab44c8",
-            name: "adas adada",
-            email: "vgvd00523@gmail.com",
-            avatar: getEffectiveAvatarUrl("vgvd00523@gmail.com"),
-            provider: "Google",
-            createdAt: "Thu 17 Sep 2026",
-          },
-        ];
+        if (allChats && allChats.length > 0) {
+          computeModelTraffic(allChats);
 
-        if (chatUsers) {
-          setTotalUsersCount(Math.max(45, chatUsers.length));
+          // Seed initial activity feed with recent 10 chats
+          const recentChats = allChats.slice(0, 10);
+          const initialEvents: ActivityEvent[] = recentChats.map((c) => ({
+            id: `init_${c.created_at}_${Math.random()}`,
+            type: "chat_created" as const,
+            description: `New chat "${(c.title || "Untitled").slice(0, 40)}" using ${modelDisplayName(c.model_used)}`,
+            timestamp: c.created_at,
+            modelUsed: c.model_used,
+          }));
+          setActivityFeed(initialEvents);
         }
-        setRegisteredUsers(sampleUsersList);
 
-        // 3. REALTIME POSTGRES LISTENER FOR CHATS TABLE (Live update stats without refresh!)
+        // 3. Fetch real users from Auth API
+        await fetchRealUsers();
+
+        // 4. REALTIME: Postgres Changes on chats table
         const chatsDbChannel = supabaseClient
-          .channel("admin-chats-realtime-stats")
+          .channel("admin-chats-realtime-v2")
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "chats" },
-            async () => {
+            async (payload) => {
+              // Update total chats count
               const { count } = await supabaseClient
                 .from("chats")
                 .select("*", { count: "exact", head: true });
               if (count !== null) setTotalChats(count);
+
+              // Re-fetch all chats for updated analytics
+              const { data: updatedChats } = await supabaseClient
+                .from("chats")
+                .select("model_used, created_at, user_id, title, updated_at")
+                .order("created_at", { ascending: false });
+
+              if (updatedChats) {
+                computeModelTraffic(updatedChats);
+              }
+
+              // Add activity event
+              if (payload.eventType === "INSERT") {
+                const newChat = payload.new as { title?: string; model_used?: string; created_at?: string };
+                addActivity({
+                  id: `evt_${Date.now()}`,
+                  type: "chat_created",
+                  description: `New chat "${(newChat.title || "Untitled").slice(0, 40)}" using ${modelDisplayName(newChat.model_used || "unknown")}`,
+                  timestamp: newChat.created_at || new Date().toISOString(),
+                  modelUsed: newChat.model_used,
+                });
+              } else if (payload.eventType === "DELETE") {
+                addActivity({
+                  id: `evt_${Date.now()}`,
+                  type: "chat_deleted",
+                  description: "A chat conversation was deleted",
+                  timestamp: new Date().toISOString(),
+                });
+              } else if (payload.eventType === "UPDATE") {
+                const updatedChat = payload.new as { title?: string; model_used?: string };
+                addActivity({
+                  id: `evt_${Date.now()}`,
+                  type: "chat_updated",
+                  description: `Chat "${(updatedChat.title || "Untitled").slice(0, 40)}" was updated`,
+                  timestamp: new Date().toISOString(),
+                  modelUsed: updatedChat.model_used,
+                });
+              }
             }
           )
           .subscribe();
 
-        // 4. REALTIME PRESENCE LISTENER FOR ACTIVE ONLINE USERS
+        // 5. REALTIME: Presence for active online users
         const presenceChannel = supabaseClient.channel("online-presence");
         presenceChannel
           .on("presence", { event: "sync" }, () => {
@@ -320,31 +404,12 @@ export default function AdminDashboardPage() {
             const count = Math.max(1, presences.length);
             setRealtimeCount(count);
 
-            // Dynamically merge live active user presences directly into registered user table in real-time!
-            setRegisteredUsers((prev) => {
-              const map = new Map(prev.map((u) => [u.id || u.email, u]));
-              presences.forEach((p: PresenceItem) => {
-                if (p.email && p.user_id && !p.email.includes("lucidchat.dev")) {
-                  map.set(p.user_id, {
-                    id: p.user_id,
-                    name: p.name || p.email.split("@")[0],
-                    email: p.email,
-                    avatar: p.avatar || getEffectiveAvatarUrl(p.email),
-                    provider: p.provider || "Email",
-                    createdAt: p.online_at
-                      ? new Date(p.online_at).toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "Live Now",
-                  });
-                }
-              });
-              const updatedList = Array.from(map.values());
-              setTotalUsersCount((prevCount) => Math.max(prevCount, updatedList.length));
-              return updatedList;
+            // Track online user emails
+            const emails = new Set<string>();
+            presences.forEach((p: PresenceItem) => {
+              if (p.email) emails.add(p.email.toLowerCase());
             });
+            setOnlineEmails(emails);
           })
           .subscribe();
 
@@ -360,8 +425,26 @@ export default function AdminDashboardPage() {
     }
 
     initAdminDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─── Re-compute top users when registeredUsers changes ─────────────
+  useEffect(() => {
+    if (registeredUsers.length > 0 && topUsers.length > 0) {
+      setTopUsers((prev) =>
+        prev.map((tu) => {
+          const found = registeredUsers.find((u) => u.id === tu.userId);
+          if (found) {
+            return { ...tu, name: found.name, email: found.email, avatar: found.avatar || getEffectiveAvatarUrl(found.email) };
+          }
+          return tu;
+        })
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registeredUsers]);
+
+  // ─── Announcement Handler ──────────────────────────────────────────
   const handleSendAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!annTitle.trim() || !annContent.trim()) return;
@@ -380,14 +463,12 @@ export default function AdminDashboardPage() {
         author: userEmail || "LucidChat Admin",
       };
 
-      // 1. Post to API route for persistent server retrieval
       await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newAnn),
       }).catch(console.warn);
 
-      // 2. Broadcast live via Supabase Realtime channel
       const supabase = createClient();
       const channel = supabase.channel("global-announcements");
       await channel.subscribe();
@@ -398,9 +479,8 @@ export default function AdminDashboardPage() {
       });
 
       saveAnnouncementLocally(newAnn);
-      setSentHistory((prev) => [newAnn, ...prev]);
 
-      setBroadcastSuccess("✅ Mass announcement broadcasted live & saved for all users!");
+      setBroadcastSuccess("✅ Announcement broadcasted live to all users!");
       setAnnTitle("");
       setAnnContent("");
       setTimeout(() => setBroadcastSuccess(null), 5000);
@@ -411,23 +491,33 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // ─── Filtered Users ────────────────────────────────────────────────
   const filteredUsers = registeredUsers.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ─── Peak hours max for bar scaling ────────────────────────────────
+  const peakMax = Math.max(...peakHours, 1);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ─── LOADING STATE ─────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
   if (loading) {
     return (
       <div className="min-h-screen bg-[#090a0f] flex items-center justify-center p-4">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-white/50 font-mono">Verifying Admin Privileges...</p>
+          <p className="text-xs text-white/50 font-mono">Initializing Admin Control Center...</p>
         </div>
       </div>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // ─── UNAUTHORIZED ──────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#090a0f] flex items-center justify-center p-4">
@@ -438,7 +528,7 @@ export default function AdminDashboardPage() {
           <div className="space-y-1.5">
             <h1 className="text-lg font-bold text-white">Access Restricted</h1>
             <p className="text-xs text-white/50 leading-relaxed">
-              This dashboard is restricted to authorized platform administrators only ({AUTHORIZED_ADMIN_EMAILS.join(", ")}).
+              This dashboard is restricted to authorized platform administrators only.
             </p>
           </div>
           <Link
@@ -453,12 +543,15 @@ export default function AdminDashboardPage() {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // ─── MAIN ADMIN DASHBOARD ─────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-[#090a0f] text-slate-100 p-4 sm:p-8 font-sans antialiased selection:bg-emerald-500/30">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Clean Admin Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+    <div className="min-h-screen bg-[#090a0f] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased selection:bg-emerald-500/30">
+      <div className="max-w-[1400px] mx-auto space-y-6">
+
+        {/* ─── Header ──────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono uppercase tracking-wider flex items-center gap-1.5">
@@ -466,10 +559,10 @@ export default function AdminDashboardPage() {
               </span>
               <span className="text-xs text-white/40 font-mono">{userEmail}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-              <span>LucidChat Control Center</span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              LucidChat Control Center
             </h1>
-            <p className="text-xs text-white/50">Realtime User Directory, AI Token Analytics & Mass Announcements</p>
+            <p className="text-xs text-white/50">Realtime analytics, user management & broadcast studio</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -484,204 +577,334 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Clean Analytics Metrics Grid (Live Realtime Counter) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
+        {/* ─── Stats Cards Grid ────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Total Registered Users */}
-          <div className="bg-slate-900/50 border border-white/10 p-5 rounded-2xl space-y-3 relative overflow-hidden group">
+          <div className="bg-slate-900/50 border border-white/10 p-4 sm:p-5 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-white/60">Total Registered Users</span>
-              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Users className="w-4 h-4" />
+              <span className="text-[11px] font-medium text-white/60">Registered Users</span>
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Users className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-white tracking-tight">{totalUsersCount}</span>
-              <span className="text-xs text-emerald-400 font-medium">users</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{totalUsersCount}</span>
+              <span className="text-[10px] text-emerald-400 font-medium">users</span>
             </div>
-            <p className="text-[11px] text-white/40 flex items-center gap-1">
+            <p className="text-[10px] text-white/40 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-              <span>Live authentication records</span>
+              <span>From Supabase Auth</span>
             </p>
           </div>
 
-          {/* Realtime Active Sessions */}
-          <div className="bg-slate-900/50 border border-emerald-500/30 p-5 rounded-2xl space-y-3 relative overflow-hidden">
+          {/* Realtime Active */}
+          <div className="bg-slate-900/50 border border-emerald-500/30 p-4 sm:p-5 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-white/60">Realtime Active Online</span>
-              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Radio className="w-4 h-4 animate-pulse" />
+              <span className="text-[11px] font-medium text-white/60">Active Online</span>
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Radio className="w-3.5 h-3.5 animate-pulse" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-white tracking-tight">{realtimeCount}</span>
-              <span className="text-xs text-emerald-400 font-medium">active online</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{realtimeCount}</span>
+              <span className="text-[10px] text-emerald-400 font-medium">online</span>
             </div>
-            <p className="text-[11px] text-white/40">Connected realtime presences</p>
+            <p className="text-[10px] text-white/40">Realtime presence stream</p>
           </div>
 
-          {/* Total Conversations */}
-          <div className="bg-slate-900/50 border border-white/10 p-5 rounded-2xl space-y-3">
+          {/* Total Chats */}
+          <div className="bg-slate-900/50 border border-white/10 p-4 sm:p-5 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-white/60">Total Chat Threads</span>
-              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                <MessageSquare className="w-4 h-4" />
+              <span className="text-[11px] font-medium text-white/60">Total Chats</span>
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <MessageSquare className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-white tracking-tight">{totalChats}</span>
-              <span className="text-xs text-purple-400 font-medium">conversations</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{totalChats}</span>
+              <span className="text-[10px] text-purple-400 font-medium">conversations</span>
             </div>
-            <p className="text-[11px] text-white/40 flex items-center gap-1">
+            <p className="text-[10px] text-white/40 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-purple-400 inline-block animate-pulse" />
-              <span>Live DB updates without refresh</span>
+              <span>Live DB sync</span>
             </p>
           </div>
 
-          {/* Total Token Consumption Meter */}
-          <div className="bg-slate-900/50 border border-white/10 p-5 rounded-2xl space-y-3">
+          {/* AI Models Used */}
+          <div className="bg-slate-900/50 border border-white/10 p-4 sm:p-5 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-white/60">Est. Total Tokens Processed</span>
-              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <Coins className="w-4 h-4" />
+              <span className="text-[11px] font-medium text-white/60">AI Models Active</span>
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <Zap className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-white tracking-tight">8.82M</span>
-              <span className="text-xs text-amber-400 font-medium">Tokens</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{modelTraffic.length}</span>
+              <span className="text-[10px] text-amber-400 font-medium">models</span>
             </div>
-            <p className="text-[11px] text-white/40">High reasoning & code tokens</p>
+            <p className="text-[10px] text-white/40">Distinct models used</p>
           </div>
         </div>
 
-        {/* NEW SECTION: AI Model Traffic & Token Consumption Heavyweight Ranking */}
-        <div className="bg-slate-900/50 border border-white/10 p-6 rounded-2xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-amber-400" />
-                <span>AI Model Usage & Token Consumption Ranking</span>
-              </h2>
-              <p className="text-xs text-white/50">Model traffic frequency and token-heavy (boros token) model analytics</p>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
-              <Zap className="w-3.5 h-3.5" />
-              <span>DeepSeek & Claude = Most Token Heavy</span>
-            </div>
-          </div>
+        {/* ─── Row 2: AI Model Traffic + Live Activity Feed ──── */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
 
-          {/* Model Ranking Cards & Usage Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* 1. Most Requested AI Models (Frequency Traffic) */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-                <span>Most Popular AI Models (Request Volume)</span>
-              </h3>
+          {/* AI Model Traffic (Real from DB) — 3 cols */}
+          <div className="lg:col-span-3 bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-amber-400" />
+                  <span>AI Model Traffic</span>
+                  <span className="text-[10px] text-emerald-400 font-mono ml-1">(Live from DB)</span>
+                </h2>
+                <p className="text-[10px] text-white/40 mt-0.5">Real usage distribution across all chat conversations</p>
+              </div>
+            </div>
 
-              <div className="space-y-3">
-                {modelTrafficList.map((m, idx) => (
-                  <div key={m.id} className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+            <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+              {modelTraffic.length === 0 ? (
+                <p className="text-xs text-white/30 text-center py-8">No chat data yet</p>
+              ) : (
+                modelTraffic.map((m, idx) => (
+                  <div key={m.modelId} className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <span className="w-5 h-5 rounded-md bg-white/10 font-bold text-[10px] flex items-center justify-center text-white/70">
                           #{idx + 1}
                         </span>
-                        <span className="font-bold text-white">{m.name}</span>
-                        <span className="text-[10px] text-white/40 font-mono">({m.provider})</span>
+                        <span className="font-bold text-white">{m.displayName}</span>
+                        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-semibold ${modelBadgeColor(m.modelId)}`}>
+                          {m.modelId.split("/")[0] || "custom"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-white/60 font-mono">{m.requestsCount} reqs</span>
-                        <span className="font-extrabold text-emerald-400">{m.usagePercent}%</span>
+                        <span className="text-white/60 font-mono">{m.count} chats</span>
+                        <span className="font-extrabold text-emerald-400">{m.percent}%</span>
                       </div>
                     </div>
-                    {/* Usage Progress Bar */}
-                    <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
-                        style={{ width: `${m.usagePercent}%` }}
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
+                        style={{ width: `${m.percent}%` }}
                       />
                     </div>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Live Activity Feed — 2 cols */}
+          <div className="lg:col-span-2 bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4">
+            <div className="border-b border-white/10 pb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Activity className="w-4 h-4 text-cyan-400 animate-pulse" />
+                <span>Live Activity Feed</span>
+              </h2>
+              <p className="text-[10px] text-white/40 mt-0.5">Real-time database events stream</p>
             </div>
 
-            {/* 2. Most Token Heavy Models (Boros Token Analytics) */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
-                <Flame className="w-4 h-4 text-red-400 animate-pulse" />
-                <span>Top Token-Consuming Models (Boros Token Ranking)</span>
-              </h3>
-
-              <div className="space-y-3">
-                {modelTrafficList
-                  .slice()
-                  .sort((a, b) => b.avgTokensPerReq - a.avgTokensPerReq)
-                  .map((m, idx) => (
-                    <div key={m.id} className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 font-bold text-[10px] flex items-center justify-center">
-                            #{idx + 1}
-                          </span>
-                          <span className="font-bold text-white">{m.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-amber-300 font-mono font-semibold">~{m.avgTokensPerReq} tokens/req</span>
-                          <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${m.badgeColor}`}>
-                            {m.tokenCostRank}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-white/50 pt-0.5">
-                        <span>Total Model Tokens: <strong className="text-white">{m.totalTokens}</strong></span>
-                        <span className="text-[10px] italic">Reasoning & Code Artifact Heavy</span>
-                      </div>
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+              {activityFeed.length === 0 ? (
+                <p className="text-xs text-white/30 text-center py-8">Waiting for events...</p>
+              ) : (
+                activityFeed.map((evt) => (
+                  <div
+                    key={evt.id}
+                    className="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex items-start gap-2.5"
+                  >
+                    <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                      evt.type === "chat_created" ? "bg-emerald-500/10 text-emerald-400" :
+                      evt.type === "chat_deleted" ? "bg-red-500/10 text-red-400" :
+                      evt.type === "user_joined" ? "bg-blue-500/10 text-blue-400" :
+                      "bg-amber-500/10 text-amber-400"
+                    }`}>
+                      {evt.type === "chat_created" && <Plus className="w-3 h-3" />}
+                      {evt.type === "chat_deleted" && <Trash2 className="w-3 h-3" />}
+                      {evt.type === "chat_updated" && <RefreshCw className="w-3 h-3" />}
+                      {evt.type === "user_joined" && <Users className="w-3 h-3" />}
                     </div>
-                  ))}
-              </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-white/80 leading-relaxed truncate">{evt.description}</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">{relativeTime(evt.timestamp)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-
           </div>
         </div>
 
-        {/* Main Content Layout: Mass Announcement & Users Directory */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ─── Row 3: Peak Hours + Provider Analytics + Top Users ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
-          {/* Mass Announcement Broadcast Studio */}
-          <div className="lg:col-span-1 bg-slate-900/50 border border-white/10 p-6 rounded-2xl space-y-5">
-            <div className="border-b border-white/10 pb-4 space-y-1">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-                <span>Mass Announcement Studio</span>
+          {/* Peak Hours Heatmap */}
+          <div className="bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4">
+            <div className="border-b border-white/10 pb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-400" />
+                <span>Peak Hours</span>
               </h2>
-              <p className="text-xs text-white/50">Send real-time alert popups to all online & visiting users</p>
+              <p className="text-[10px] text-white/40 mt-0.5">Chat activity distribution by hour (24h)</p>
+            </div>
+
+            <div className="flex items-end gap-[3px] h-28">
+              {peakHours.map((count, hour) => {
+                const heightPercent = (count / peakMax) * 100;
+                const isPeak = count === peakMax && count > 0;
+                return (
+                  <div key={hour} className="flex-1 flex flex-col items-center gap-1 group relative">
+                    <div
+                      className={`w-full rounded-t-sm transition-all duration-300 ${
+                        isPeak ? "bg-emerald-400" : heightPercent > 60 ? "bg-emerald-500/70" : heightPercent > 30 ? "bg-emerald-500/40" : "bg-white/10"
+                      }`}
+                      style={{ height: `${Math.max(heightPercent, 2)}%` }}
+                      title={`${hour}:00 — ${count} chats`}
+                    />
+                    {hour % 4 === 0 && (
+                      <span className="text-[8px] text-white/30 font-mono">{hour}</span>
+                    )}
+                    {/* Tooltip */}
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block px-1.5 py-0.5 rounded bg-slate-800 border border-white/10 text-[9px] text-white whitespace-nowrap z-10">
+                      {hour}:00 — {count} chats
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Provider Analytics */}
+          <div className="bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4">
+            <div className="border-b border-white/10 pb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-blue-400" />
+                <span>Auth Provider Distribution</span>
+              </h2>
+              <p className="text-[10px] text-white/40 mt-0.5">Sign-up method breakdown</p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Visual Bar */}
+              <div className="flex h-4 rounded-full overflow-hidden bg-white/10">
+                {(providerStats.google + providerStats.email) > 0 && (
+                  <>
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-700"
+                      style={{ width: `${(providerStats.google / (providerStats.google + providerStats.email)) * 100}%` }}
+                    />
+                    <div
+                      className="bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700"
+                      style={{ width: `${(providerStats.email / (providerStats.google + providerStats.email)) * 100}%` }}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Legend */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-[11px] font-semibold text-blue-300">Google</span>
+                  </div>
+                  <p className="text-xl font-extrabold text-white">{providerStats.google}</p>
+                  <p className="text-[10px] text-white/40">
+                    {totalUsersCount > 0 ? Math.round((providerStats.google / totalUsersCount) * 100) : 0}% of users
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[11px] font-semibold text-emerald-300">Email</span>
+                  </div>
+                  <p className="text-xl font-extrabold text-white">{providerStats.email}</p>
+                  <p className="text-[10px] text-white/40">
+                    {totalUsersCount > 0 ? Math.round((providerStats.email / totalUsersCount) * 100) : 0}% of users
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Active Users Leaderboard */}
+          <div className="bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4">
+            <div className="border-b border-white/10 pb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-400" />
+                <span>Top Active Users</span>
+              </h2>
+              <p className="text-[10px] text-white/40 mt-0.5">Most conversations created</p>
+            </div>
+
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+              {topUsers.length === 0 ? (
+                <p className="text-xs text-white/30 text-center py-6">Loading...</p>
+              ) : (
+                topUsers.map((u, idx) => (
+                  <div key={u.userId} className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                    <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                      idx === 0 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
+                      idx === 1 ? "bg-slate-400/20 text-slate-300 border border-slate-400/30" :
+                      idx === 2 ? "bg-orange-500/20 text-orange-400 border border-orange-500/30" :
+                      "bg-white/10 text-white/50"
+                    }`}>
+                      {idx + 1}
+                    </span>
+                    <img
+                      src={u.avatar}
+                      alt={u.name}
+                      className="w-6 h-6 rounded-full object-cover bg-slate-800 border border-white/10 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-white truncate">{u.name}</p>
+                      <p className="text-[9px] text-white/30 font-mono truncate">{u.email}</p>
+                    </div>
+                    <span className="text-[11px] font-bold text-emerald-400 shrink-0">{u.chatCount} chats</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Row 4: Announcement Studio + Users Directory ──── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+
+          {/* Mass Announcement Studio */}
+          <div className="lg:col-span-1 bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4">
+            <div className="border-b border-white/10 pb-3 space-y-0.5">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span>Broadcast Studio</span>
+              </h2>
+              <p className="text-[10px] text-white/40">Send real-time alerts to all users</p>
             </div>
 
             {broadcastSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
                 {broadcastSuccess}
               </div>
             )}
 
-            <form onSubmit={handleSendAnnouncement} className="space-y-4">
+            <form onSubmit={handleSendAnnouncement} className="space-y-3">
               <div>
-                <label className="text-[11px] font-medium text-white/70 mb-1 block">Title</label>
+                <label className="text-[10px] font-medium text-white/60 mb-1 block">Title</label>
                 <input
                   type="text"
                   required
                   value={annTitle}
                   onChange={(e) => setAnnTitle(e.target.value)}
-                  placeholder="e.g. 🚀 Special Platform Update"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-colors"
+                  placeholder="e.g. 🚀 Platform Update"
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-medium text-white/70 mb-1 block">Announcement Priority</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="text-[10px] font-medium text-white/60 mb-1 block">Priority</label>
+                <div className="grid grid-cols-2 gap-1.5">
                   {[
                     { id: "info", label: "Info", icon: Info, color: "text-cyan-400" },
                     { id: "success", label: "Success", icon: CheckCircle2, color: "text-emerald-400" },
@@ -695,11 +918,11 @@ export default function AdminDashboardPage() {
                         type="button"
                         key={item.id}
                         onClick={() => setAnnType(item.id as AnnouncementType)}
-                        className={`p-2 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
+                        className={`p-1.5 rounded-lg border text-[10px] font-medium flex items-center justify-center gap-1 transition-all ${
                           selected ? `bg-white/10 border-white/20 ${item.color} font-bold` : "bg-white/[0.02] border-white/5 text-white/40 hover:bg-white/[0.05]"
                         }`}
                       >
-                        <IconComp className="w-3.5 h-3.5" />
+                        <IconComp className="w-3 h-3" />
                         <span>{item.label}</span>
                       </button>
                     );
@@ -708,96 +931,130 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-medium text-white/70 mb-1 block">Announcement Content</label>
+                <label className="text-[10px] font-medium text-white/60 mb-1 block">Content</label>
                 <textarea
                   required
                   rows={3}
                   value={annContent}
                   onChange={(e) => setAnnContent(e.target.value)}
                   placeholder="Type broadcast message..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-colors resize-none"
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-colors resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={broadcasting}
-                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{broadcasting ? "Broadcasting..." : "Broadcast Mass Announcement"}</span>
+                <span>{broadcasting ? "Broadcasting..." : "Broadcast Announcement"}</span>
               </button>
             </form>
           </div>
 
-          {/* Registered Users Directory Table (Matching Supabase Screenshot & Dynamic Realtime Sync) */}
-          <div className="lg:col-span-2 bg-slate-900/50 border border-white/10 p-6 rounded-2xl space-y-5 flex flex-col">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+          {/* Users Directory (Real from Supabase Auth) */}
+          <div className="lg:col-span-2 bg-slate-900/50 border border-white/10 p-5 sm:p-6 rounded-2xl space-y-4 flex flex-col">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
                   <Users className="w-4 h-4 text-emerald-400" />
-                  <span>Authentication Users Directory</span>
+                  <span>Users Directory</span>
+                  <span className="text-[10px] text-emerald-400 font-mono ml-1">(Supabase Auth)</span>
                 </h2>
-                <p className="text-xs text-white/50">Total: {totalUsersCount} registered users (Realtime Live Sync)</p>
+                <p className="text-[10px] text-white/40 mt-0.5">
+                  {totalUsersCount} registered users
+                  {usersLoading && " — refreshing..."}
+                </p>
               </div>
 
-              {/* Search Box */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name or email..."
-                  className="pl-8 pr-3.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-colors w-full sm:w-60"
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-white/40 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="pl-7 pr-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-colors w-full sm:w-48"
+                  />
+                </div>
+                <button
+                  onClick={fetchRealUsers}
+                  className="p-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                  title="Refresh users"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${usersLoading ? "animate-spin" : ""}`} />
+                </button>
               </div>
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto flex-1">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-white/10 text-white/40 uppercase text-[10px] tracking-wider">
-                    <th className="py-2.5 px-3 font-semibold">User</th>
-                    <th className="py-2.5 px-3 font-semibold">Email</th>
-                    <th className="py-2.5 px-3 font-semibold">Provider</th>
-                    <th className="py-2.5 px-3 font-semibold">Created Date</th>
+                  <tr className="border-b border-white/10 text-white/40 uppercase text-[9px] tracking-wider">
+                    <th className="py-2 px-2.5 font-semibold">User</th>
+                    <th className="py-2 px-2.5 font-semibold">Email</th>
+                    <th className="py-2 px-2.5 font-semibold">Provider</th>
+                    <th className="py-2 px-2.5 font-semibold">Registered</th>
+                    <th className="py-2 px-2.5 font-semibold">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.06]">
-                  {filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={u.avatar}
-                            alt={u.name}
-                            className="w-7 h-7 rounded-full object-cover bg-slate-800 border border-white/10 shrink-0"
-                          />
-                          <span className="font-semibold text-white truncate max-w-[140px]">{u.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 text-white/70 font-mono text-[11px]">{u.email}</td>
-                      <td className="py-3 px-3">
-                        {u.provider === "Google" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium">
-                            <Globe className="w-3 h-3" /> Google
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium">
-                            <Mail className="w-3 h-3" /> Email
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-white/40 text-[11px] whitespace-nowrap">{u.createdAt}</td>
-                    </tr>
-                  ))}
+                  {filteredUsers.map((u) => {
+                    const isOnline = onlineEmails.has(u.email.toLowerCase());
+                    return (
+                      <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-2.5 px-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="relative shrink-0">
+                              <img
+                                src={u.avatar}
+                                alt={u.name}
+                                className="w-6 h-6 rounded-full object-cover bg-slate-800 border border-white/10"
+                              />
+                              {isOnline && (
+                                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#090a0f]" />
+                              )}
+                            </div>
+                            <span className="font-semibold text-white truncate max-w-[120px] text-[11px]">{u.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2.5 text-white/60 font-mono text-[10px]">{u.email}</td>
+                        <td className="py-2.5 px-2.5">
+                          {u.provider === "Google" ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-medium">
+                              <Globe className="w-2.5 h-2.5" /> Google
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-medium">
+                              <Mail className="w-2.5 h-2.5" /> Email
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2.5 text-white/40 text-[10px] whitespace-nowrap">{u.createdAt}</td>
+                        <td className="py-2.5 px-2.5">
+                          {isOnline ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-semibold">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-white/30">Offline</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+              {filteredUsers.length === 0 && (
+                <p className="text-xs text-white/30 text-center py-6">
+                  {searchQuery ? "No users match your search" : "Loading users..."}
+                </p>
+              )}
             </div>
           </div>
-
         </div>
 
       </div>
