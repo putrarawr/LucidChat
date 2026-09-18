@@ -214,12 +214,33 @@ export default function AdminDashboardPage() {
         }
         setRegisteredUsers(sampleUsersList);
 
-        // 3. Subscribe to presence count
+        // 3. Subscribe to real-time presence & live registered user dynamic updates
         const channel = supabaseClient.channel("online-presence");
         channel.on("presence", { event: "sync" }, () => {
-          const state = channel.presenceState();
-          const count = Math.max(1, Object.keys(state).length);
+          const state = channel.presenceState<any>();
+          const presences = Object.values(state).flat();
+          const count = Math.max(1, presences.length);
           setRealtimeCount(count);
+
+          // Merge live active user presences directly into registered user table live without refresh!
+          setRegisteredUsers((prev) => {
+            const map = new Map(prev.map((u) => [u.id || u.email, u]));
+            presences.forEach((p: any) => {
+              if (p.email && p.user_id && !p.email.includes("lucidchat.dev")) {
+                map.set(p.user_id, {
+                  id: p.user_id,
+                  name: p.name || p.email.split("@")[0],
+                  email: p.email,
+                  avatar: p.avatar || getEffectiveAvatarUrl(p.email),
+                  provider: p.provider || "Email",
+                  createdAt: p.online_at ? new Date(p.online_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Live Now",
+                });
+              }
+            });
+            const updatedList = Array.from(map.values());
+            setTotalUsersCount((prevCount) => Math.max(prevCount, updatedList.length));
+            return updatedList;
+          });
         }).subscribe();
 
       } catch (err) {

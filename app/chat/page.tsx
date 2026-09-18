@@ -878,7 +878,10 @@ export default function ChatPage() {
           </div>
 
           {/* Bottom Floating Input Bar */}
-          <div className={`p-4 ${isArenaMode ? "max-w-5xl" : "max-w-3xl"} w-full mx-auto animate-entrance-input`}>
+          <div className={`p-4 ${isArenaMode ? "max-w-5xl" : "max-w-3xl"} w-full mx-auto animate-entrance-input space-y-2`}>
+            <div className="flex justify-end pr-1">
+              <RealtimeUsersPill variant="above-input" />
+            </div>
             <ChatInputBar
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
@@ -973,9 +976,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Realtime Active Users Floating Pill & Global Mass Announcement Banner */}
+      {/* Global Mass Announcement Banner */}
       <GlobalAnnouncementBanner />
-      <RealtimeUsersPill />
     </div>
   );
 }

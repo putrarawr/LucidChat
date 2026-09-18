@@ -9,12 +9,14 @@ import { useI18n } from "@/lib/i18n/I18nContext";
 interface ActiveUserPresence {
   user_id: string;
   name: string;
+  email: string;
   avatar: string;
+  provider: "Google" | "Email";
   online_at: string;
 }
 
 interface RealtimeUsersPillProps {
-  variant?: "floating" | "inline";
+  variant?: "floating" | "inline" | "above-input";
   className?: string;
 }
 
@@ -32,15 +34,20 @@ export function RealtimeUsersPill({
     const randomId = Math.random().toString(36).substring(2, 9);
     let currentUserId = `guest_${randomId}`;
     let currentName = "Guest User";
+    let currentEmail = `guest_${randomId}@lucidchat.dev`;
     let currentAvatar = getEffectiveAvatarUrl(currentUserId);
+    let currentProvider: "Google" | "Email" = "Email";
 
     // Fetch logged in user if available
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         currentUserId = user.id;
+        currentEmail = user.email || currentEmail;
         const meta = user.user_metadata || {};
+        const appMeta = user.app_metadata || {};
         currentName = meta.full_name || meta.name || user.email?.split("@")[0] || "Lucid User";
         currentAvatar = getEffectiveAvatarUrl(user.email, meta.avatar_url || meta.picture);
+        currentProvider = appMeta.provider === "google" || meta.iss?.includes("google") ? "Google" : "Email";
       }
 
       const channel = supabase.channel("online-presence", {
@@ -70,7 +77,9 @@ export function RealtimeUsersPill({
             await channel.track({
               user_id: currentUserId,
               name: currentName,
+              email: currentEmail,
               avatar: currentAvatar,
+              provider: currentProvider,
               online_at: new Date().toISOString(),
             });
           }
@@ -81,6 +90,30 @@ export function RealtimeUsersPill({
       };
     });
   }, []);
+
+  if (variant === "above-input") {
+    return (
+      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/80 border border-white/15 text-[11px] text-white/80 shadow-lg backdrop-blur-md transition-all duration-200 hover:border-white/25 ${className}`}>
+        <div className="relative flex items-center justify-center w-2.5 h-2.5">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        </div>
+        <div className="flex -space-x-1.5 overflow-hidden">
+          {userAvatars.map((url, idx) => (
+            <img
+              key={idx}
+              src={url}
+              alt="Active user"
+              className="inline-block w-4 h-4 rounded-full ring-1 ring-black object-cover bg-slate-800"
+            />
+          ))}
+        </div>
+        <span className="font-bold text-emerald-400">{onlineCount}</span>
+        <span className="text-white/60">{t("pill.usersActive", "Active Now")}</span>
+        <Sparkles className="w-3 h-3 text-amber-300 opacity-80" />
+      </div>
+    );
+  }
 
   if (variant === "inline") {
     return (
