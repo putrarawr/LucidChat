@@ -19,7 +19,6 @@ import {
   Mail,
   Lock,
   Globe,
-  TrendingUp,
   Zap,
   BarChart3,
   Clock,
@@ -34,6 +33,11 @@ import {
   ChevronRight,
   Menu,
   X,
+  Eye,
+  Bot,
+  UserCheck,
+  Sparkles,
+  Filter,
 } from "lucide-react";
 import Link from "next/link";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
@@ -46,12 +50,13 @@ const AUTHORIZED_ADMIN_EMAILS = [
 ];
 
 // ─── Sidebar Pages ───────────────────────────────────────────────────
-type AdminPage = "overview" | "traffic" | "users" | "activity" | "broadcast";
+type AdminPage = "overview" | "traffic" | "chats" | "users" | "activity" | "broadcast";
 
 const SIDEBAR_ITEMS: { id: AdminPage; label: string; icon: React.ElementType; description: string }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, description: "Stats & analytics" },
-  { id: "traffic", label: "AI Traffic", icon: BarChart3, description: "Model usage ranking" },
-  { id: "users", label: "Users", icon: Users, description: "User directory" },
+  { id: "traffic", label: "AI Traffic & Averages", icon: BarChart3, description: "Model usage & stats" },
+  { id: "chats", label: "Chats & Messages", icon: MessageSquare, description: "All user conversations" },
+  { id: "users", label: "Users", icon: Users, description: "User directory & models" },
   { id: "activity", label: "Activity", icon: Activity, description: "Live event feed" },
   { id: "broadcast", label: "Broadcast", icon: Megaphone, description: "Announcements" },
 ];
@@ -81,6 +86,7 @@ interface ModelTrafficItem {
   displayName: string;
   count: number;
   percent: number;
+  messagesCount?: number;
 }
 
 interface ActivityEvent {
@@ -97,6 +103,43 @@ interface TopUserItem {
   name: string;
   avatar: string;
   chatCount: number;
+}
+
+interface ChatRecord {
+  id: string;
+  title: string;
+  model_used: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    avatar: string;
+    provider: "Google" | "Email";
+  };
+}
+
+interface ChatMessageRecord {
+  id: string;
+  chat_id: string;
+  role: "user" | "assistant";
+  content: string;
+  has_code: boolean;
+  created_at: string;
+}
+
+interface UserPreferenceRecord {
+  id: string;
+  email: string;
+  name: string;
+  avatar: string;
+  provider: "Google" | "Email";
+  chatCount: number;
+  messageCount: number;
+  favoriteModel: string;
+  favoriteModelCount: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -164,14 +207,30 @@ export default function AdminDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Core Stats
-  const [realtimeCount, setRealtimeCount] = useState<number>(1);
+  const [realtimeCount, setRealtimeCount] = useState<number>(0);
   const [totalChats, setTotalChats] = useState<number>(0);
+  const [totalMessages, setTotalMessages] = useState<number>(0);
   const [totalUsersCount, setTotalUsersCount] = useState<number>(0);
+  const [averageChatsPerUser, setAverageChatsPerUser] = useState<number>(0);
+  const [averageMessagesPerChat, setAverageMessagesPerChat] = useState<number>(0);
+  const [averageMessagesPerUser, setAverageMessagesPerUser] = useState<number>(0);
 
-  // Users
+  // Users & Preferences
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUserRecord[]>([]);
+  const [userPreferences, setUserPreferences] = useState<UserPreferenceRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [usersLoading, setUsersLoading] = useState(false);
+
+  // Chats & Messages
+  const [chats, setChats] = useState<ChatRecord[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [chatModelFilter, setChatModelFilter] = useState("all");
+
+  // Chat Inspection
+  const [selectedChatForInspection, setSelectedChatForInspection] = useState<ChatRecord | null>(null);
+  const [inspectedMessages, setInspectedMessages] = useState<ChatMessageRecord[]>([]);
+  const [inspectLoading, setInspectLoading] = useState(false);
 
   // AI Model Traffic
   const [modelTraffic, setModelTraffic] = useState<ModelTrafficItem[]>([]);
@@ -195,10 +254,11 @@ export default function AdminDashboardPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastSuccess, setBroadcastSuccess] = useState<string | null>(null);
 
-  // Online status
+  // Online status (Strictly Registered Users)
   const [onlineEmails, setOnlineEmails] = useState<Set<string>>(new Set());
+  const [onlineRegisteredUsers, setOnlineRegisteredUsers] = useState<PresenceItem[]>([]);
 
-  // ─── Fetch Real Users ──────────────────────────────────────────────
+  // ─── Fetch Real Users from API ─────────────────────────────────────
   const fetchRealUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
@@ -234,133 +294,157 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  // ─── Compute Analytics ─────────────────────────────────────────────
-  const computeModelTraffic = useCallback((chats: { model_used: string; created_at: string; user_id: string }[]) => {
-    const modelCounts: Record<string, number> = {};
-    chats.forEach((c) => { const m = c.model_used || "unknown"; modelCounts[m] = (modelCounts[m] || 0) + 1; });
-    const total = chats.length || 1;
-    const trafficList: ModelTrafficItem[] = Object.entries(modelCounts)
-      .sort(([, a], [, b]) => b - a)
-      .map(([modelId, count]) => ({
-        modelId, displayName: modelDisplayName(modelId), count,
-        percent: Math.round((count / total) * 100),
-      }));
-    setModelTraffic(trafficList);
+  // ─── Fetch Chats, Messages, & AI Model Averages via Server API ─────
+  const fetchAdminChatsAndStats = useCallback(async () => {
+    setChatsLoading(true);
+    try {
+      const res = await fetch("/api/admin/chats");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setChats(data.chats || []);
+          setTotalChats(data.stats.totalChats || 0);
+          setTotalMessages(data.stats.totalMessages || 0);
+          setAverageChatsPerUser(data.stats.averageChatsPerUser || 0);
+          setAverageMessagesPerChat(data.stats.averageMessagesPerChat || 0);
+          setAverageMessagesPerUser(data.stats.averageMessagesPerUser || 0);
+          setPeakHours(data.stats.peakHours || new Array(24).fill(0));
+          setUserPreferences(data.userPreferences || []);
 
-    const hours = new Array(24).fill(0);
-    chats.forEach((c) => { hours[new Date(c.created_at).getHours()]++; });
-    setPeakHours(hours);
+          // Transform model traffic ranking
+          const trafficList: ModelTrafficItem[] = (data.stats.modelTraffic || []).map((m: {
+            modelId: string; count: number; percent: number; messagesCount?: number;
+          }) => ({
+            modelId: m.modelId,
+            displayName: modelDisplayName(m.modelId),
+            count: m.count,
+            percent: m.percent,
+            messagesCount: m.messagesCount,
+          }));
+          setModelTraffic(trafficList);
 
-    const userChatCounts: Record<string, number> = {};
-    chats.forEach((c) => { userChatCounts[c.user_id] = (userChatCounts[c.user_id] || 0) + 1; });
-    const sorted = Object.entries(userChatCounts).sort(([, a], [, b]) => b - a).slice(0, 10);
-    setTopUsers(sorted.map(([userId, chatCount]) => {
-      const found = registeredUsers.find((u) => u.id === userId);
-      return {
-        userId, email: found?.email || userId.slice(0, 8) + "...",
-        name: found?.name || "Unknown User",
-        avatar: found?.avatar || getEffectiveAvatarUrl(""), chatCount,
-      };
-    }));
-  }, [registeredUsers]);
+          // Top active users
+          setTopUsers((data.userPreferences || []).slice(0, 10).map((u: UserPreferenceRecord) => ({
+            userId: u.id,
+            email: u.email,
+            name: u.name,
+            avatar: u.avatar || getEffectiveAvatarUrl(u.email),
+            chatCount: u.chatCount,
+          })));
 
-  const addActivity = useCallback((event: ActivityEvent) => {
-    setActivityFeed((prev) => [event, ...prev].slice(0, 50));
+          // Seed activity feed from most recent chats
+          const recentChats = (data.chats || []).slice(0, 20);
+          setActivityFeed(recentChats.map((c: ChatRecord) => ({
+            id: `evt_${c.id}`,
+            type: "chat_created" as const,
+            description: `${c.user.name} started "${(c.title || "Untitled").slice(0, 45)}" · ${modelDisplayName(c.model_used)} (${c.message_count} msgs)`,
+            timestamp: c.created_at,
+            modelUsed: c.model_used,
+          })));
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch admin chats and stats:", err);
+    } finally {
+      setChatsLoading(false);
+    }
   }, []);
 
-  // ─── Init ──────────────────────────────────────────────────────────
+  // ─── Inspect Specific Chat Messages ────────────────────────────────
+  const handleInspectChat = async (chat: ChatRecord) => {
+    playClickSound();
+    setSelectedChatForInspection(chat);
+    setInspectLoading(true);
+    setInspectedMessages([]);
+    try {
+      const res = await fetch(`/api/admin/chats?chatId=${chat.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInspectedMessages(data.messages || []);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch chat messages:", err);
+    } finally {
+      setInspectLoading(false);
+    }
+  };
+
+  // ─── Init Dashboard ────────────────────────────────────────────────
   useEffect(() => {
     async function initAdminDashboard() {
       setLoading(true);
       try {
         const supabaseClient = createClient();
         const { data: { user } } = await supabaseClient.auth.getUser();
+
         if (user) {
           const email = (user.email || "").toLowerCase();
           setUserEmail(email);
           const metaAdmin = user.user_metadata?.is_admin === true;
           const authorized = AUTHORIZED_ADMIN_EMAILS.includes(email) || metaAdmin;
           setIsAdmin(authorized);
-          if (!authorized) { setLoading(false); return; }
-        } else { setIsAdmin(false); setLoading(false); return; }
-
-        const { count: chatsCount } = await supabaseClient.from("chats").select("*", { count: "exact", head: true });
-        if (chatsCount !== null) setTotalChats(chatsCount);
-
-        const { data: allChats } = await supabaseClient
-          .from("chats").select("model_used, created_at, user_id, title, updated_at")
-          .order("created_at", { ascending: false });
-
-        if (allChats && allChats.length > 0) {
-          computeModelTraffic(allChats);
-          const recentChats = allChats.slice(0, 15);
-          setActivityFeed(recentChats.map((c) => ({
-            id: `init_${c.created_at}_${Math.random()}`,
-            type: "chat_created" as const,
-            description: `New chat "${(c.title || "Untitled").slice(0, 50)}" · ${modelDisplayName(c.model_used)}`,
-            timestamp: c.created_at, modelUsed: c.model_used,
-          })));
+          if (!authorized) {
+            setLoading(false);
+            return;
+          }
+        } else {
+          setIsAdmin(false);
+          setLoading(false);
+          return;
         }
 
-        await fetchRealUsers();
+        // Fetch users & chats via service role APIs
+        await Promise.all([
+          fetchRealUsers(),
+          fetchAdminChatsAndStats(),
+        ]);
 
-        // Realtime: chats
-        const chatsDbChannel = supabaseClient.channel("admin-chats-realtime-v3")
-          .on("postgres_changes", { event: "*", schema: "public", table: "chats" }, async (payload) => {
-            const { count } = await supabaseClient.from("chats").select("*", { count: "exact", head: true });
-            if (count !== null) setTotalChats(count);
-            const { data: updatedChats } = await supabaseClient.from("chats")
-              .select("model_used, created_at, user_id, title, updated_at")
-              .order("created_at", { ascending: false });
-            if (updatedChats) computeModelTraffic(updatedChats);
-
-            if (payload.eventType === "INSERT") {
-              const nc = payload.new as { title?: string; model_used?: string; created_at?: string };
-              addActivity({ id: `evt_${Date.now()}`, type: "chat_created",
-                description: `New chat "${(nc.title || "Untitled").slice(0, 50)}" · ${modelDisplayName(nc.model_used || "unknown")}`,
-                timestamp: nc.created_at || new Date().toISOString(), modelUsed: nc.model_used });
-            } else if (payload.eventType === "DELETE") {
-              addActivity({ id: `evt_${Date.now()}`, type: "chat_deleted",
-                description: "A conversation was deleted", timestamp: new Date().toISOString() });
-            } else if (payload.eventType === "UPDATE") {
-              const uc = payload.new as { title?: string; model_used?: string };
-              addActivity({ id: `evt_${Date.now()}`, type: "chat_updated",
-                description: `Chat "${(uc.title || "Untitled").slice(0, 50)}" updated`,
-                timestamp: new Date().toISOString(), modelUsed: uc.model_used });
-            }
-          }).subscribe();
-
-        // Realtime: presence
+        // Realtime Presence: STRICTLY FILTER TO REGISTERED USERS ONLY
         const presenceChannel = supabaseClient.channel("online-presence");
         presenceChannel.on("presence", { event: "sync" }, () => {
           const state = presenceChannel.presenceState<PresenceItem>();
-          const presences = Object.values(state).flat();
-          setRealtimeCount(Math.max(1, presences.length));
-          const emails = new Set<string>();
-          presences.forEach((p: PresenceItem) => { if (p.email) emails.add(p.email.toLowerCase()); });
-          setOnlineEmails(emails);
+          const allPresences = Object.values(state).flat();
+
+          // Filter: only users with registered emails and NOT starting with "anon-"
+          const registeredPresences = allPresences.filter(
+            (p) => p.email && p.user_id && !p.user_id.startsWith("anon-")
+          );
+
+          // Deduplicate by email
+          const uniqueOnlineMap = new Map<string, PresenceItem>();
+          registeredPresences.forEach((p) => {
+            if (p.email) uniqueOnlineMap.set(p.email.toLowerCase(), p);
+          });
+
+          const uniqueList = Array.from(uniqueOnlineMap.values());
+          setRealtimeCount(uniqueList.length);
+          setOnlineRegisteredUsers(uniqueList);
+          setOnlineEmails(new Set(uniqueOnlineMap.keys()));
         }).subscribe();
+
+        // Realtime DB changes on chats & messages
+        const chatsDbChannel = supabaseClient.channel("admin-chats-realtime-v4")
+          .on("postgres_changes", { event: "*", schema: "public", table: "chats" }, () => {
+            fetchAdminChatsAndStats();
+          })
+          .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+            fetchAdminChatsAndStats();
+          })
+          .subscribe();
 
         return () => {
           supabaseClient.removeChannel(chatsDbChannel);
           supabaseClient.removeChannel(presenceChannel);
         };
-      } catch (err) { console.warn("Admin init error:", err);
-      } finally { setLoading(false); }
+      } catch (err) {
+        console.warn("Admin init error:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    initAdminDashboard();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  useEffect(() => {
-    if (registeredUsers.length > 0 && topUsers.length > 0) {
-      setTopUsers((prev) => prev.map((tu) => {
-        const found = registeredUsers.find((u) => u.id === tu.userId);
-        return found ? { ...tu, name: found.name, email: found.email, avatar: found.avatar || getEffectiveAvatarUrl(found.email) } : tu;
-      }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [registeredUsers]);
+    initAdminDashboard();
+  }, [fetchAdminChatsAndStats, fetchRealUsers]);
 
   // ─── Announcement Handler ──────────────────────────────────────────
   const handleSendAnnouncement = async (e: React.FormEvent) => {
@@ -371,26 +455,54 @@ export default function AdminDashboardPage() {
     setBroadcastSuccess(null);
     try {
       const newAnn: Announcement = {
-        id: `ann_${Date.now()}`, title: annTitle.trim(), content: annContent.trim(),
-        type: annType, createdAt: new Date().toISOString(), author: userEmail || "LucidChat Admin",
+        id: `ann_${Date.now()}`,
+        title: annTitle.trim(),
+        content: annContent.trim(),
+        type: annType,
+        createdAt: new Date().toISOString(),
+        author: userEmail || "LucidChat Admin",
       };
-      await fetch("/api/announcements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newAnn) }).catch(console.warn);
+      await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAnn),
+      }).catch(console.warn);
+
       const supabase = createClient();
       const channel = supabase.channel("global-announcements");
       await channel.subscribe();
       await channel.send({ type: "broadcast", event: "new_announcement", payload: newAnn });
       saveAnnouncementLocally(newAnn);
-      setBroadcastSuccess("✅ Announcement broadcasted live!");
-      setAnnTitle(""); setAnnContent("");
+
+      setBroadcastSuccess("✅ Pengumuman berhasil disiarkan secara live ke semua pengguna!");
+      setAnnTitle("");
+      setAnnContent("");
       setTimeout(() => setBroadcastSuccess(null), 5000);
-    } catch (err) { console.error("Broadcast failed:", err);
-    } finally { setBroadcasting(false); }
+    } catch (err) {
+      console.error("Broadcast failed:", err);
+    } finally {
+      setBroadcasting(false);
+    }
   };
 
   const filteredUsers = registeredUsers.filter((u) =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const filteredChats = chats.filter((c) => {
+    const matchesSearch =
+      c.title.toLowerCase().includes(chatSearchQuery.toLowerCase()) ||
+      c.user.name.toLowerCase().includes(chatSearchQuery.toLowerCase()) ||
+      c.user.email.toLowerCase().includes(chatSearchQuery.toLowerCase());
+
+    const matchesModel =
+      chatModelFilter === "all" ||
+      c.model_used.toLowerCase().includes(chatModelFilter.toLowerCase());
+
+    return matchesSearch && matchesModel;
+  });
+
   const peakMax = Math.max(...peakHours, 1);
 
   // ─── Loading / Unauthorized ────────────────────────────────────────
@@ -413,9 +525,9 @@ export default function AdminDashboardPage() {
             <Lock className="w-6 h-6" />
           </div>
           <h1 className="text-lg font-bold text-white">Access Restricted</h1>
-          <p className="text-xs text-white/50">This dashboard is restricted to authorized administrators.</p>
+          <p className="text-xs text-white/50">Dashboard ini hanya dapat diakses oleh administrator resmi LucidChat.</p>
           <Link href="/chat" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-black font-semibold text-xs">
-            <ArrowLeft className="w-3.5 h-3.5" /> Return to Chat
+            <ArrowLeft className="w-3.5 h-3.5" /> Kembali ke Chat
           </Link>
         </div>
       </div>
@@ -448,55 +560,38 @@ export default function AdminDashboardPage() {
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
               </div>
               <div>
-                <h1 className="text-sm font-bold text-white leading-tight">LucidChat</h1>
-                <p className="text-[10px] text-white/40 font-mono">Control Center</p>
+                <h1 className="text-sm font-bold text-white tracking-tight">Admin Console</h1>
+                <p className="text-[9px] text-emerald-400/80 font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LucidChat v1.1
+                </p>
               </div>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded-lg text-white/40 hover:text-white">
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-white/40 hover:text-white">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Live Stats Mini Cards */}
-        <div className="px-4 py-3 border-b border-white/[0.06] space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] text-white/50 font-medium">Live Stats</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2 text-center">
-              <p className="text-sm font-extrabold text-white">{totalUsersCount}</p>
-              <p className="text-[8px] text-white/40 uppercase tracking-wider">Users</p>
-            </div>
-            <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-2 text-center">
-              <p className="text-sm font-extrabold text-emerald-400">{realtimeCount}</p>
-              <p className="text-[8px] text-emerald-400/60 uppercase tracking-wider">Online</p>
-            </div>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2 text-center">
-              <p className="text-sm font-extrabold text-white">{totalChats}</p>
-              <p className="text-[8px] text-white/40 uppercase tracking-wider">Chats</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          <p className="px-2 text-[9px] uppercase tracking-widest text-white/30 font-semibold mb-2">Navigation</p>
+        {/* Sidebar Nav */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {SIDEBAR_ITEMS.map((item) => {
             const IconComp = item.icon;
             const isActive = activePage === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => { setActivePage(item.id); setSidebarOpen(false); playClickSound(); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 group ${
-                  isActive
-                    ? "bg-emerald-500/10 border border-emerald-500/20 text-white"
-                    : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
-                }`}
+                onClick={() => {
+                  playClickSound();
+                  setActivePage(item.id);
+                  setSidebarOpen(false);
+                }}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all group
+                  ${isActive
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-white font-semibold shadow-sm"
+                    : "text-white/50 hover:text-white hover:bg-white/[0.03] border border-transparent"}
+                `}
               >
                 <IconComp className={`w-4 h-4 shrink-0 ${isActive ? "text-emerald-400" : "text-white/40 group-hover:text-white/60"}`} />
                 <div className="flex-1 min-w-0">
@@ -538,7 +633,7 @@ export default function AdminDashboardPage() {
           <h2 className="text-sm font-bold text-white capitalize">{activePage}</h2>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] text-emerald-400 font-mono">{realtimeCount} online</span>
+            <span className="text-[10px] text-emerald-400 font-mono">{realtimeCount} registered online</span>
           </div>
         </div>
 
@@ -549,17 +644,104 @@ export default function AdminDashboardPage() {
           {/* ═══════════════════════════════════════════════════════ */}
           {activePage === "overview" && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Dashboard Overview</h2>
-                <p className="text-xs text-white/40 mt-0.5">Real-time platform analytics at a glance</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Dashboard Overview</h2>
+                  <p className="text-xs text-white/40 mt-0.5">Real-time platform & model usage analytics (Bypassing RLS)</p>
+                </div>
+                <button
+                  onClick={() => {
+                    fetchRealUsers();
+                    fetchAdminChatsAndStats();
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/10 border border-white/[0.06] text-xs text-white/70 hover:text-white transition-all self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${chatsLoading ? "animate-spin" : ""}`} />
+                  <span>Refresh Data</span>
+                </button>
               </div>
 
               {/* Stats Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <StatCard label="Registered Users" value={totalUsersCount} suffix="users" icon={Users} color="emerald" pulse />
-                <StatCard label="Active Online" value={realtimeCount} suffix="online" icon={Radio} color="emerald" pulse />
-                <StatCard label="Total Chats" value={totalChats} suffix="conversations" icon={MessageSquare} color="purple" pulse />
-                <StatCard label="AI Models Active" value={modelTraffic.length} suffix="models" icon={Zap} color="amber" />
+                <StatCard label="Registered Users" value={totalUsersCount} suffix="terdaftar" icon={Users} color="emerald" pulse />
+                <StatCard label="Online Sekarang" value={realtimeCount} suffix="user asli" icon={Radio} color="emerald" pulse />
+                <StatCard label="Total Percakapan" value={totalChats} suffix="chats" icon={MessageSquare} color="purple" pulse />
+                <StatCard label="Total Pesan Masuk" value={totalMessages} suffix="pesan AI" icon={Zap} color="amber" pulse />
+              </div>
+
+              {/* 🟢 Live Registered Users Online Panel */}
+              <div className="bg-slate-900/50 border border-emerald-500/20 p-5 rounded-2xl space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-white">Registered Users Online Secara Realtime</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-mono">
+                      {realtimeCount} user aktif
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-white/40 font-mono">Hanya akun terdaftar</span>
+                </div>
+
+                {onlineRegisteredUsers.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] text-center">
+                    <p className="text-xs text-white/40">Belum ada pengguna terdaftar lain yang sedang aktif saat ini.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {onlineRegisteredUsers.map((u, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-2.5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/15">
+                        <div className="relative shrink-0">
+                          <img
+                            src={u.avatar || getEffectiveAvatarUrl(u.email || "")}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover bg-slate-800 border border-emerald-500/30"
+                          />
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#090a0f] animate-pulse" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{u.name || "User"}</p>
+                          <p className="text-[10px] text-emerald-400/80 font-mono truncate">{u.email}</p>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-500/20 text-emerald-300 font-bold shrink-0">
+                          ONLINE
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 📊 Average AI Usage Metrics Section (Rata-rata User Pakai AI) */}
+              <div className="bg-slate-900/50 border border-white/[0.06] p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <h3 className="text-sm font-bold text-white">Rata-rata & Distribusi Penggunaan Model AI Pengguna</h3>
+                  </div>
+                  <span className="text-[10px] text-white/30 font-mono">Dihitung dari seluruh pesan pengguna</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <span className="text-[10px] text-white/40 block mb-1">Rata-rata Chat / User</span>
+                    <p className="text-lg font-extrabold text-white">{averageChatsPerUser} <span className="text-xs font-normal text-white/50">chat/user</span></p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <span className="text-[10px] text-white/40 block mb-1">Rata-rata Pesan / Chat</span>
+                    <p className="text-lg font-extrabold text-white">{averageMessagesPerChat} <span className="text-xs font-normal text-white/50">pesan/chat</span></p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <span className="text-[10px] text-white/40 block mb-1">Rata-rata Pesan / User</span>
+                    <p className="text-lg font-extrabold text-white">{averageMessagesPerUser} <span className="text-xs font-normal text-white/50">pesan/user</span></p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                    <span className="text-[10px] text-emerald-400/70 block mb-1">Model Paling Dominan</span>
+                    <p className="text-sm font-bold text-emerald-400 truncate">
+                      {modelTraffic[0]?.displayName || "Belum ada data"}
+                    </p>
+                    <p className="text-[10px] text-white/40 mt-0.5">{modelTraffic[0]?.percent || 0}% dari seluruh chat</p>
+                  </div>
+                </div>
               </div>
 
               {/* 2-col: Peak Hours + Provider Analytics */}
@@ -568,8 +750,8 @@ export default function AdminDashboardPage() {
                 <div className="bg-slate-900/50 border border-white/[0.06] p-5 rounded-2xl space-y-4">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-purple-400" />
-                    <h3 className="text-sm font-bold text-white">Peak Hours</h3>
-                    <span className="text-[9px] text-white/30 font-mono ml-auto">24h distribution</span>
+                    <h3 className="text-sm font-bold text-white">Peak Hours (Jam Penggunaan Terpadat)</h3>
+                    <span className="text-[9px] text-white/30 font-mono ml-auto">24 jam</span>
                   </div>
                   <div className="flex items-end gap-[3px] h-24">
                     {peakHours.map((count, hour) => {
@@ -585,7 +767,7 @@ export default function AdminDashboardPage() {
                           />
                           {hour % 6 === 0 && <span className="text-[7px] text-white/25 font-mono">{hour}</span>}
                           <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block px-1.5 py-0.5 rounded bg-slate-800 border border-white/10 text-[8px] text-white whitespace-nowrap z-10">
-                            {hour}:00 — {count}
+                            {hour}:00 — {count} chat
                           </div>
                         </div>
                       );
@@ -597,7 +779,7 @@ export default function AdminDashboardPage() {
                 <div className="bg-slate-900/50 border border-white/[0.06] p-5 rounded-2xl space-y-4">
                   <div className="flex items-center gap-2">
                     <PieChart className="w-4 h-4 text-blue-400" />
-                    <h3 className="text-sm font-bold text-white">Auth Providers</h3>
+                    <h3 className="text-sm font-bold text-white">Metode Autentikasi User</h3>
                   </div>
                   <div className="flex h-3 rounded-full overflow-hidden bg-white/10">
                     {(providerStats.google + providerStats.email) > 0 && (
@@ -611,7 +793,7 @@ export default function AdminDashboardPage() {
                     <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <Globe className="w-3 h-3 text-blue-400" />
-                        <span className="text-[10px] font-semibold text-blue-300">Google</span>
+                        <span className="text-[10px] font-semibold text-blue-300">Google OAuth</span>
                       </div>
                       <p className="text-lg font-extrabold text-white">{providerStats.google}</p>
                       <p className="text-[9px] text-white/40">{totalUsersCount > 0 ? Math.round((providerStats.google / totalUsersCount) * 100) : 0}%</p>
@@ -619,7 +801,7 @@ export default function AdminDashboardPage() {
                     <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <Mail className="w-3 h-3 text-emerald-400" />
-                        <span className="text-[10px] font-semibold text-emerald-300">Email</span>
+                        <span className="text-[10px] font-semibold text-emerald-300">Email Password</span>
                       </div>
                       <p className="text-lg font-extrabold text-white">{providerStats.email}</p>
                       <p className="text-[9px] text-white/40">{totalUsersCount > 0 ? Math.round((providerStats.email / totalUsersCount) * 100) : 0}%</p>
@@ -632,23 +814,24 @@ export default function AdminDashboardPage() {
               <div className="bg-slate-900/50 border border-white/[0.06] p-5 rounded-2xl space-y-4">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-sm font-bold text-white">Top Active Users</h3>
-                  <span className="text-[9px] text-white/30 font-mono ml-auto">by chat count</span>
+                  <h3 className="text-sm font-bold text-white">Pengguna Paling Aktif</h3>
+                  <span className="text-[9px] text-white/30 font-mono ml-auto">berdasarkan jumlah percakapan</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                   {topUsers.length === 0 ? (
-                    <p className="text-xs text-white/30 col-span-full text-center py-4">Loading...</p>
+                    <p className="text-xs text-white/30 col-span-full text-center py-4">Memuat data pengguna aktif...</p>
                   ) : (
                     topUsers.slice(0, 10).map((u, idx) => (
                       <div key={u.userId} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
                         <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0 ${
                           idx === 0 ? "bg-amber-500/20 text-amber-400" : idx === 1 ? "bg-slate-400/20 text-slate-300" : idx === 2 ? "bg-orange-500/20 text-orange-400" : "bg-white/10 text-white/40"
-                        }`}>{idx + 1}</span>
-                        <img src={u.avatar} alt="" className="w-5 h-5 rounded-full object-cover bg-slate-800 shrink-0" />
+                        }`}>#{idx + 1}</span>
+                        <img src={u.avatar} alt="" className="w-6 h-6 rounded-full object-cover bg-slate-800 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-semibold text-white truncate">{u.name}</p>
+                          <p className="text-[8px] text-white/40 truncate">{u.email}</p>
                         </div>
-                        <span className="text-[10px] font-bold text-emerald-400 shrink-0">{u.chatCount}</span>
+                        <span className="text-[10px] font-bold text-emerald-400 shrink-0">{u.chatCount} chats</span>
                       </div>
                     ))
                   )}
@@ -658,36 +841,48 @@ export default function AdminDashboardPage() {
           )}
 
           {/* ═══════════════════════════════════════════════════════ */}
-          {/* PAGE: AI TRAFFIC */}
+          {/* PAGE: AI TRAFFIC & AVERAGES */}
           {/* ═══════════════════════════════════════════════════════ */}
           {activePage === "traffic" && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-amber-400" /> AI Model Traffic
-                </h2>
-                <p className="text-xs text-white/40 mt-0.5">Real usage distribution from database — updates live</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-amber-400" /> Analisis Penggunaan Model AI
+                  </h2>
+                  <p className="text-xs text-white/40 mt-0.5">Statistik mendalam rata-rata model AI yang digunakan oleh seluruh user</p>
+                </div>
+                <button
+                  onClick={fetchAdminChatsAndStats}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/10 border border-white/[0.06] text-xs text-white/70 hover:text-white transition-all self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${chatsLoading ? "animate-spin" : ""}`} />
+                  <span>Refresh Stats</span>
+                </button>
               </div>
 
               {/* Summary badges */}
               <div className="flex flex-wrap gap-2">
                 <span className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/60">
-                  <strong className="text-white">{totalChats}</strong> total conversations
+                  <strong className="text-white">{totalChats}</strong> total percakapan
                 </span>
                 <span className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/60">
-                  <strong className="text-white">{modelTraffic.length}</strong> distinct models used
+                  <strong className="text-white">{totalMessages}</strong> total pesan masuk
+                </span>
+                <span className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/60">
+                  <strong className="text-white">{modelTraffic.length}</strong> model AI aktif
                 </span>
                 {modelTraffic[0] && (
                   <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400">
-                    🏆 Most popular: <strong>{modelTraffic[0].displayName}</strong>
+                    🏆 Model Terpopuler: <strong>{modelTraffic[0].displayName} ({modelTraffic[0].percent}%)</strong>
                   </span>
                 )}
               </div>
 
               {/* Traffic List */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {modelTraffic.length === 0 ? (
-                  <p className="text-xs text-white/30 text-center py-12">No chat data yet</p>
+                  <p className="text-xs text-white/30 text-center py-12">Belum ada percakapan tersimpan</p>
                 ) : (
                   modelTraffic.map((m, idx) => (
                     <div key={m.modelId} className="bg-slate-900/50 border border-white/[0.06] p-4 rounded-xl flex items-center gap-4">
@@ -701,21 +896,160 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-sm font-bold text-white">{m.displayName}</span>
                           <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-semibold ${modelBadgeColor(m.modelId)}`}>
-                            {m.modelId.split("/")[0]}
+                            {m.modelId}
                           </span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
-                            style={{ width: `${m.percent}%` }} />
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
+                            style={{ width: `${m.percent}%` }}
+                          />
                         </div>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-extrabold text-emerald-400">{m.percent}%</p>
-                        <p className="text-[10px] text-white/40 font-mono">{m.count} chats</p>
+                        <p className="text-[10px] text-white/40 font-mono">{m.count} chats · {m.messagesCount || 0} msgs</p>
                       </div>
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* PAGE: CHATS & MESSAGES (INSPECT REAL USER CONVERSATIONS) */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {activePage === "chats" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-purple-400" /> Percakapan & Pesan Pengguna
+                  </h2>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    Menampilkan seluruh riwayat chat dan pesan asli dari seluruh user terdaftar ({chats.length} chat)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-white/40 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={chatSearchQuery}
+                      onChange={(e) => setChatSearchQuery(e.target.value)}
+                      placeholder="Cari judul, user, email..."
+                      className="pl-7 pr-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] text-xs text-white placeholder-white/30 outline-none focus:border-white/20 w-full sm:w-56"
+                    />
+                  </div>
+                  <button
+                    onClick={fetchAdminChatsAndStats}
+                    className="p-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                    title="Refresh"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${chatsLoading ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <span className="text-[10px] text-white/40 flex items-center gap-1 mr-1">
+                  <Filter className="w-3 h-3" /> Filter Model:
+                </span>
+                {[
+                  { id: "all", label: "Semua Model" },
+                  { id: "gemini", label: "Gemini" },
+                  { id: "deepseek", label: "DeepSeek" },
+                  { id: "claude", label: "Claude" },
+                  { id: "gpt", label: "OpenAI GPT" },
+                  { id: "qwen", label: "Qwen" },
+                  { id: "groq", label: "Groq" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setChatModelFilter(f.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                      chatModelFilter === f.id
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        : "bg-white/[0.03] text-white/50 hover:text-white border border-white/[0.05]"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chats List Table */}
+              <div className="bg-slate-900/50 border border-white/[0.06] rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/[0.06] bg-white/[0.02] text-white/40 uppercase text-[9px] tracking-wider">
+                        <th className="py-3 px-4 font-semibold">Judul Percakapan</th>
+                        <th className="py-3 px-4 font-semibold">Pengguna</th>
+                        <th className="py-3 px-4 font-semibold">Model AI</th>
+                        <th className="py-3 px-4 font-semibold">Jumlah Pesan</th>
+                        <th className="py-3 px-4 font-semibold">Waktu Dibuat</th>
+                        <th className="py-3 px-4 font-semibold text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {filteredChats.map((c) => (
+                        <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 px-4">
+                            <p className="font-semibold text-white text-xs truncate max-w-[240px]">
+                              {c.title}
+                            </p>
+                            <p className="text-[9px] text-white/30 font-mono">ID: {c.id.slice(0, 8)}...</p>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={c.user.avatar || getEffectiveAvatarUrl(c.user.email)}
+                                alt=""
+                                className="w-6 h-6 rounded-full object-cover bg-slate-800 border border-white/10"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-medium text-white truncate max-w-[120px]">{c.user.name}</p>
+                                <p className="text-[9px] text-white/40 truncate max-w-[120px] font-mono">{c.user.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded-md border text-[9px] font-semibold ${modelBadgeColor(c.model_used)}`}>
+                              {modelDisplayName(c.model_used)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] font-bold">
+                              💬 {c.message_count} pesan
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-white/40 text-[10px] whitespace-nowrap">
+                            {relativeTime(c.created_at)}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => handleInspectChat(c)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold transition-all"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Lihat Chat</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filteredChats.length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-xs text-white/30">
+                        {chatSearchQuery ? "Tidak ada percakapan yang cocok dengan filter pencarian" : "Belum ada riwayat chat pengguna"}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -728,20 +1062,31 @@ export default function AdminDashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Users className="w-5 h-5 text-emerald-400" /> Users Directory
+                    <Users className="w-5 h-5 text-emerald-400" /> Direktori Pengguna Terdaftar
                   </h2>
-                  <p className="text-xs text-white/40 mt-0.5">{totalUsersCount} registered from Supabase Auth {usersLoading && "— refreshing..."}</p>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {totalUsersCount} pengguna dari Supabase Auth {usersLoading && "— refreshing..."}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 text-white/40 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search name or email..."
-                      className="pl-7 pr-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] text-xs text-white placeholder-white/30 outline-none focus:border-white/20 w-full sm:w-56" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Cari nama atau email..."
+                      className="pl-7 pr-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] text-xs text-white placeholder-white/30 outline-none focus:border-white/20 w-full sm:w-56"
+                    />
                   </div>
-                  <button onClick={fetchRealUsers}
+                  <button
+                    onClick={() => {
+                      fetchRealUsers();
+                      fetchAdminChatsAndStats();
+                    }}
                     className="p-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/10 transition-all"
-                    title="Refresh">
+                    title="Refresh"
+                  >
                     <RefreshCw className={`w-3.5 h-3.5 ${usersLoading ? "animate-spin" : ""}`} />
                   </button>
                 </div>
@@ -755,20 +1100,28 @@ export default function AdminDashboardPage() {
                         <th className="py-3 px-4 font-semibold">User</th>
                         <th className="py-3 px-4 font-semibold">Email</th>
                         <th className="py-3 px-4 font-semibold">Provider</th>
-                        <th className="py-3 px-4 font-semibold">Registered</th>
-                        <th className="py-3 px-4 font-semibold">Status</th>
+                        <th className="py-3 px-4 font-semibold">Model AI Favorit</th>
+                        <th className="py-3 px-4 font-semibold">Aktivitas</th>
+                        <th className="py-3 px-4 font-semibold">Status Realtime</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
                       {filteredUsers.map((u) => {
                         const isOnline = onlineEmails.has(u.email.toLowerCase());
+                        const userPref = userPreferences.find((p) => p.id === u.id);
                         return (
                           <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2.5">
                                 <div className="relative shrink-0">
-                                  <img src={u.avatar} alt={u.name} className="w-7 h-7 rounded-full object-cover bg-slate-800 border border-white/10" />
-                                  {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0c0d14]" />}
+                                  <img
+                                    src={u.avatar}
+                                    alt={u.name}
+                                    className="w-7 h-7 rounded-full object-cover bg-slate-800 border border-white/10"
+                                  />
+                                  {isOnline && (
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0c0d14]" />
+                                  )}
                                 </div>
                                 <span className="font-semibold text-white text-[11px] truncate max-w-[140px]">{u.name}</span>
                               </div>
@@ -785,14 +1138,26 @@ export default function AdminDashboardPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-white/40 text-[10px] whitespace-nowrap">{u.createdAt}</td>
                             <td className="py-3 px-4">
-                              {isOnline ? (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-semibold">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
+                              {userPref && userPref.favoriteModel !== "Belum ada chat" ? (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-semibold ${modelBadgeColor(userPref.favoriteModel)}`}>
+                                  <Bot className="w-2.5 h-2.5" /> {modelDisplayName(userPref.favoriteModel)}
                                 </span>
                               ) : (
-                                <span className="text-[9px] text-white/25">Offline</span>
+                                <span className="text-[10px] text-white/30 italic">Belum ada aktivitas</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-[10px] text-white/70">
+                              <span className="font-bold text-white">{userPref?.chatCount || 0}</span> chats · <span className="font-bold text-purple-300">{userPref?.messageCount || 0}</span> msgs
+                            </td>
+                            <td className="py-3 px-4">
+                              {isOnline ? (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-bold">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  Online Sekarang
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-white/30 font-medium">Offline</span>
                               )}
                             </td>
                           </tr>
@@ -801,7 +1166,7 @@ export default function AdminDashboardPage() {
                     </tbody>
                   </table>
                   {filteredUsers.length === 0 && (
-                    <p className="text-xs text-white/30 text-center py-8">{searchQuery ? "No matches" : "Loading users..."}</p>
+                    <p className="text-xs text-white/30 text-center py-8">{searchQuery ? "Tidak ditemukan" : "Memuat user..."}</p>
                   )}
                 </div>
               </div>
@@ -817,14 +1182,14 @@ export default function AdminDashboardPage() {
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <Activity className="w-5 h-5 text-cyan-400" /> Live Activity Feed
                 </h2>
-                <p className="text-xs text-white/40 mt-0.5">Real-time database events — auto-updates without refresh</p>
+                <p className="text-xs text-white/40 mt-0.5">Event database realtime — otomatis memperbarui saat user chat</p>
               </div>
 
               <div className="space-y-2">
                 {activityFeed.length === 0 ? (
                   <div className="text-center py-16">
                     <Activity className="w-8 h-8 text-white/10 mx-auto mb-3" />
-                    <p className="text-xs text-white/30">Waiting for events...</p>
+                    <p className="text-xs text-white/30">Menunggu event masuk...</p>
                   </div>
                 ) : (
                   activityFeed.map((evt) => (
@@ -863,43 +1228,52 @@ export default function AdminDashboardPage() {
             <div className="space-y-6 max-w-2xl">
               <div>
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Megaphone className="w-5 h-5 text-emerald-400" /> Broadcast Studio
+                  <Megaphone className="w-5 h-5 text-emerald-400" /> Siarkan Pengumuman Global
                 </h2>
-                <p className="text-xs text-white/40 mt-0.5">Send real-time announcements to all online & visiting users</p>
+                <p className="text-xs text-white/40 mt-0.5">Kirimkan notifikasi banner secara live ke seluruh pengguna yang sedang aktif</p>
               </div>
 
-              <div className="bg-slate-900/50 border border-white/[0.06] p-6 rounded-2xl space-y-5">
-                {broadcastSuccess && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
-                    {broadcastSuccess}
-                  </div>
-                )}
+              {broadcastSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{broadcastSuccess}</span>
+                </div>
+              )}
 
+              <div className="bg-slate-900/50 border border-white/[0.06] p-6 rounded-2xl">
                 <form onSubmit={handleSendAnnouncement} className="space-y-4">
                   <div>
-                    <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Title</label>
-                    <input type="text" required value={annTitle} onChange={(e) => setAnnTitle(e.target.value)}
-                      placeholder="e.g. 🚀 Platform Update"
-                      className="w-full px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.06] text-sm text-white placeholder-white/30 outline-none focus:border-white/20 transition-colors" />
+                    <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Judul Pengumuman</label>
+                    <input
+                      type="text"
+                      required
+                      value={annTitle}
+                      onChange={(e) => setAnnTitle(e.target.value)}
+                      placeholder="Contoh: 🚀 Update Model AI Baru & Maintenance"
+                      className="w-full px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.06] text-sm text-white placeholder-white/30 outline-none focus:border-white/20 transition-colors"
+                    />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Priority Level</label>
+                    <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Tingkat Prioritas</label>
                     <div className="grid grid-cols-4 gap-2">
                       {[
                         { id: "info", label: "Info", icon: Info, color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20" },
-                        { id: "success", label: "Success", icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-                        { id: "warning", label: "Warning", icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-                        { id: "urgent", label: "Urgent", icon: Flame, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+                        { id: "success", label: "Sukses", icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+                        { id: "warning", label: "Peringatan", icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+                        { id: "urgent", label: "Mendesak", icon: Flame, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
                       ].map((item) => {
                         const IconComp = item.icon;
                         const selected = annType === item.id;
                         return (
-                          <button type="button" key={item.id}
+                          <button
+                            type="button"
+                            key={item.id}
                             onClick={() => setAnnType(item.id as AnnouncementType)}
                             className={`p-2.5 rounded-xl border text-xs font-medium flex flex-col items-center gap-1 transition-all ${
                               selected ? `${item.bg} ${item.color} font-bold` : "bg-white/[0.02] border-white/[0.06] text-white/40 hover:bg-white/[0.05]"
-                            }`}>
+                            }`}
+                          >
                             <IconComp className="w-4 h-4" />
                             <span className="text-[10px]">{item.label}</span>
                           </button>
@@ -909,16 +1283,24 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Content</label>
-                    <textarea required rows={4} value={annContent} onChange={(e) => setAnnContent(e.target.value)}
-                      placeholder="Type your broadcast message here..."
-                      className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.06] text-sm text-white placeholder-white/30 outline-none focus:border-white/20 transition-colors resize-none" />
+                    <label className="text-[11px] font-medium text-white/60 mb-1.5 block">Isi Pesan Siaran</label>
+                    <textarea
+                      required
+                      rows={4}
+                      value={annContent}
+                      onChange={(e) => setAnnContent(e.target.value)}
+                      placeholder="Ketik isi pengumuman yang akan tampil di banner semua pengguna..."
+                      className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.06] text-sm text-white placeholder-white/30 outline-none focus:border-white/20 transition-colors resize-none"
+                    />
                   </div>
 
-                  <button type="submit" disabled={broadcasting}
-                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={broadcasting}
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  >
                     <Send className="w-4 h-4" />
-                    <span>{broadcasting ? "Broadcasting..." : "Broadcast to All Users"}</span>
+                    <span>{broadcasting ? "Menyiarkan..." : "Siarkan ke Seluruh Pengguna"}</span>
                   </button>
                 </form>
               </div>
@@ -927,6 +1309,96 @@ export default function AdminDashboardPage() {
 
         </div>
       </main>
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* MODAL: CHAT & MESSAGES INSPECTOR DRAWER */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {selectedChatForInspection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-3xl h-[85vh] bg-[#0c0d14] border border-white/10 rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src={selectedChatForInspection.user.avatar || getEffectiveAvatarUrl(selectedChatForInspection.user.email)}
+                  alt=""
+                  className="w-9 h-9 rounded-full object-cover bg-slate-800 border border-white/10 shrink-0"
+                />
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white truncate max-w-md">
+                    {selectedChatForInspection.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-white/50">{selectedChatForInspection.user.name} ({selectedChatForInspection.user.email})</span>
+                    <span className="text-white/20">•</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[8px] border font-semibold ${modelBadgeColor(selectedChatForInspection.model_used)}`}>
+                      {modelDisplayName(selectedChatForInspection.model_used)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedChatForInspection(null)}
+                className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Messages Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {inspectLoading ? (
+                <div className="flex flex-col items-center justify-center h-full space-y-3">
+                  <div className="w-6 h-6 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin" />
+                  <p className="text-xs text-white/40">Mengambil seluruh pesan percakapan...</p>
+                </div>
+              ) : inspectedMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <MessageSquare className="w-8 h-8 text-white/20 mb-2" />
+                  <p className="text-xs text-white/40">Tidak ada pesan yang tersimpan di dalam sesi chat ini.</p>
+                </div>
+              ) : (
+                inspectedMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1 px-1">
+                      <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">
+                        {msg.role === "user" ? `👤 ${selectedChatForInspection.user.name}` : `🤖 ${modelDisplayName(selectedChatForInspection.model_used)}`}
+                      </span>
+                      <span className="text-[9px] text-white/30 font-mono">
+                        {relativeTime(msg.created_at)}
+                      </span>
+                    </div>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-blue-600/20 border border-blue-500/30 text-white rounded-tr-sm"
+                          : "bg-slate-900 border border-white/10 text-slate-100 rounded-tl-sm whitespace-pre-wrap font-sans"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-white/[0.08] bg-white/[0.02] flex items-center justify-between text-[11px] text-white/40">
+              <span>Total {inspectedMessages.length} pesan dalam riwayat</span>
+              <button
+                onClick={() => setSelectedChatForInspection(null)}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/10 text-white text-xs font-medium transition-colors"
+              >
+                Tutup Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

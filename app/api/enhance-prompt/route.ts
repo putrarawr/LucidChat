@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { googleAI } from "@/lib/ai-clients";
+import { runGuardrail, sanitizePromptDelimiters } from "@/lib/guardrail";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,18 +13,32 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const geminiModel = googleAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+    // 1. Guardrail inspection on input prompt
+    const guardrailVerdict = await runGuardrail(prompt);
+    if (!guardrailVerdict.safe) {
+      return new Response(JSON.stringify({ error: guardrailVerdict.reason }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-    const enhancementInstruction = `Anda adalah Prompt Engineering Expert tingkat tinggi.
-Tugas Anda: Ubah prompt pengguna yang singkat, samar, atau sederhana di bawah ini menjadi prompt yang SANGAT RINCI, SPESIFIK, TERSTRUKTUR, dan BERKUALITAS TINGGI dalam Bahasa Indonesia.
+    const cleanPrompt = sanitizePromptDelimiters(prompt.trim());
 
-ATURAN UTAMA:
-1. PERTUTURKAN maksud utama pengguna tanpa mengubah tujuan aslinya.
-2. Tambahkan rincian penting seperti: tujuan utama, konteks, batasan, format output yang diharapkan, serta kualitas/estetika yang diinginkan.
-3. HANYA kembalikan teks prompt hasil perbaikan langsung tanpa kata pengantar, tanpa tanda kutip di luar, dan tanpa penjelasan tambahan.
+    const geminiModel = googleAI.getGenerativeModel({
+      model: "gemini-3.6-flash",
+      systemInstruction: "Anda adalah Prompt Engineering Expert tingkat tinggi yang bertanggung jawab menghasilkan instruksi terstruktur, spesifik, faktual, dan aman.",
+    });
+
+    const enhancementInstruction = `Ubah prompt pengguna di bawah ini menjadi prompt yang JAUH LEBIH SPESIFIK, TERSTRUKTUR, DAN BERKUALITAS TINGGI dalam Bahasa Indonesia.
+
+PEDOMAN MUTLAK:
+1. Pahami dan pertahankan maksud inti asli dari pengguna. DILARANG mengubah tujuan atau menambahkan asumsi palsu/halusinasi yang bertentangan dengan maksud pengguna.
+2. Tambahkan elemen penting: konteks tujuan, batasan teknis/kualitas, ekspektasi format keluaran, dan instruksi presisi.
+3. KEAMANAN: DILARANG KERAS menyisipkan persona jailbreak, bypass batasan keamanan, manipulasi roleplay terlarang, atau kata-kata pembatalan aturan.
+4. HANYA kembalikan teks prompt hasil perbaikan secara langsung, tanpa kata pengantar, tanpa tanda kutip pembungkus, dan tanpa penjelasan tambahan.
 
 Prompt Asli Pengguna:
-"${prompt.trim()}"`;
+"${cleanPrompt}"`;
 
     const result = await geminiModel.generateContent(enhancementInstruction);
     const enhancedPrompt = result.response.text().trim();
