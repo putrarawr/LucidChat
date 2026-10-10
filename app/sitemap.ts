@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lucidchat.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lucidchat-ai.vercel.app";
   const currentDate = new Date().toISOString();
 
   return [
@@ -12,13 +12,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/chat`,
+      url: `${baseUrl}/privacy`,
       lastModified: currentDate,
-      changeFrequency: "always",
-      priority: 0.9,
+      changeFrequency: "monthly",
+      priority: 0.6,
     },
     {
-      url: `${baseUrl}/auth/login`,
+      url: `${baseUrl}/terms`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/login`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/register`,
       lastModified: currentDate,
       changeFrequency: "monthly",
       priority: 0.7,

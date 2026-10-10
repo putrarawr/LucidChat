@@ -68,7 +68,12 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith("/privacy") ||
       request.nextUrl.pathname.startsWith("/terms") ||
       request.nextUrl.pathname.startsWith("/auth") ||
-      request.nextUrl.pathname.startsWith("/share");
+      request.nextUrl.pathname.startsWith("/share") ||
+      request.nextUrl.pathname === "/robots.txt" ||
+      request.nextUrl.pathname === "/sitemap.xml" ||
+      request.nextUrl.pathname === "/manifest.json" ||
+      request.nextUrl.pathname === "/sw.js" ||
+      request.nextUrl.pathname.startsWith("/google");
 
     // Protected routes: redirect to login if not authenticated
     if (!user && !isPublicRoute) {
@@ -96,6 +101,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|json|html)$).*)",
   ],
 };

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lucidchat.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lucidchat-ai.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -85,10 +85,20 @@ const jsonLd = {
   "@type": "WebApplication",
   "name": "LucidChat AI",
   "url": siteUrl,
-  "description": "Platform AI Chatbot Multi-Model dengan Gemini 3.6 Flash, Kimi AI, GPT-4o, Claude 3.7 Sonnet, DeepSeek V3, AI Image Generator & Real-Time Web Crawler.",
-  "applicationCategory": "BusinessApplication",
+  "description": "Platform AI Chatbot Multi-Model terdepan dengan dukungan Gemini 3.6 Flash, Kimi AI, GPT-4o, Claude 3.7 Sonnet, DeepSeek V3/R1, AI Image Generator, Voice-to-Text, Prompt Library, dan Web Search Crawler Real-Time.",
+  "applicationCategory": "ProductivityApplication",
   "operatingSystem": "All",
   "inLanguage": "id-ID",
+  "featureList": [
+    "Multi-Model AI Chat (Gemini 3.6 Flash, OpenAI GPT-4o, Claude 3.7 Sonnet, DeepSeek R1, Kimi Moonshot)",
+    "Real-Time Web Search Crawler",
+    "AI Image Generator & Canvas Editor",
+    "Voice-to-Text Speech Recognition",
+    "Curated Prompt Library",
+    "Document Parsing & Chat with File",
+    "Stop Generation Abort Controller",
+    "User Context Memory Persona"
+  ],
   "offers": {
     "@type": "Offer",
     "price": "0",
