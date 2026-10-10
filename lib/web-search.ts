@@ -39,9 +39,41 @@ function cleanScrapedText(text: string): string {
   return cleaned.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Intelligent Query Reformulator:
+ * Converts conversational user sentences into high-density keyword search tokens
+ * to drastically improve DuckDuckGo & Google News retrieval precision.
+ */
+export function optimizeSearchQuery(rawQuery: string): string {
+  if (!rawQuery) return "";
+  let q = rawQuery.trim();
+
+  // Strip URLs and Markdown formatting
+  q = q.replace(/https?:\/\/[^\s]+/gi, "").replace(/\[.*?\]\(.*?\)/g, "");
+
+  // Remove polite & conversational filler phrases in ID & EN
+  const fillerPatterns = [
+    /^(tolong\s+|coba\s+|mohon\s+|bisa\s+nggak\s+|bisakah\s+kamu\s+|please\s+|can\s+you\s+|tell\s+me\s+about\s+)/i,
+    /\b(carikan\s+informasi|cari\s+berita|cari\s+tahu|apa\s+itu|siapa\s+itu|kenapa\s+sih|mengapa|bagaimana\s+cara|apa\s+yang\s+dimaksud\s+dengan|jelaskan\s+tentang|berikan\s+informasi\s+tentang|what\s+is|who\s+is|how\s+does|why\s+is)\b/gi,
+    /\b(terbaru\s+dong|hari\s+ini\s+ya|kira\s+kira|menurut\s+kamu|kemarin\s+sore|tadi\s+malam)\b/gi,
+  ];
+
+  for (const pattern of fillerPatterns) {
+    q = q.replace(pattern, " ");
+  }
+
+  q = q.replace(/[?!,;:*~`#"'()\[\]{}]/g, " ").replace(/\s+/g, " ").trim();
+
+  if (q.length < 3) {
+    return rawQuery.replace(/[?!,;:*~`#"'()\[\]{}]/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  return q;
+}
+
 export async function performWebSearch(query: string): Promise<SearchResult[]> {
   if (!query || !query.trim()) return [];
-  const cleanQuery = query.trim();
+  const cleanQuery = optimizeSearchQuery(query) || query.trim();
 
   const results: SearchResult[] = [];
   const seenUrls = new Set<string>();
