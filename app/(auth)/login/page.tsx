@@ -27,18 +27,22 @@ function LoginContent() {
 
   const supabase = createClient();
 
-  // Check URL query parameters for verified email or error messages
+  // Check URL query parameters for verified email, banned status, or error messages
   useEffect(() => {
     if (!searchParams) return;
     const isVerified = searchParams.get("verified") === "true";
     const emailParam = searchParams.get("email");
     const errorParam = searchParams.get("error");
+    const isBannedParam = searchParams.get("banned") === "1";
+    const reasonParam = searchParams.get("reason");
 
     if (emailParam) {
       setEmail(emailParam);
     }
 
-    if (isVerified) {
+    if (isBannedParam) {
+      setErrorMessage(`⛔ Akses Ditolak: Akun Anda telah dinonaktifkan oleh administrator (${reasonParam || "Pelanggaran ketentuan layanan"}).`);
+    } else if (isVerified) {
       setSuccessMessage(t("auth.verifiedSuccess", "✅ Email verified successfully! You can now sign in with your password."));
     } else if (errorParam) {
       setErrorMessage(decodeURIComponent(errorParam));
@@ -62,7 +66,9 @@ function LoginContent() {
 
       if (error) {
         const msg = error.message?.toLowerCase() || "";
-        if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+        if (msg.includes("banned") || msg.includes("user is banned")) {
+          setErrorMessage("⛔ Akun Anda telah dinonaktifkan oleh administrator karena pelanggaran ketentuan layanan.");
+        } else if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
           setErrorMessage(t("auth.emailUnconfirmed", "Email Anda belum dikonfirmasi. Silakan cek inbox email Anda untuk link aktivasi."));
           setShowResendButton(true);
         } else if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {

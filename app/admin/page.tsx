@@ -38,6 +38,7 @@ import {
   UserCheck,
   Sparkles,
   Filter,
+  Ban,
 } from "lucide-react";
 import Link from "next/link";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
@@ -70,6 +71,10 @@ interface RegisteredUserRecord {
   provider: "Google" | "Email";
   createdAt: string;
   lastSignIn: string | null;
+  isBanned?: boolean;
+  banReason?: string;
+  bannedUntil?: string | null;
+  bannedAt?: string | null;
 }
 
 interface PresenceItem {
@@ -268,6 +273,7 @@ export default function AdminDashboardPage() {
         const users: RegisteredUserRecord[] = (data.users || []).map((u: {
           id: string; email: string; name: string; avatar: string;
           provider: "Google" | "Email"; createdAt: string; lastSignIn: string | null;
+          isBanned?: boolean; banReason?: string; bannedUntil?: string | null; bannedAt?: string | null;
         }) => ({
           id: u.id,
           email: u.email,
@@ -278,6 +284,10 @@ export default function AdminDashboardPage() {
             weekday: "short", day: "numeric", month: "short", year: "numeric",
           }),
           lastSignIn: u.lastSignIn,
+          isBanned: u.isBanned,
+          banReason: u.banReason,
+          bannedUntil: u.bannedUntil,
+          bannedAt: u.bannedAt,
         }));
         setRegisteredUsers(users);
         setTotalUsersCount(users.length);
@@ -293,6 +303,74 @@ export default function AdminDashboardPage() {
       setUsersLoading(false);
     }
   }, []);
+
+  // ─── Ban / Unban Modal State & Handlers ───────────────────────────
+  const [banModalUser, setBanModalUser] = useState<RegisteredUserRecord | null>(null);
+  const [banActionType, setBanActionType] = useState<"ban" | "unban">("ban");
+  const [banReasonInput, setBanReasonInput] = useState("");
+  const [banLoading, setBanLoading] = useState(false);
+  const [banFeedback, setBanFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const openBanModal = (user: RegisteredUserRecord, action: "ban" | "unban") => {
+    playClickSound();
+    setBanModalUser(user);
+    setBanActionType(action);
+    setBanReasonInput(action === "ban" ? "Spam / Aktivitas Berlebihan" : "");
+    setBanFeedback(null);
+  };
+
+  const handleExecuteBanAction = async () => {
+    if (!banModalUser) return;
+    setBanLoading(true);
+    setBanFeedback(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: banModalUser.id,
+          action: banActionType,
+          reason: banReasonInput.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal memproses aksi");
+      }
+
+      // Update state locally
+      setRegisteredUsers((prev) =>
+        prev.map((u) =>
+          u.id === banModalUser.id
+            ? {
+                ...u,
+                isBanned: banActionType === "ban",
+                banReason: banActionType === "ban" ? (banReasonInput.trim() || "Pelanggaran terhadap ketentuan layanan") : "",
+              }
+            : u
+        )
+      );
+
+      setBanFeedback({
+        type: "success",
+        message: banActionType === "ban"
+          ? `Akun ${banModalUser.name} (${banModalUser.email}) berhasil diblokir.`
+          : `Pemblokiran akun ${banModalUser.name} (${banModalUser.email}) berhasil dibuka.`,
+      });
+
+      setTimeout(() => {
+        setBanModalUser(null);
+        setBanReasonInput("");
+        setBanFeedback(null);
+      }, 1200);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
+      setBanFeedback({ type: "error", message: msg });
+    } finally {
+      setBanLoading(false);
+    }
+  };
 
   // ─── Fetch Chats, Messages, & AI Model Averages via Server API ─────
   const fetchAdminChatsAndStats = useCallback(async () => {
@@ -1100,9 +1178,11 @@ export default function AdminDashboardPage() {
                         <th className="py-3 px-4 font-semibold">User</th>
                         <th className="py-3 px-4 font-semibold">Email</th>
                         <th className="py-3 px-4 font-semibold">Provider</th>
-                        <th className="py-3 px-4 font-semibold">Model AI Favorit</th>
+                        <th className="py-3 px-4 font-semibold">Status Akun</th>
+                        <th className="py-3 px-4 font-semibold">Model Favorit</th>
                         <th className="py-3 px-4 font-semibold">Aktivitas</th>
-                        <th className="py-3 px-4 font-semibold">Status Realtime</th>
+                        <th className="py-3 px-4 font-semibold">Realtime</th>
+                        <th className="py-3 px-4 font-semibold text-right">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
@@ -1139,6 +1219,24 @@ export default function AdminDashboardPage() {
                               )}
                             </td>
                             <td className="py-3 px-4">
+                              {u.isBanned ? (
+                                <div className="space-y-0.5">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-bold">
+                                    <Ban className="w-2.5 h-2.5" /> Banned
+                                  </span>
+                                  {u.banReason && (
+                                    <p className="text-[8px] text-rose-300/70 truncate max-w-[120px]" title={u.banReason}>
+                                      {u.banReason}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-bold">
+                                  <CheckCircle2 className="w-2.5 h-2.5" /> Aktif
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
                               {userPref && userPref.favoriteModel !== "Belum ada chat" ? (
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-semibold ${modelBadgeColor(userPref.favoriteModel)}`}>
                                   <Bot className="w-2.5 h-2.5" /> {modelDisplayName(userPref.favoriteModel)}
@@ -1154,10 +1252,33 @@ export default function AdminDashboardPage() {
                               {isOnline ? (
                                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-bold">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  Online Sekarang
+                                  Online
                                 </span>
                               ) : (
                                 <span className="text-[9px] text-white/30 font-medium">Offline</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              {AUTHORIZED_ADMIN_EMAILS.includes(u.email.toLowerCase()) ? (
+                                <span className="text-[9px] text-white/30 font-mono px-2 py-1 rounded bg-white/[0.03]">Admin</span>
+                              ) : u.isBanned ? (
+                                <button
+                                  onClick={() => openBanModal(u, "unban")}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold transition-all cursor-pointer"
+                                  title="Buka blokir akun ini"
+                                >
+                                  <ShieldCheck className="w-3 h-3" />
+                                  <span>Unban</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openBanModal(u, "ban")}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-[10px] font-semibold transition-all cursor-pointer"
+                                  title="Blokir pengguna ini"
+                                >
+                                  <Ban className="w-3 h-3" />
+                                  <span>Ban</span>
+                                </button>
                               )}
                             </td>
                           </tr>
@@ -1393,6 +1514,195 @@ export default function AdminDashboardPage() {
                 className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/10 text-white text-xs font-medium transition-colors"
               >
                 Tutup Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* MODAL: BAN / UNBAN USER CONFIRMATION & REASON */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {banModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-md bg-[#0c0d14] border border-white/10 rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className={`px-5 py-4 border-b flex items-center justify-between ${
+              banActionType === "ban"
+                ? "bg-rose-500/10 border-rose-500/20"
+                : "bg-emerald-500/10 border-emerald-500/20"
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl border ${
+                  banActionType === "ban"
+                    ? "bg-rose-500/20 border-rose-500/30 text-rose-400"
+                    : "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
+                }`}>
+                  {banActionType === "ban" ? (
+                    <Ban className="w-5 h-5" />
+                  ) : (
+                    <ShieldCheck className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    {banActionType === "ban" ? "Blokir Pengguna (Ban Account)" : "Buka Blokir Pengguna (Unban Account)"}
+                  </h3>
+                  <p className="text-[10px] text-white/50">
+                    {banActionType === "ban" ? "Pengguna akan segera ditendang dan ditolak login" : "Pulihkan hak akses login dan chat pengguna"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setBanModalUser(null)}
+                className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              {/* Target User Info Card */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <img
+                  src={banModalUser.avatar}
+                  alt={banModalUser.name}
+                  className="w-10 h-10 rounded-full object-cover bg-slate-800 border border-white/10 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate">{banModalUser.name}</p>
+                  <p className="text-[11px] text-white/50 font-mono truncate">{banModalUser.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[9px] text-white/40">Daftar: {banModalUser.createdAt}</span>
+                    <span className="text-white/20">•</span>
+                    <span className="text-[9px] text-white/40">Auth: {banModalUser.provider}</span>
+                  </div>
+                </div>
+              </div>
+
+              {banActionType === "ban" ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-white/80 mb-1.5">
+                      Alasan Pemblokiran (Reason)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={banReasonInput}
+                      onChange={(e) => setBanReasonInput(e.target.value)}
+                      placeholder="Masukkan alasan pemblokiran yang jelas dan transparan..."
+                      className="w-full px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs text-white placeholder-white/30 outline-none focus:border-rose-500/50 transition-colors resize-none"
+                    />
+                  </div>
+
+                  {/* Preset Quick Chips */}
+                  <div>
+                    <p className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1.5">
+                      Pilihan Alasan Cepat:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "Spam / Aktivitas Berlebihan",
+                        "Upaya Jailbreak & Pelanggaran Etika AI",
+                        "Penyalahgunaan API / Skrip Otomatis",
+                        "Pelanggaran Ketentuan Layanan",
+                      ].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setBanReasonInput(preset)}
+                          className={`text-[9px] px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                            banReasonInput === preset
+                              ? "bg-rose-500/20 border-rose-500/40 text-rose-300 font-semibold"
+                              : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20 text-rose-300/80 text-[10px] space-y-1">
+                    <p className="font-semibold flex items-center gap-1.5 text-rose-300">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      Efek Pemblokiran:
+                    </p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[9px]">
+                      <li>Sesi aktif dibatalkan seketika dan token login dicabut.</li>
+                      <li>Pengguna tidak dapat login kembali via Email maupun OAuth.</li>
+                      <li>Panggilan API chat otomatis ditolak dengan kode 403 Forbidden.</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Apakah Anda yakin ingin memulihkan akun <strong className="text-white">{banModalUser.name}</strong>? Pengguna akan dapat login dan mengakses kembali seluruh fitur chat.
+                  </p>
+                  {banModalUser.banReason && (
+                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[10px]">
+                      <span className="text-white/40 block mb-0.5 font-semibold">Alasan Pemblokiran Sebelumnya:</span>
+                      <span className="text-rose-300/90 italic">&ldquo;{banModalUser.banReason}&rdquo;</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Feedback Alert */}
+              {banFeedback && (
+                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  banFeedback.type === "success"
+                    ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"
+                    : "bg-rose-500/10 border border-rose-500/30 text-rose-300"
+                }`}>
+                  {banFeedback.type === "success" ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                  )}
+                  <span>{banFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3.5 border-t border-white/[0.08] bg-white/[0.02] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBanModalUser(null)}
+                disabled={banLoading}
+                className="px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/10 text-white/60 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteBanAction}
+                disabled={banLoading}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 cursor-pointer ${
+                  banActionType === "ban"
+                    ? "bg-rose-500 hover:bg-rose-600 text-white"
+                    : "bg-emerald-500 hover:bg-emerald-600 text-slate-950"
+                }`}
+              >
+                {banLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Memproses...</span>
+                  </>
+                ) : banActionType === "ban" ? (
+                  <>
+                    <Ban className="w-3.5 h-3.5" />
+                    <span>Konfirmasi Blokir Akun</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Konfirmasi Buka Blokir</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

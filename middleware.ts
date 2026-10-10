@@ -38,6 +38,28 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
+    // Check if the user is banned
+    const isBanned = Boolean(
+      (user?.banned_until && new Date(user.banned_until).getTime() > Date.now()) ||
+      user?.app_metadata?.is_banned
+    );
+
+    // If user is banned, revoke access, clear session, and redirect to /login
+    if (user && isBanned) {
+      const banReason = (user.app_metadata?.ban_reason as string) || "Akun Anda telah dinonaktifkan oleh administrator.";
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("banned", "1");
+      url.searchParams.set("reason", banReason);
+      const redirectRes = NextResponse.redirect(url);
+      request.cookies.getAll().forEach((cookie) => {
+        if (cookie.name.includes("sb-") || cookie.name.includes("supabase")) {
+          redirectRes.cookies.delete(cookie.name);
+        }
+      });
+      return redirectRes;
+    }
+
     // Public routes that don't require authentication
     const isPublicRoute =
       request.nextUrl.pathname === "/" ||

@@ -36,11 +36,17 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
     }
 
-    // Sanitize and return user data
+    // Sanitize and return user data including ban status
     const users = (data?.users || []).map((u) => {
       const meta = u.user_metadata || {};
       const provider = u.app_metadata?.provider || "email";
       const isGoogle = provider === "google" || provider === "google-one-tap";
+      
+      const isBanned = Boolean(
+        (u.banned_until && new Date(u.banned_until).getTime() > Date.now()) ||
+        u.app_metadata?.is_banned
+      );
+      const banReason = (u.app_metadata?.ban_reason as string) || (isBanned ? "Akun dinonaktifkan oleh administrator" : "");
 
       return {
         id: u.id,
@@ -50,6 +56,10 @@ export async function GET() {
         provider: isGoogle ? "Google" : "Email",
         createdAt: u.created_at,
         lastSignIn: u.last_sign_in_at || null,
+        isBanned,
+        banReason,
+        bannedUntil: u.banned_until || null,
+        bannedAt: u.app_metadata?.banned_at || null,
       };
     });
 
@@ -60,5 +70,103 @@ export async function GET() {
   } catch (err) {
     console.error("Admin users API error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const serverClient = await createServerSupabase();
+    const { data: { user: adminUser } } = await serverClient.auth.getUser();
+
+    if (!adminUser || !AUTHORIZED_ADMIN_EMAILS.includes((adminUser.email || "").toLowerCase())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { userId, action, reason } = body;
+
+    if (!userId || !action || !["ban", "unban"].includes(action)) {
+      return NextResponse.json({ error: "Parameter tidak lengkap atau tidak valid" }, { status: 400 });
+    }
+
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    // Get the target user to check identity
+    const { data: targetUserData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (getUserError || !targetUserData?.user) {
+      return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
+    }
+
+    const targetUser = targetUserData.user;
+    const targetEmail = (targetUser.email || "").toLowerCase();
+
+    // Guard: Dilarang memblokir sesama administrator!
+    if (AUTHORIZED_ADMIN_EMAILS.includes(targetEmail)) {
+      return NextResponse.json(
+        { error: "Dilarang memblokir akun sesama administrator!" },
+        { status: 400 }
+      );
+    }
+
+    if (action === "ban") {
+      const banReason = reason?.trim() || "Pelanggaran terhadap ketentuan layanan LucidChat";
+      
+      const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        ban_duration: "876000h", // ~100 tahun (permanen)
+        app_metadata: {
+          ...targetUser.app_metadata,
+          is_banned: true,
+          ban_reason: banReason,
+          banned_at: new Date().toISOString(),
+          banned_by: adminUser.email,
+        },
+      });
+
+      if (banError) {
+        console.error("Error banning user:", banError);
+        return NextResponse.json({ error: banError.message || "Gagal memblokir pengguna" }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "ban",
+        userId,
+        isBanned: true,
+        banReason,
+      });
+    } else {
+      // Unban
+      const { error: unbanError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        ban_duration: "none",
+        app_metadata: {
+          ...targetUser.app_metadata,
+          is_banned: false,
+          ban_reason: null,
+          unbanned_at: new Date().toISOString(),
+          unbanned_by: adminUser.email,
+        },
+      });
+
+      if (unbanError) {
+        console.error("Error unbanning user:", unbanError);
+        return NextResponse.json({ error: unbanError.message || "Gagal membuka blokir pengguna" }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "unban",
+        userId,
+        isBanned: false,
+        banReason: "",
+      });
+    }
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Internal server error";
+    console.error("Admin user ban API error:", err);
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }

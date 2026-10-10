@@ -84,6 +84,22 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
+    // Check if the user is banned
+    const isUserBanned = Boolean(
+      (user?.banned_until && new Date(user.banned_until).getTime() > Date.now()) ||
+      user?.app_metadata?.is_banned
+    );
+
+    if (user && isUserBanned) {
+      const banReason = (user.app_metadata?.ban_reason as string) || "Pelanggaran terhadap ketentuan layanan platform";
+      return new Response(
+        JSON.stringify({
+          error: `Akses ditolak: Akun Anda telah dinonaktifkan oleh administrator (${banReason}). Hubungi putrarawr18@gmail.com jika merasa ini adalah kekeliruan.`
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const userId = user?.id || "demo-user-session";
 
     const {
