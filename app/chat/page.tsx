@@ -11,6 +11,7 @@ import { CodePreviewTabs } from "@/components/artifact/CodePreviewTabs";
 import { LucidMode } from "@/lib/lucid-modes";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { VoiceCallModal } from "@/components/chat/VoiceCallModal";
+import { PromptLibraryModal } from "@/components/chat/PromptLibraryModal";
 import { X, PanelLeftOpen, Check } from "lucide-react";
 import { playSuccessSound, playClickSound } from "@/lib/sound";
 import { requestNotificationPermission, sendNativePushNotification } from "@/lib/notifications";
@@ -87,6 +88,25 @@ export default function ChatPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
+  const [isPromptLibraryOpen, setIsPromptLibraryOpen] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStopGeneration = () => {
+    playClickSound();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+    setMessages((prev) =>
+      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m))
+    );
+    if (isArenaMode) {
+      setArenaMessages((prev) =>
+        prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m))
+      );
+    }
+  };
 
   // Resizable split panel states
   const [previewWidth, setPreviewWidth] = useState(50);
@@ -391,6 +411,10 @@ export default function ChatPage() {
     setMessages(newMessages);
     setIsLoading(true);
 
+    // Setup cancelable stream controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     let activeChatId = currentSessionId;
     let currentUser = null;
     try {
@@ -465,6 +489,7 @@ export default function ChatPage() {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
             modelId: model.id,
@@ -562,6 +587,10 @@ export default function ChatPage() {
 
         return accumulatedContent;
       } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+          console.log("Stream generation stopped by user.");
+          return accumulatedContent;
+        }
         const errorMessage = err instanceof Error ? err.message : "Gagal mendapatkan respons AI";
         setter((prev) =>
           prev.map((msg) =>
@@ -918,6 +947,8 @@ export default function ChatPage() {
               }}
               isHandsFreeMode={isHandsFreeMode}
               onToggleHandsFreeMode={() => setIsHandsFreeMode((prev) => !prev)}
+              onStopGeneration={handleStopGeneration}
+              onOpenPromptLibrary={() => setIsPromptLibraryOpen(true)}
             />
           </div>
         </div>
@@ -953,6 +984,13 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      {/* Prompt Library Modal Component */}
+      <PromptLibraryModal
+        isOpen={isPromptLibraryOpen}
+        onClose={() => setIsPromptLibraryOpen(false)}
+        onSelectPrompt={(promptText) => handleSendMessage(promptText)}
+      />
 
       {/* Settings Modal Component */}
       <SettingsModal

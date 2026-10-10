@@ -57,6 +57,8 @@ export function SettingsModal({
   const [displayName, setDisplayName] = useState(userName);
   const [avatarUrl, setAvatarUrl] = useState(userAvatar);
   const [systemPrompt, setSystemPrompt] = useState(customSystemPrompt);
+  const [userBio, setUserBio] = useState("");
+  const [responsePref, setResponsePref] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const [autoOpenPreview, setAutoOpenPreview] = useState(true);
@@ -84,10 +86,13 @@ export function SettingsModal({
         const storedSound = localStorage.getItem("lucidchat_sound_enabled") !== "false";
         const storedScroll = localStorage.getItem("lucidchat_autoscroll") !== "false";
         const storedPreview = localStorage.getItem("lucidchat_auto_code_preview") !== "false";
-
         setSoundEnabled(storedSound);
         setAutoScroll(storedScroll);
         setAutoOpenPreview(storedPreview);
+
+        // Load User Memory
+        setUserBio(localStorage.getItem("lucidchat_user_bio") || "");
+        setResponsePref(localStorage.getItem("lucidchat_user_response_pref") || "");
 
         // Load BYOK Keys
         setOpenRouterKey(localStorage.getItem("lucidchat_custom_openrouter_key") || "");
@@ -117,10 +122,19 @@ export function SettingsModal({
     const trimmedName = displayName.trim();
     const trimmedAvatar = avatarUrl.trim();
     const trimmedPrompt = systemPrompt.trim();
+    const trimmedBio = userBio.trim();
+    const trimmedPref = responsePref.trim();
+
+    // Synthesize personalized system prompt with User Memory
+    const promptSections: string[] = [];
+    if (trimmedBio) promptSections.push(`[PROFIL PENGGUNA & LATAR BELAKANG]\n${trimmedBio}`);
+    if (trimmedPref) promptSections.push(`[PREFERENSI GAYA RESPON]\n${trimmedPref}`);
+    if (trimmedPrompt) promptSections.push(`[INSTRUKSI KHUSUS]\n${trimmedPrompt}`);
+    const finalPrompt = promptSections.length > 0 ? promptSections.join("\n\n") : trimmedPrompt;
 
     if (onUpdateUserName) onUpdateUserName(trimmedName);
     if (onUpdateUserAvatar) onUpdateUserAvatar(trimmedAvatar);
-    if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(trimmedPrompt);
+    if (onUpdateCustomSystemPrompt) onUpdateCustomSystemPrompt(finalPrompt);
 
     try {
       const supabase = createClient();
@@ -129,8 +143,10 @@ export function SettingsModal({
         if (user) {
           localStorage.setItem(`lucidchat_${user.id}_user_name`, trimmedName);
           localStorage.setItem(`lucidchat_${user.id}_user_avatar`, trimmedAvatar);
-          localStorage.setItem(`lucidchat_${user.id}_custom_system_prompt`, trimmedPrompt);
+          localStorage.setItem(`lucidchat_${user.id}_custom_system_prompt`, finalPrompt);
         }
+        localStorage.setItem("lucidchat_user_bio", trimmedBio);
+        localStorage.setItem("lucidchat_user_response_pref", trimmedPref);
         localStorage.setItem("lucidchat_sound_enabled", soundEnabled ? "true" : "false");
         localStorage.setItem("lucidchat_autoscroll", autoScroll ? "true" : "false");
         localStorage.setItem("lucidchat_auto_code_preview", autoOpenPreview ? "true" : "false");
@@ -363,23 +379,55 @@ export function SettingsModal({
             </div>
           )}
 
-          {/* TAB 2: INSTRUKSI AI */}
+          {/* TAB 2: PERSONA & MEMORI PENGGUNA */}
           {activeTab === "persona" && (
             <div className="space-y-4">
+              {/* Field 1: User Context Memory */}
               <div>
-                <label className="block text-xs font-medium text-white/80 mb-1.5">
-                  {t("settings.systemPrompt", "Custom System Prompt (Lucid Persona)")}
+                <label className="block text-xs font-semibold text-white/90 mb-1">
+                  1. Tentang Anda (User Context Memory)
+                </label>
+                <p className="text-[10px] text-white/40 mb-1.5">
+                  Informasi latar belakang yang ingin Anda agar AI ingat secara permanen di setiap percakapan.
+                </p>
+                <textarea
+                  value={userBio}
+                  onChange={(e) => setUserBio(e.target.value)}
+                  rows={2}
+                  placeholder="Contoh: Saya siswa SMK jurusan RPL di Bondowoso, sedang PKL, fokus pada Fullstack Next.js & TypeScript..."
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all resize-none"
+                />
+              </div>
+
+              {/* Field 2: Response Style */}
+              <div>
+                <label className="block text-xs font-semibold text-white/90 mb-1">
+                  2. Gaya Respon Favorit (Preferred Response Style)
+                </label>
+                <p className="text-[10px] text-white/40 mb-1.5">
+                  Bagaimana Anda ingin AI merespons gaya bicara dan format jawabannya.
+                </p>
+                <textarea
+                  value={responsePref}
+                  onChange={(e) => setResponsePref(e.target.value)}
+                  rows={2}
+                  placeholder="Contoh: Bahasa Indonesia santai dan lugas, to the point, kode lengkap tanpa singkatan, jelaskan error secara terstruktur..."
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all resize-none"
+                />
+              </div>
+
+              {/* Field 3: Advanced System Prompt */}
+              <div>
+                <label className="block text-xs font-semibold text-white/90 mb-1">
+                  3. Instruksi Persona Tambahan (Advanced Prompt)
                 </label>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
-                  rows={4}
-                  placeholder={t("settings.systemPromptPlaceholder", "Example: Always answer politely, concisely, with step-by-step code samples...")}
+                  rows={3}
+                  placeholder={t("settings.systemPromptPlaceholder", "Contoh: Bertindaklah sebagai Lead Software Architect yang berpengalaman...")}
                   className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-white/30 outline-none focus:border-white/30 transition-all resize-none"
                 />
-                <p className="text-[10px] text-white/40 mt-1">
-                  {t("settings.systemPromptHint", "This instruction will be appended to every AI chat session.")}
-                </p>
               </div>
 
               <div>
@@ -389,17 +437,30 @@ export function SettingsModal({
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => applyPromptPreset("Answer concisely, clearly, and get straight to the point.")}
-                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
+                    onClick={() => {
+                      setResponsePref("Jawab secara padat, ringkas, langsung ke intisari, dan hindari basa-basi.");
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all cursor-pointer"
                   >
-                    {t("settings.presetShort", "Concise & Direct")}
+                    ⚡ Ringkas & To-the-Point
                   </button>
                   <button
                     type="button"
-                    onClick={() => applyPromptPreset("Act as a Senior Code Architect. Provide clean, modular code with clear explanations.")}
-                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all"
+                    onClick={() => {
+                      setSystemPrompt("Bertindaklah sebagai Senior Software Architect & Security Engineer. Terapkan Clean Architecture dan kode defensif.");
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all cursor-pointer"
                   >
-                    {t("settings.presetArchitect", "Senior Code Architect")}
+                    🛠️ Senior Architect
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResponsePref("Jelaskan setiap konsep langkah-demi-langkah seperti tutorial praktis dengan analogi sederhana.");
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs text-white/80 transition-all cursor-pointer"
+                  >
+                    📚 Guru / Mentor Edukatif
                   </button>
                 </div>
               </div>

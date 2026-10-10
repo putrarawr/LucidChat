@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords, Headphones, Loader2, UploadCloud } from "lucide-react";
+import { ArrowUp, ChevronDown, Sparkles, Brain, Globe, X, Paperclip, Mic, MicOff, FileText, Image as ImageIcon, Wand2, CheckCircle2, Search, Code2, PenTool, Check, Layers, Cpu, Swords, Headphones, Loader2, UploadCloud, Square, Lightbulb } from "lucide-react";
 import { DEFAULT_MODELS, ModelItem } from "@/lib/model-types";
 import { LUCID_MODES, LucidMode } from "@/lib/lucid-modes";
 import { playClickSound, playSendSound } from "@/lib/sound";
@@ -151,6 +151,8 @@ interface ChatInputBarProps {
   onToggleArenaMode?: () => void;
   isHandsFreeMode?: boolean;
   onToggleHandsFreeMode?: () => void;
+  onStopGeneration?: () => void;
+  onOpenPromptLibrary?: () => void;
 }
 
 export function ChatInputBar({
@@ -165,6 +167,8 @@ export function ChatInputBar({
   onToggleArenaMode,
   isHandsFreeMode = false,
   onToggleHandsFreeMode,
+  onStopGeneration,
+  onOpenPromptLibrary,
 }: ChatInputBarProps) {
   const { t } = useI18n();
   const [input, setInput] = useState("");
@@ -974,6 +978,21 @@ export function ChatInputBar({
                 <ChevronDown className={`w-3 h-3 text-white/40 transition-transform duration-200 shrink-0 ${isModelOpen ? "rotate-180" : ""}`} />
               </button>
             )}
+            {/* Prompt Library Button */}
+            {onOpenPromptLibrary && (
+              <button
+                type="button"
+                onClick={() => {
+                  playClickSound();
+                  onOpenPromptLibrary();
+                }}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 text-amber-300 text-[10px] sm:text-xs font-semibold transition-all duration-200 shadow-xs cursor-pointer ml-0.5 sm:ml-1"
+                title="Buka Prompt Library (Koleksi Template AI Siap Pakai)"
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Prompts</span>
+              </button>
+            )}
           </div>
 
           {/* Right Toolbar Items: File Attachment Choice, Mic Voice Input, Hands-Free Voice Call, Send */}
@@ -1051,7 +1070,7 @@ export function ChatInputBar({
             <button
               type="button"
               onClick={handleToggleVoice}
-              className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
+              className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 cursor-pointer ${
                 isListening
                   ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
                   : "hover:bg-white/[0.10] text-white/50 hover:text-white"
@@ -1070,7 +1089,7 @@ export function ChatInputBar({
                   onToggleHandsFreeMode();
                 }
               }}
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 ${
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 cursor-pointer ${
                 isHandsFreeMode
                   ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/50 shadow-[0_0_18px_rgba(16,185,129,0.4)] animate-pulse"
                   : "bg-white/[0.06] text-white/60 border border-white/[0.08] hover:bg-white/[0.12] hover:text-white"
@@ -1080,26 +1099,42 @@ export function ChatInputBar({
               <Headphones className={`w-4 h-4 ${isHandsFreeMode ? "text-emerald-400" : ""}`} />
             </button>
 
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={(!input.trim() && attachments.length === 0) || isLoading}
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-250 shrink-0 ${
-                (input.trim() || attachments.length > 0) && !isLoading
-                  ? "bg-white text-black shadow-[0_0_16px_rgba(255,255,255,0.35)] hover:shadow-[0_0_24px_rgba(255,255,255,0.45)] hover:scale-105 active:scale-95"
-                  : "bg-white/[0.06] text-white/25 border border-white/[0.06] cursor-not-allowed"
-              }`}
-            >
-              {isLoading ? (
-                <div className="flex gap-0.5 items-center">
-                  <span className="typing-dot" style={{ width: 3, height: 3 }} />
-                  <span className="typing-dot" style={{ width: 3, height: 3 }} />
-                  <span className="typing-dot" style={{ width: 3, height: 3 }} />
-                </div>
-              ) : (
-                <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-              )}
-            </button>
+            {/* Send or Stop Generating Button */}
+            {isLoading && onStopGeneration ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  playClickSound();
+                  onStopGeneration();
+                }}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-red-500 hover:bg-red-600 text-white shadow-[0_0_16px_rgba(239,68,68,0.5)] active:scale-95 cursor-pointer animate-pulse"
+                title="Hentikan Inferensi AI (Stop Generating)"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-250 shrink-0 cursor-pointer ${
+                  (input.trim() || attachments.length > 0) && !isLoading
+                    ? "bg-white text-black shadow-[0_0_16px_rgba(255,255,255,0.35)] hover:shadow-[0_0_24px_rgba(255,255,255,0.45)] hover:scale-105 active:scale-95"
+                    : "bg-white/[0.06] text-white/25 border border-white/[0.06] cursor-not-allowed"
+                }`}
+              >
+                {isLoading ? (
+                  <div className="flex gap-0.5 items-center">
+                    <span className="typing-dot" style={{ width: 3, height: 3 }} />
+                    <span className="typing-dot" style={{ width: 3, height: 3 }} />
+                    <span className="typing-dot" style={{ width: 3, height: 3 }} />
+                  </div>
+                ) : (
+                  <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </form>

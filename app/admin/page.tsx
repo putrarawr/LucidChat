@@ -352,6 +352,15 @@ export default function AdminDashboardPage() {
         )
       );
 
+      // Record security audit event into live activity feed
+      const auditEvent: ActivityEvent = {
+        id: `audit_${Date.now()}`,
+        type: banActionType === "ban" ? "chat_deleted" : "chat_created",
+        description: `🛡️ Security Audit: Admin ${banActionType === "ban" ? "memblokir" : "membuka blokir"} akun ${banModalUser.name} (${banModalUser.email}). ${banReasonInput.trim() ? `Alasan: "${banReasonInput.trim()}"` : ""}`,
+        timestamp: new Date().toISOString(),
+      };
+      setActivityFeed((prev) => [auditEvent, ...prev]);
+
       setBanFeedback({
         type: "success",
         message: banActionType === "ban"
