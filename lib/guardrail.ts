@@ -55,6 +55,33 @@ export const INJECTION_PATTERNS = [
   /<\|\s*(im_start|im_end|system)\s*\|>/i,
   /###\s*(System|Instruction|Assistant)\s*:/i,
   /```system\b/i,
+
+  // 7. Master Prompt, Canon Roleplay & Fictional Story/RPG Simulator Hijackings
+  /\b(master|ultimate)\s+prompt\b.*?(roleplay|simulator|rpg|canon|npc|character|anime|cerita)/i,
+  /\b(canon\s+roleplay\s+simulator|roleplay\s+simulator|anime\s+roleplay\s+simulator|text\s+rpg\s+simulator|game\s+master\s+simulator)\b/i,
+  /(mulai\s+sekarang|mulai\s+saat\s+ini|dari\s+sekarang)\s*,?\s*(kamu\s+adalah|jadilah)\s+.*?(roleplay|simulator|npc|mesin\s+rpg|canon\s+simulator|game\s+master)/i,
+  /(from\s+now\s+on|starting\s+now)\s*,?\s*(you\s+are|act\s+as)\s+.*?(roleplay|simulator|npc|rpg\s+engine|canon\s+simulator|game\s+master)/i,
+  /(tugasmu|tujuanmu|fungsi\s+kamu)\s+adalah\s+(membangun\s+dunia|mengendalikan\s+npc|menjalankan\s+simulasi\s+roleplay|menjadi\s+game\s+master)/i,
+  /(your\s+(task|job|duty|purpose)\s+is\s+to\s+(build\s+a\s+world|control\s+npcs|run\s+a\s+roleplay\s+simulation|act\s+as\s+a\s+game\s+master))/i,
+  /\b(dunia\s+dan\s+npc\s+dikendalikan\s+ai|tindakan\s+penting\s+oc\s+wajib\s+berada\s+di\s+tangan\s+pengguna)\b/i,
+  /\b(original\s+character\s*\(?oc\)?|karakter\s+original\s*\(?oc\)?).*?(alur\s+canon|dunia\s+(anime|manga|donghua|novel|film)|kepatuhan\s+canon|mengendalikan\s+npc)/i,
+  /(bagian|tahap)\s*\d+\s*[-—:]\s*(pengaturan\s+awal\s+roleplay|pembuatan\s+karakter\s+oc|setup\s+roleplay)/i,
+  /sebelum\s+cerita\s+dimulai\s*,\s*tanyakan\s+informasi\s+berikut\s+kepada\s+pengguna/i,
+  /(tingkat\s+kesulitan\s+simulasi|mode\s+kepatuhan\s+canon|kecepatan\s+perkembangan\s+karakter)/i,
+];
+
+export const ROLEPLAY_SIMULATOR_PATTERNS = [
+  /\b(master|ultimate)\s+prompt\b.*?(roleplay|simulator|rpg|canon|npc|character|anime|cerita)/i,
+  /\b(canon\s+roleplay\s+simulator|roleplay\s+simulator|anime\s+roleplay\s+simulator|text\s+rpg\s+simulator|game\s+master\s+simulator)\b/i,
+  /(mulai\s+sekarang|mulai\s+saat\s+ini|dari\s+sekarang)\s*,?\s*(kamu\s+adalah|jadilah)\s+.*?(roleplay|simulator|npc|mesin\s+rpg|canon\s+simulator|game\s+master)/i,
+  /(from\s+now\s+on|starting\s+now)\s*,?\s*(you\s+are|act\s+as)\s+.*?(roleplay|simulator|npc|rpg\s+engine|canon\s+simulator|game\s+master)/i,
+  /(tugasmu|tujuanmu|fungsi\s+kamu)\s+adalah\s+(membangun\s+dunia|mengendalikan\s+npc|menjalankan\s+simulasi\s+roleplay|menjadi\s+game\s+master)/i,
+  /(your\s+(task|job|duty|purpose)\s+is\s+to\s+(build\s+a\s+world|control\s+npcs|run\s+a\s+roleplay\s+simulation|act\s+as\s+a\s+game\s+master))/i,
+  /\b(dunia\s+dan\s+npc\s+dikendalikan\s+ai|tindakan\s+penting\s+oc\s+wajib\s+berada\s+di\s+tangan\s+pengguna)\b/i,
+  /\b(original\s+character\s*\(?oc\)?|karakter\s+original\s*\(?oc\)?).*?(alur\s+canon|dunia\s+(anime|manga|donghua|novel|film)|kepatuhan\s+canon|mengendalikan\s+npc)/i,
+  /(bagian|tahap)\s*\d+\s*[-—:]\s*(pengaturan\s+awal\s+roleplay|pembuatan\s+karakter\s+oc|setup\s+roleplay)/i,
+  /sebelum\s+cerita\s+dimulai\s*,\s*tanyakan\s+informasi\s+berikut\s+kepada\s+pengguna/i,
+  /(tingkat\s+kesulitan\s+simulasi|mode\s+kepatuhan\s+canon|kecepatan\s+perkembangan\s+karakter)/i,
 ];
 
 /**
@@ -82,7 +109,17 @@ export function checkPatternInjection(input: string): { safe: boolean; reason?: 
     .replace(/[\u200B-\u200D\uFEFF\u00A0\u200E\u200F]/g, "")
     .replace(/\r\n/g, "\n");
 
-  // 1. Direct Pattern Check
+  // 1. Roleplay Simulator Specific Check
+  for (const pattern of ROLEPLAY_SIMULATOR_PATTERNS) {
+    if (pattern.test(normalized)) {
+      return {
+        safe: false,
+        reason: "Permintaan ditolak: LucidChat difokuskan untuk produktivitas, analisis kode, riset, dan penalaran teknis. Master prompt simulasi roleplay fiksi mendalam (RPG/NPC/Canon simulator) tidak didukung pada sistem ini.",
+      };
+    }
+  }
+
+  // 2. Direct Pattern Check
   for (const pattern of INJECTION_PATTERNS) {
     if (pattern.test(normalized)) {
       return {
