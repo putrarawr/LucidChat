@@ -308,6 +308,7 @@ export default function AdminDashboardPage() {
   const [banModalUser, setBanModalUser] = useState<RegisteredUserRecord | null>(null);
   const [banActionType, setBanActionType] = useState<"ban" | "unban">("ban");
   const [banReasonInput, setBanReasonInput] = useState("");
+  const [banIpInput, setBanIpInput] = useState("");
   const [banLoading, setBanLoading] = useState(false);
   const [banFeedback, setBanFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -316,6 +317,7 @@ export default function AdminDashboardPage() {
     setBanModalUser(user);
     setBanActionType(action);
     setBanReasonInput(action === "ban" ? "Spam / Aktivitas Berlebihan" : "");
+    setBanIpInput("");
     setBanFeedback(null);
   };
 
@@ -331,6 +333,7 @@ export default function AdminDashboardPage() {
           userId: banModalUser.id,
           action: banActionType,
           reason: banReasonInput.trim(),
+          ipToBlacklist: banIpInput.trim(),
         }),
       });
 
@@ -1772,14 +1775,29 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-[11px] font-semibold text-white/80 mb-1.5 flex items-center justify-between">
+                      <span>Blacklist Alamat IP (Opsional)</span>
+                      <span className="text-[9px] text-white/40">Contoh: 114.125.x.x</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={banIpInput}
+                      onChange={(e) => setBanIpInput(e.target.value)}
+                      placeholder="Masukkan alamat IP untuk langsung diblokir..."
+                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs text-white placeholder-white/30 outline-none focus:border-rose-500/50 transition-colors font-mono"
+                    />
+                  </div>
+
                   <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20 text-rose-300/80 text-[10px] space-y-1">
                     <p className="font-semibold flex items-center gap-1.5 text-rose-300">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      Efek Pemblokiran:
+                      Efek Pemblokiran Komprehensif:
                     </p>
                     <ul className="list-disc pl-4 space-y-0.5 text-[9px]">
                       <li>Sesi aktif dibatalkan seketika dan token login dicabut.</li>
-                      <li>Pengguna tidak dapat login kembali via Email maupun OAuth.</li>
+                      <li>Pengguna ditendang langsung ke halaman Login dengan Modal Penonaktifan.</li>
+                      <li>Jika IP diisi, seluruh request dari IP tersebut akan diblokir otomatis.</li>
                       <li>Panggilan API chat otomatis ditolak dengan kode 403 Forbidden.</li>
                     </ul>
                   </div>

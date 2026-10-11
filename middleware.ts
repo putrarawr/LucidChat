@@ -1,8 +1,29 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isIpBlacklisted } from "@/lib/security";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  // 1. IP Blacklist Check: immediately bounce blacklisted IPs to /login?banned=1
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const realIp = request.headers.get("x-real-ip");
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
+  const clientIp = (forwardedFor ? forwardedFor.split(",")[0].trim() : null) || realIp || cfConnectingIp || "127.0.0.1";
+
+  if (isIpBlacklisted(clientIp) && !request.nextUrl.pathname.startsWith("/login")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("banned", "1");
+    url.searchParams.set("reason", "Alamat IP Anda telah diblacklist oleh administrator.");
+    const redirectRes = NextResponse.redirect(url);
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.includes("sb-") || cookie.name.includes("supabase")) {
+        redirectRes.cookies.delete(cookie.name);
+      }
+    });
+    return redirectRes;
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

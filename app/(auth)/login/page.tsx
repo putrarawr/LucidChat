@@ -5,6 +5,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
+import BannedUserModal from "@/components/auth/BannedUserModal";
+import { getBrowserFingerprint } from "@/lib/fingerprint";
 
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
@@ -25,6 +27,10 @@ function LoginContent() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showResendButton, setShowResendButton] = useState(false);
 
+  // Banned user modal state
+  const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
+  const [bannedReason, setBannedReason] = useState("");
+
   const supabase = createClient();
 
   // Check URL query parameters for verified email, banned status, or error messages
@@ -41,7 +47,10 @@ function LoginContent() {
     }
 
     if (isBannedParam) {
-      setErrorMessage(`⛔ Akses Ditolak: Akun Anda telah dinonaktifkan oleh administrator (${reasonParam || "Pelanggaran ketentuan layanan"}).`);
+      const reason = reasonParam || "Pelanggaran terhadap ketentuan layanan platform";
+      setBannedReason(reason);
+      setIsBannedModalOpen(true);
+      setErrorMessage(`⛔ Akses Ditolak: Akun Anda telah dinonaktifkan oleh administrator (${reason}).`);
     } else if (isVerified) {
       setSuccessMessage(t("auth.verifiedSuccess", "✅ Email verified successfully! You can now sign in with your password."));
     } else if (errorParam) {
@@ -59,15 +68,47 @@ function LoginContent() {
     setShowResendButton(false);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // 1. Device fingerprint & preflight security check
+      const fp = await getBrowserFingerprint();
+      const secRes = await fetch("/api/auth/security-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fingerprint: fp, action: "check" }),
+      });
+      const secData = await secRes.json().catch(() => ({}));
+
+      if (!secRes.ok || secData.allowed === false) {
+        if (secData.isBanned) {
+          setBannedReason(secData.reason || "Alamat IP Anda telah diblokir oleh administrator.");
+          setIsBannedModalOpen(true);
+          setLoading(false);
+          return;
+        }
+        if (secData.isRateLimited) {
+          setErrorMessage(secData.reason || "Terlalu banyak percobaan autentikasi.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Perform authentication attempt
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        // Record failed attempt for rate limiting
+        fetch("/api/auth/security-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, fingerprint: fp, action: "fail" }),
+        }).catch(() => {});
+
         const msg = error.message?.toLowerCase() || "";
         if (msg.includes("banned") || msg.includes("user is banned")) {
-          setErrorMessage("⛔ Akun Anda telah dinonaktifkan oleh administrator karena pelanggaran ketentuan layanan.");
+          setBannedReason("Akun Anda telah dinonaktifkan oleh administrator.");
+          setIsBannedModalOpen(true);
         } else if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
           setErrorMessage(t("auth.emailUnconfirmed", "Email Anda belum dikonfirmasi. Silakan cek inbox email Anda untuk link aktivasi."));
           setShowResendButton(true);
@@ -77,6 +118,28 @@ function LoginContent() {
           setErrorMessage(error.message || t("auth.loginError", "Gagal masuk. Periksa email & password Anda."));
         }
       } else {
+        // 3. Post-login verification: verify user is not banned
+        const user = data?.user;
+        const isBanned = Boolean(
+          (user?.banned_until && new Date(user.banned_until).getTime() > Date.now()) ||
+          user?.app_metadata?.is_banned
+        );
+
+        if (user && isBanned) {
+          const reason = (user.app_metadata?.ban_reason as string) || "Akun Anda telah dinonaktifkan oleh administrator.";
+          await supabase.auth.signOut();
+          setBannedReason(reason);
+          setIsBannedModalOpen(true);
+          return;
+        }
+
+        // Reset rate limiter on successful login
+        fetch("/api/auth/security-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, fingerprint: fp, action: "success" }),
+        }).catch(() => {});
+
         setSuccessMessage(t("auth.processing", "Berhasil masuk! Mengalihkan..."));
         setTimeout(() => {
           const target = email.trim().toLowerCase() === "putrarawr18@gmail.com" ? "/admin" : "/chat";
@@ -274,6 +337,14 @@ function LoginContent() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+
+      {/* Banned User Alert Modal */}
+      <BannedUserModal
+        isOpen={isBannedModalOpen}
+        onClose={() => setIsBannedModalOpen(false)}
+        reason={bannedReason}
+        email={email}
+      />
     </div>
   );
 }

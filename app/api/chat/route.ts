@@ -7,6 +7,7 @@ import { runGuardrail, sanitizePromptDelimiters } from "@/lib/guardrail";
 import { performWebSearch } from "@/lib/web-search";
 import { detectVideoUrls, analyzeVideoUrl, formatVideoContextForAI } from "@/lib/video-analyzer";
 import { DEFAULT_MODELS } from "@/lib/model-types";
+import { isIpBlacklisted } from "@/lib/security";
 
 const STRICT_SYSTEM_LOCK = `======================================================
 [PROTOKOL KEAMANAN NON-OVERRIDABLE & SYSTEM INSTRUCTION LOCK]
@@ -148,6 +149,16 @@ export async function POST(req: NextRequest) {
     const realIp = req.headers.get("x-real-ip");
     const cfConnectingIp = req.headers.get("cf-connecting-ip");
     const clientIp = (forwardedFor ? forwardedFor.split(",")[0].trim() : null) || realIp || cfConnectingIp || "127.0.0.1";
+
+    // 0. IP Blacklist Enforcement
+    if (isIpBlacklisted(clientIp)) {
+      return new Response(
+        JSON.stringify({
+          error: "Akses Ditolak: Alamat IP Anda telah diblokir oleh administrator platform. Silakan hubungi putrarawr18@gmail.com atau GitHub https://github.com/putrarawr jika merasa ini kekeliruan.",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // 1. Dual Rate Limiting (User + IP & Burst Protection)
     const userRateLimit = await checkRateLimit(`user:${userId}`);

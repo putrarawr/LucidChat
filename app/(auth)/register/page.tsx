@@ -8,6 +8,8 @@ import GoogleOneTap from "@/components/auth/GoogleOneTap";
 
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { FloatingLanguagePicker } from "@/components/ui/FloatingLanguagePicker";
+import { isDisposableEmail } from "@/lib/security";
+import { getBrowserFingerprint } from "@/lib/fingerprint";
 
 interface StrengthRule {
   key: string;
@@ -62,7 +64,8 @@ export default function RegisterPage() {
   const strengthInfo = getStrengthLevel(strengthScore, t);
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
-  const canSubmit = displayName.trim().length > 0 && strengthScore >= 4 && passwordsMatch && email.length > 0;
+  const isDisposable = useMemo(() => isDisposableEmail(email), [email]);
+  const canSubmit = displayName.trim().length > 0 && strengthScore >= 4 && passwordsMatch && email.length > 0 && !isDisposable;
 
   // Auto-polling verification status while modal is open
   useEffect(() => {
@@ -90,6 +93,11 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!canSubmit) return;
 
+    if (isDisposableEmail(email)) {
+      setErrorMessage("Domain email sekali pakai / sementara (disposable email) tidak diizinkan. Harap gunakan alamat email permanen seperti Gmail, Outlook, Yahoo, dsb.");
+      return;
+    }
+
     setLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -97,6 +105,21 @@ export default function RegisterPage() {
     const cleanName = displayName.trim();
 
     try {
+      // Security preflight check (rate limit & IP blacklist)
+      const fp = await getBrowserFingerprint();
+      const secRes = await fetch("/api/auth/security-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fingerprint: fp, action: "check" }),
+      });
+      const secData = await secRes.json().catch(() => ({}));
+
+      if (!secRes.ok || secData.allowed === false) {
+        setErrorMessage(secData.reason || "Percobaan registrasi ditolak oleh sistem keamanan.");
+        setLoading(false);
+        return;
+      }
+
       // Save display name locally immediately
       if (typeof window !== "undefined" && cleanName) {
         localStorage.setItem("lucidchat_user_name", cleanName);
@@ -228,8 +251,15 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@email.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-xs text-white placeholder-white/30 outline-none focus:border-white/40 transition-colors"
+                className={`w-full px-3.5 py-2.5 rounded-xl bg-white/[0.06] border text-xs text-white placeholder-white/30 outline-none transition-colors ${
+                  isDisposable ? "border-red-500/60 focus:border-red-500" : "border-white/15 focus:border-white/40"
+                }`}
               />
+              {isDisposable && (
+                <p className="mt-1.5 text-[11px] text-red-400 flex items-center gap-1 animate-fade-in">
+                  <span>⛔ Domain email sementara (disposable email) tidak diizinkan. Gunakan email permanen.</span>
+                </p>
+              )}
             </div>
 
             {/* Password */}

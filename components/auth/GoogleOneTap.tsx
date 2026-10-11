@@ -50,7 +50,7 @@ export default function GoogleOneTap({
           }
 
           try {
-            const { error } = await supabase.auth.signInWithIdToken({
+            const { data, error } = await supabase.auth.signInWithIdToken({
               provider: "google",
               token: response.credential,
             });
@@ -62,10 +62,24 @@ export default function GoogleOneTap({
                   redirectTo: `${window.location.origin}/auth/callback`,
                 },
               });
-            } else if (onSuccess) {
-              onSuccess();
             } else {
-              window.location.href = "/chat";
+              const user = data?.user;
+              const isBanned = Boolean(
+                (user?.banned_until && new Date(user.banned_until).getTime() > Date.now()) ||
+                user?.app_metadata?.is_banned
+              );
+              if (user && isBanned) {
+                const reason = (user.app_metadata?.ban_reason as string) || "Akun Anda telah dinonaktifkan oleh administrator.";
+                await supabase.auth.signOut();
+                window.location.href = `/login?banned=1&reason=${encodeURIComponent(reason)}`;
+                return;
+              }
+
+              if (onSuccess) {
+                onSuccess();
+              } else {
+                window.location.href = "/chat";
+              }
             }
           } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Terjadi kesalahan saat masuk dengan Google.";

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { blacklistIp } from "@/lib/security";
 
 const AUTHORIZED_ADMIN_EMAILS = [
   "putrarawr18@gmail.com",
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { userId, action, reason } = body;
+    const { userId, action, reason, ipToBlacklist } = body;
 
     if (!userId || !action || !["ban", "unban"].includes(action)) {
       return NextResponse.json({ error: "Parameter tidak lengkap atau tidak valid" }, { status: 400 });
@@ -131,12 +132,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: banError.message || "Gagal memblokir pengguna" }, { status: 500 });
       }
 
+      // If IP to blacklist was provided, add it to the active blacklist
+      if (ipToBlacklist && typeof ipToBlacklist === "string" && ipToBlacklist.trim()) {
+        blacklistIp(ipToBlacklist.trim(), `Akun ${targetEmail} diban (${banReason})`);
+      }
+
       return NextResponse.json({
         success: true,
         action: "ban",
         userId,
         isBanned: true,
         banReason,
+        blacklistedIp: ipToBlacklist?.trim() || null,
       });
     } else {
       // Unban

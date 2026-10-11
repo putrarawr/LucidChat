@@ -14,6 +14,16 @@ export async function GET(request: Request) {
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const isBanned = Boolean(
+        (data?.user?.banned_until && new Date(data.user.banned_until).getTime() > Date.now()) ||
+        data?.user?.app_metadata?.is_banned
+      );
+      if (data?.user && isBanned) {
+        const banReason = (data.user.app_metadata?.ban_reason as string) || "Akun Anda telah dinonaktifkan oleh administrator.";
+        await supabase.auth.signOut();
+        return NextResponse.redirect(`${origin}/login?banned=1&reason=${encodeURIComponent(banReason)}`);
+      }
+
       const isAdminEmail = data?.user?.email?.toLowerCase() === "putrarawr18@gmail.com";
       const target = next || (isAdminEmail ? "/admin" : (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true"));
       return NextResponse.redirect(`${origin}${target}`);
@@ -23,6 +33,16 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { data, error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
+      const isBanned = Boolean(
+        (data?.user?.banned_until && new Date(data.user.banned_until).getTime() > Date.now()) ||
+        data?.user?.app_metadata?.is_banned
+      );
+      if (data?.user && isBanned) {
+        const banReason = (data.user.app_metadata?.ban_reason as string) || "Akun Anda telah dinonaktifkan oleh administrator.";
+        await supabase.auth.signOut();
+        return NextResponse.redirect(`${origin}/login?banned=1&reason=${encodeURIComponent(banReason)}`);
+      }
+
       const isAdminEmail = data?.user?.email?.toLowerCase() === "putrarawr18@gmail.com";
       const target = next || (isAdminEmail ? "/admin" : (data?.user?.email ? `/login?verified=true&email=${encodeURIComponent(data.user.email)}` : "/login?verified=true"));
       return NextResponse.redirect(`${origin}${target}`);
