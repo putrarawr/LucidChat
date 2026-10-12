@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
+import { getGroqClient } from "@/lib/groq-pool";
 
 export type ProviderType = 'groq' | 'openrouter' | 'deepseek' | 'cerebras' | 'ollama' | 'gemini' | 'nvidia' | 'claude' | 'kimi' | 'openai' | 'bazaarlink' | 'requestly';
 
@@ -64,8 +65,11 @@ export const anthropic = new Anthropic({
 });
 
 export function getOpenAIClient(provider: Exclude<ProviderType, 'gemini' | 'claude'>): OpenAI {
-  const clientMap: Record<Exclude<ProviderType, 'gemini' | 'claude'>, OpenAI> = {
-    groq,
+  if (provider === "groq") {
+    return getGroqClient();
+  }
+
+  const clientMap: Record<Exclude<ProviderType, 'gemini' | 'claude' | 'groq'>, OpenAI> = {
     openrouter,
     deepseek,
     cerebras,
@@ -78,4 +82,5 @@ export function getOpenAIClient(provider: Exclude<ProviderType, 'gemini' | 'clau
   };
   return clientMap[provider];
 }
+
 

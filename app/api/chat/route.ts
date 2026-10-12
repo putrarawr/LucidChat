@@ -611,22 +611,45 @@ export async function POST(req: NextRequest) {
         ] as Parameters<typeof client.chat.completions.create>[0]["messages"];
 
         let stream;
-        try {
-          stream = await client.chat.completions.create({
-            model: actualModelId,
-            messages: formattedMessages,
-            max_tokens: 16384,
-            stream: true,
-            stream_options: { include_usage: true },
+        if (activeProv === "groq" && !customGroqKey && !customBaseUrl && !customApiKey) {
+          const { executeWithGroqPool } = await import("@/lib/groq-pool");
+          stream = await executeWithGroqPool(async (poolClient) => {
+            try {
+              return await poolClient.chat.completions.create({
+                model: actualModelId,
+                messages: formattedMessages,
+                max_tokens: 16384,
+                stream: true,
+                stream_options: { include_usage: true },
+              });
+            } catch {
+              return await poolClient.chat.completions.create({
+                model: actualModelId,
+                messages: formattedMessages,
+                max_tokens: 16384,
+                stream: true,
+              });
+            }
           });
-        } catch {
-          stream = await client.chat.completions.create({
-            model: actualModelId,
-            messages: formattedMessages,
-            max_tokens: 16384,
-            stream: true,
-          });
+        } else {
+          try {
+            stream = await client.chat.completions.create({
+              model: actualModelId,
+              messages: formattedMessages,
+              max_tokens: 16384,
+              stream: true,
+              stream_options: { include_usage: true },
+            });
+          } catch {
+            stream = await client.chat.completions.create({
+              model: actualModelId,
+              messages: formattedMessages,
+              max_tokens: 16384,
+              stream: true,
+            });
+          }
         }
+
 
         const encoder = new TextEncoder();
         return new ReadableStream({

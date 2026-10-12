@@ -20,6 +20,14 @@ import {
   Key,
   Zap,
   Cpu,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { playClickSound } from "@/lib/sound";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -38,6 +46,7 @@ interface SettingsModalProps {
   customSystemPrompt?: string;
   onUpdateCustomSystemPrompt?: (prompt: string) => void;
   onSaveSuccess?: (message: string) => void;
+  initialTab?: "profile" | "persona" | "interface" | "byok" | "data" | "support";
 }
 
 export function SettingsModal({
@@ -50,9 +59,10 @@ export function SettingsModal({
   customSystemPrompt = "",
   onUpdateCustomSystemPrompt,
   onSaveSuccess,
+  initialTab,
 }: SettingsModalProps) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "byok" | "data" | "support">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "persona" | "interface" | "byok" | "data" | "support">(initialTab || "profile");
 
   const [displayName, setDisplayName] = useState(userName);
   const [avatarUrl, setAvatarUrl] = useState(userAvatar);
@@ -70,6 +80,12 @@ export function SettingsModal({
   const [customEndpointUrl, setCustomEndpointUrl] = useState("");
   const [customEndpointKey, setCustomEndpointKey] = useState("");
 
+  // BYOK UI States
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
   const [quotaInfo, setQuotaInfo] = useState<{ used: number; max: number; resetInMs: number }>({
     used: 0,
     max: 50,
@@ -78,6 +94,9 @@ export function SettingsModal({
 
   useEffect(() => {
     if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
       setDisplayName(userName);
       setAvatarUrl(userAvatar);
       setSystemPrompt(customSystemPrompt);
@@ -112,9 +131,48 @@ export function SettingsModal({
         })
         .catch(() => {});
     }
-  }, [isOpen, userName, userAvatar, customSystemPrompt]);
+  }, [isOpen, userName, userAvatar, customSystemPrompt, initialTab]);
+
 
   if (!isOpen) return null;
+
+  const handleTestKey = async (provider: string, apiKey: string, baseUrl?: string) => {
+    if (!apiKey.trim() && provider !== "custom") return;
+    playClickSound();
+    setTestingProvider(provider);
+    setTestResults((prev) => {
+      const next = { ...prev };
+      delete next[provider];
+      return next;
+    });
+
+    try {
+      const res = await fetch("/api/byok/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, apiKey: apiKey.trim(), baseUrl: baseUrl?.trim() }),
+      });
+      const data = await res.json();
+      setTestResults((prev) => ({
+        ...prev,
+        [provider]: {
+          success: Boolean(data.success),
+          message: data.message || data.error || (data.success ? "Koneksi berhasil!" : "Gagal terhubung."),
+        },
+      }));
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setTestResults((prev) => ({
+        ...prev,
+        [provider]: {
+          success: false,
+          message: `Network error: ${errMsg}`,
+        },
+      }));
+    } finally {
+      setTestingProvider(null);
+    }
+  };
 
   const handleSaveSettings = async () => {
     playClickSound();
@@ -577,61 +635,274 @@ export function SettingsModal({
                   />
                 </div>
                 <p className="text-[11px] text-white/60 leading-relaxed">
-                  💡 <strong>Bypass Kuota Batas Harian:</strong> Masukkan API Key / Custom Endpoint Anda sendiri di bawah untuk membuka <strong>Akses Unlimited tanpa Batas Harian</strong>!
+                  💡 <strong>Bypass Kuota &amp; Anti Rate-Limit:</strong> Pasang API Key gratis milik Anda di bawah untuk menikmati <strong>Akses Unlimited tanpa Batas Harian</strong> dan respons lebih cepat langsung dari provider!
                 </p>
               </div>
 
+              {/* Interactive Free API Key Guide Accordion */}
+              <div className="rounded-xl border border-amber-400/20 bg-amber-500/[0.04] p-3.5 space-y-3">
+                <div
+                  onClick={() => setIsGuideOpen(!isGuideOpen)}
+                  className="flex items-center justify-between cursor-pointer select-none group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-300">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                        <span>Panduan Dapatkan API Key Gratis</span>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-amber-400/20 text-amber-200 rounded-full">100% Free • No CC</span>
+                      </h5>
+                      <p className="text-[10px] text-white/50">Langkah mudah membuat key pribadi tanpa kartu kredit dalam 1 menit</p>
+                    </div>
+                  </div>
+                  <button type="button" className="text-white/40 group-hover:text-white transition-colors">
+                    {isGuideOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {isGuideOpen && (
+                  <div className="space-y-3 pt-2 border-t border-amber-400/15 text-xs text-white/80">
+                    {/* Step 1: Gemini */}
+                    <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <span className="font-semibold text-white flex items-center gap-1.5 text-xs">
+                          <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 text-[10px] flex items-center justify-center font-bold">1</span>
+                          Google Gemini (AI Studio) - Paling Direkomendasikan
+                        </span>
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 hover:underline font-medium"
+                        >
+                          <span>Buka Google AI Studio</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                      <ol className="text-[11px] text-white/60 space-y-1 list-decimal list-inside pl-1 leading-relaxed">
+                        <li>Buka <strong>aistudio.google.com/app/apikey</strong> lalu login dengan akun Google Anda.</li>
+                        <li>Klik tombol <strong>&quot;Create API Key&quot;</strong> (pilih Google Cloud project baru atau default).</li>
+                        <li>Salin API Key (diawali <code className="text-blue-300 bg-white/5 px-1 rounded font-mono">AIzaSy...</code>) dan tempel pada input Google Gemini di bawah.</li>
+                      </ol>
+                      <p className="text-[10px] text-emerald-400 font-medium pt-0.5">
+                        ✨ Keuntungan: Bypass server limit &amp; kuota gratis pribadi dari Google setiap hari.
+                      </p>
+                    </div>
+
+                    {/* Step 2: Groq */}
+                    <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1.5">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <span className="font-semibold text-white flex items-center gap-1.5 text-xs">
+                          <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 text-[10px] flex items-center justify-center font-bold">2</span>
+                          Groq Cloud - Kecepatan Kilat (300+ token/detik)
+                        </span>
+                        <a
+                          href="https://console.groq.com/keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[11px] text-orange-400 hover:text-orange-300 hover:underline font-medium"
+                        >
+                          <span>Buka Groq Console</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                      <ol className="text-[11px] text-white/60 space-y-1 list-decimal list-inside pl-1 leading-relaxed">
+                        <li>Buka <strong>console.groq.com/keys</strong> lalu daftar/login dengan akun Google atau GitHub.</li>
+                        <li>Klik <strong>&quot;Create API Key&quot;</strong>, beri nama misalnya &quot;LucidChat&quot;, lalu klik Submit.</li>
+                        <li>Salin kuncinya (diawali <code className="text-orange-300 bg-white/5 px-1 rounded font-mono">gsk_...</code>) dan tempel pada input Groq di bawah.</li>
+                      </ol>
+                      <p className="text-[10px] text-emerald-400 font-medium pt-0.5">
+                        ⚡ Keuntungan: Sangat cepat (Qwen 3.8 / Llama 3.3) &amp; kuota hingga 14.400 request per hari tanpa biaya.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* API Keys Form Fields */}
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <h4 className="text-xs font-bold text-white tracking-wide flex items-center gap-2">
                   <Key className="w-3.5 h-3.5 text-amber-400" />
                   <span>Kunci API Pribadi (Bring Your Own Key)</span>
                 </h4>
 
-                <div>
-                  <label className="block text-xs font-medium text-white/80 mb-1">
-                    OpenRouter API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={openRouterKey}
-                    onChange={(e) => setOpenRouterKey(e.target.value)}
-                    placeholder="sk-or-v1-..."
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
-                  />
-                  <p className="text-[10px] text-white/40 mt-1">Dapatkan di openrouter.ai/keys</p>
+                {/* Google Gemini */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-white/90 flex items-center gap-1.5">
+                      <span>Google Gemini API Key</span>
+                      <span className="text-[10px] text-emerald-400 font-semibold px-1.5 py-0.2 bg-emerald-500/10 rounded">Rekomendasi</span>
+                    </label>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Dapatkan Gratis</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
+                      <input
+                        type={showKeys["gemini"] ? "text" : "password"}
+                        value={geminiKey}
+                        onChange={(e) => setGeminiKey(e.target.value)}
+                        placeholder="AIzaSy... (atau GCP key)"
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-3.5 pr-8 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKeys((p) => ({ ...p, gemini: !p["gemini"] }))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                        title={showKeys["gemini"] ? "Sembunyikan" : "Tampilkan"}
+                      >
+                        {showKeys["gemini"] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTestKey("gemini", geminiKey)}
+                      disabled={!geminiKey.trim() || testingProvider === "gemini"}
+                      className="px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.08] hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white/90 border border-white/10 transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      {testingProvider === "gemini" ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      ) : (
+                        <span>Uji Kunci</span>
+                      )}
+                    </button>
+                  </div>
+                  {testResults["gemini"] && (
+                    <div className={`text-[11px] p-2 rounded-lg flex items-center gap-1.5 ${
+                      testResults["gemini"].success ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    }`}>
+                      {testResults["gemini"].success ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                      <span className="leading-tight">{testResults["gemini"].message}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-white/80 mb-1">
-                    Groq API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={groqKey}
-                    onChange={(e) => setGroqKey(e.target.value)}
-                    placeholder="gsk_..."
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
-                  />
-                  <p className="text-[10px] text-white/40 mt-1">Dapatkan gratis di console.groq.com/keys</p>
+                {/* Groq API Key */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-white/90 flex items-center gap-1.5">
+                      <span>Groq API Key</span>
+                      <span className="text-[10px] text-amber-400 font-semibold px-1.5 py-0.2 bg-amber-500/10 rounded">Ultra Cepat</span>
+                    </label>
+                    <a
+                      href="https://console.groq.com/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-orange-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Dapatkan Gratis</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
+                      <input
+                        type={showKeys["groq"] ? "text" : "password"}
+                        value={groqKey}
+                        onChange={(e) => setGroqKey(e.target.value)}
+                        placeholder="gsk_..."
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-3.5 pr-8 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKeys((p) => ({ ...p, groq: !p["groq"] }))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                        title={showKeys["groq"] ? "Sembunyikan" : "Tampilkan"}
+                      >
+                        {showKeys["groq"] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTestKey("groq", groqKey)}
+                      disabled={!groqKey.trim() || testingProvider === "groq"}
+                      className="px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.08] hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white/90 border border-white/10 transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      {testingProvider === "groq" ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      ) : (
+                        <span>Uji Kunci</span>
+                      )}
+                    </button>
+                  </div>
+                  {testResults["groq"] && (
+                    <div className={`text-[11px] p-2 rounded-lg flex items-center gap-1.5 ${
+                      testResults["groq"].success ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    }`}>
+                      {testResults["groq"].success ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                      <span className="leading-tight">{testResults["groq"].message}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-white/80 mb-1">
-                    Google Gemini API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={geminiKey}
-                    onChange={(e) => setGeminiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
-                  />
-                  <p className="text-[10px] text-white/40 mt-1">Dapatkan gratis di aistudio.google.com/app/apikey</p>
+                {/* OpenRouter API Key */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-white/90">
+                      OpenRouter API Key
+                    </label>
+                    <a
+                      href="https://openrouter.ai/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-white/50 hover:underline flex items-center gap-1"
+                    >
+                      <span>openrouter.ai/keys</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
+                      <input
+                        type={showKeys["openrouter"] ? "text" : "password"}
+                        value={openRouterKey}
+                        onChange={(e) => setOpenRouterKey(e.target.value)}
+                        placeholder="sk-or-v1-..."
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-3.5 pr-8 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-amber-400/60 font-mono transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKeys((p) => ({ ...p, openrouter: !p["openrouter"] }))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                        title={showKeys["openrouter"] ? "Sembunyikan" : "Tampilkan"}
+                      >
+                        {showKeys["openrouter"] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTestKey("openrouter", openRouterKey)}
+                      disabled={!openRouterKey.trim() || testingProvider === "openrouter"}
+                      className="px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.08] hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white/90 border border-white/10 transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      {testingProvider === "openrouter" ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      ) : (
+                        <span>Uji Kunci</span>
+                      )}
+                    </button>
+                  </div>
+                  {testResults["openrouter"] && (
+                    <div className={`text-[11px] p-2 rounded-lg flex items-center gap-1.5 ${
+                      testResults["openrouter"].success ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    }`}>
+                      {testResults["openrouter"].success ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                      <span className="leading-tight">{testResults["openrouter"].message}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Custom OpenAI-Compatible BaseURL */}
-                <div className="pt-2 border-t border-white/10 space-y-3">
+                <div className="pt-3 border-t border-white/10 space-y-3">
                   <h4 className="text-xs font-bold text-white tracking-wide flex items-center gap-2">
                     <Cpu className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Custom AI Endpoint / Proxy (Ollama / LiteLLM / Custom Server)</span>
@@ -654,18 +925,51 @@ export function SettingsModal({
                     <label className="block text-xs font-medium text-white/80 mb-1">
                       Custom Endpoint API Key (Optional)
                     </label>
-                    <input
-                      type="password"
-                      value={customEndpointKey}
-                      onChange={(e) => setCustomEndpointKey(e.target.value)}
-                      placeholder="Custom API Key if required..."
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-emerald-400/60 font-mono transition-all"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative flex-1">
+                        <input
+                          type={showKeys["custom"] ? "text" : "password"}
+                          value={customEndpointKey}
+                          onChange={(e) => setCustomEndpointKey(e.target.value)}
+                          placeholder="Custom API Key jika diperlukan..."
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-3.5 pr-8 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-emerald-400/60 font-mono transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowKeys((p) => ({ ...p, custom: !p["custom"] }))}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                          title={showKeys["custom"] ? "Sembunyikan" : "Tampilkan"}
+                        >
+                          {showKeys["custom"] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleTestKey("custom", customEndpointKey, customEndpointUrl)}
+                        disabled={!customEndpointUrl.trim() || testingProvider === "custom"}
+                        className="px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.08] hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white/90 border border-white/10 transition-all flex items-center gap-1.5 shrink-0"
+                      >
+                        {testingProvider === "custom" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                        ) : (
+                          <span>Uji Endpoint</span>
+                        )}
+                      </button>
+                    </div>
+                    {testResults["custom"] && (
+                      <div className={`mt-1.5 text-[11px] p-2 rounded-lg flex items-center gap-1.5 ${
+                        testResults["custom"].success ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                      }`}>
+                        {testResults["custom"].success ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                        <span className="leading-tight">{testResults["custom"].message}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           )}
+
 
           {/* TAB 5: DATA */}
           {activeTab === "data" && (

@@ -85,6 +85,8 @@ export default function ChatPage() {
   const [userAvatar, setUserAvatar] = useState<string | undefined>();
   const [customSystemPrompt, setCustomSystemPrompt] = useState<string | undefined>();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"profile" | "persona" | "interface" | "byok" | "data" | "support">("profile");
+  const [isByokBannerDismissed, setIsByokBannerDismissed] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
@@ -184,7 +186,24 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  // Check BYOK Tip Banner visibility
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDismissed = localStorage.getItem("lucidchat_hide_byok_tip") === "true";
+      const hasCustomKey = Boolean(
+        localStorage.getItem("lucidchat_custom_gemini_key") ||
+        localStorage.getItem("lucidchat_custom_groq_key") ||
+        localStorage.getItem("lucidchat_custom_openrouter_key") ||
+        localStorage.getItem("lucidchat_custom_base_url")
+      );
+      if (!isDismissed && !hasCustomKey) {
+        setIsByokBannerDismissed(false);
+      }
+    }
+  }, []);
+
   // Load User & Sessions
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -510,6 +529,7 @@ export default function ChatPage() {
           const errorData = await response.json().catch(() => ({}));
           const errText = errorData.error || `HTTP error ${response.status}`;
           if (response.status === 429 && errText.includes("kuota harian")) {
+            setSettingsInitialTab("byok");
             setIsSettingsOpen(true);
           }
           throw new Error(errText);
@@ -717,7 +737,10 @@ export default function ChatPage() {
           onPinSession={handlePinSession}
           onRenameSession={handleRenameSession}
           onExportSession={handleExportSession}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={() => {
+            setSettingsInitialTab("profile");
+            setIsSettingsOpen(true);
+          }}
           onLogout={handleLogout}
           userEmail={userEmail}
           userName={userName}
@@ -923,6 +946,39 @@ export default function ChatPage() {
 
           {/* Bottom Floating Input Bar */}
           <div className={`p-4 ${isArenaMode ? "max-w-5xl" : "max-w-3xl"} w-full mx-auto animate-entrance-input space-y-2`}>
+            {!isByokBannerDismissed && (
+              <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-2xl bg-amber-500/[0.08] border border-amber-400/20 backdrop-blur-md text-xs text-amber-200 animate-fade-in shadow-lg shadow-black/20">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <span className="text-amber-400 text-sm shrink-0">💡</span>
+                  <span className="truncate text-[11px] sm:text-xs text-white/90">
+                    Ingin chat tanpa antrean server? Pasang <strong>Google / Groq API Key gratis</strong> milikmu.
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setSettingsInitialTab("byok");
+                      setIsSettingsOpen(true);
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 hover:text-amber-200 text-[11px] font-semibold transition-all border border-amber-400/30"
+                  >
+                    Pasang Key
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsByokBannerDismissed(true);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("lucidchat_hide_byok_tip", "true");
+                      }
+                    }}
+                    className="p-1 text-white/40 hover:text-white rounded-lg transition-colors text-xs"
+                    title="Tutup tips"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end pr-1">
               <RealtimeUsersPill variant="above-input" />
             </div>
@@ -1002,11 +1058,13 @@ export default function ChatPage() {
         onUpdateUserAvatar={setUserAvatar}
         customSystemPrompt={customSystemPrompt}
         onUpdateCustomSystemPrompt={setCustomSystemPrompt}
+        initialTab={settingsInitialTab}
         onSaveSuccess={(msg) => {
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 3000);
         }}
       />
+
 
       {/* Immersive Hands-Free Voice Call Screen Modal */}
       <VoiceCallModal
