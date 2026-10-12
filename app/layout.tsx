@@ -76,7 +76,10 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs",
+    google: [
+      "C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs",
+      "googleb7af7af5c65ae5c9",
+    ],
   },
 };
 
@@ -111,6 +114,45 @@ const jsonLd = {
   }
 };
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Apakah LucidChat gratis untuk digunakan?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya, LucidChat dapat digunakan 100% gratis dengan kuota harian server yang selalu diperbarui setiap hari. Pengguna juga dapat memasukkan API Key pribadi (BYOK) untuk akses chat tanpa batas kuota."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Model AI apa saja yang didukung oleh LucidChat?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "LucidChat mendukung lebih dari 15 model kecerdasan buatan terdepan di dunia, termasuk Google Gemini 3.6 Flash, OpenAI GPT-4o, Claude 3.7 Sonnet, DeepSeek V3 & R1, Qwen 2.5 Coder, Kimi Moonshot, dan Llama 3.3 70B."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Bagaimana cara bypass batas rate limit atau kuota di LucidChat?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Gunakan fitur Bring Your Own Key (BYOK) di menu Settings. Anda bisa mendapatkan API Key gratis 100% tanpa kartu kredit dari Google AI Studio (aistudio.google.com/app/apikey) atau Groq Cloud (console.groq.com/keys)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah LucidChat mendukung live code execution dan web search?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya, LucidChat dilengkapi dengan fitur Live Code Artifact Preview untuk menjalankan kode HTML/React/Tailwind langsung di browser, serta Web Search Crawler real-time untuk jawaban terkini."
+      }
+    }
+  ]
+};
+
 import { I18nProvider } from "@/lib/i18n/I18nContext";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -135,6 +177,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="google-site-verification" content="C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs" />
+        <meta name="google-site-verification" content="googleb7af7af5c65ae5c9" />
         
         {/* GEO-Targeting Metadata */}
         <meta name="geo.region" content="ID-JK" />
@@ -146,6 +189,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       </head>
       <body className="min-h-full flex flex-col bg-[var(--surface-0)] text-white select-none overflow-x-hidden font-sans">

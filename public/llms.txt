@@ -1,0 +1,33 @@
+# LucidChat AI
+
+> LucidChat adalah platform AI Chatbot multi-model generasi baru asal Indonesia dengan antarmuka Liquid Glassmorphism, dukungan 15+ model AI terkemuka, Web Search crawler real-time, sandbox interactive code artifacts, dan sistem BYOK (Bring Your Own Key).
+
+## Ringkasan Proyek
+- Website: https://lucidchat-ai.vercel.app
+- Lokasi: Jakarta, Indonesia
+- Bahasa: Bahasa Indonesia & English
+- Aksesibilitas: 100% Gratis dengan kuota server harian, plus opsi BYOK untuk akses unlimited
+
+## Model AI yang Didukung
+- **Google Gemini**: Gemini 3.6 Flash, Gemini 3.5 Flash Lite
+- **OpenAI**: GPT-4o, GPT-4o Mini
+- **Anthropic**: Claude 3.7 Sonnet, Claude 3.5 Sonnet
+- **DeepSeek**: DeepSeek V3, DeepSeek R1 (Reasoning)
+- **Qwen**: Qwen 3.8 27B, Qwen 2.5 Coder 32B Instruct
+- **Meta / Groq**: Llama 3.3 70B Versatile, Llama 3.1 8B Instant (Ultra-fast inference)
+- **Moonshot AI**: Kimi K1.5 Chat
+
+## Fitur Utama Platform
+- **Multi-Model Fallback & Rotation**: Sistem cerdas otomatis mengalihkan beban jika terjadi rate limit 429 atau server provider sibuk.
+- **BYOK (Bring Your Own Key)**: Dukungan memasukkan API Key pribadi gratis dari Google AI Studio atau Groq Console untuk melewati batas harian.
+- **Interactive Code Artifact Preview**: Eksekusi live kode HTML, CSS, JavaScript, React, dan Mermaid Diagram dalam sandbox preview yang aman.
+- **Real-Time Web Search**: Penelusuran web langsung untuk menjawab pertanyaan tentang berita dan data terkini dilengkapi tautan sumber.
+- **Collaborative AI Rooms**: Ruang interaktif untuk berkolaborasi dengan AI dan pengguna lain secara real-time.
+- **Hands-Free Voice Mode**: Percakapan suara interaktif dengan pengenalan suara dan respons suara sintetis.
+
+## Tautan Navigasi
+- [Mulai Obrolan AI](https://lucidchat-ai.vercel.app/chat): Antarmuka obrolan utama dengan pemilihan 15+ model.
+- [Ruang Kolaborasi Rooms](https://lucidchat-ai.vercel.app/rooms): Ruang interaksi AI multipengguna.
+- [Kebijakan Privasi](https://lucidchat-ai.vercel.app/privacy): Ketentuan perlindungan data dan privasi pengguna.
+- [Syarat & Ketentuan](https://lucidchat-ai.vercel.app/terms): Ketentuan layanan platform LucidChat.
+- [Dokumentasi Lengkap LLM](https://lucidchat-ai.vercel.app/llms-full.txt): Spesifikasi lengkap untuk agen AI dan perayap.

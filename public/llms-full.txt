@@ -1,0 +1,29 @@
+# LucidChat AI - Spesifikasi Lengkap & Dokumentasi Sistem
+
+## Tentang LucidChat
+LucidChat adalah aplikasi web AI Chatbot canggih yang dirancang untuk memberikan kemudahan akses ke berbagai model kecerdasan buatan terdepan di dunia dalam satu antarmuka modern yang cepat, estetis, dan intuitif.
+
+## Arsitektur & Teknologi
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS.
+- **Backend**: Next.js Serverless Edge Routes, Supabase PostgreSQL, Streaming Response (Server-Sent Events / SSE).
+- **Inference Providers**: Google Generative AI, Groq Cloud, OpenRouter, DeepSeek, Cerebras, Ollama, Kimi Moonshot.
+
+## Sistem Kuota & Anti Rate Limit
+- **Server Pool Rotation**: Menggunakan rotasi pool multi-kunci round-robin dengan pemulihan cerdas saat menghadapi status HTTP 429 / 503.
+- **Isolasi Kuota Guest**: Setiap pengguna tanpa login dilacak kuotanya per alamat IP unik, mencegah bentrokan kuota antar pengguna publik.
+- **BYOK (Bring Your Own Key)**: Pengguna dapat menghubungkan kunci API mereka sendiri tanpa biaya dari Google AI Studio atau Groq Console untuk mendapatkan kuota tidak terbatas.
+
+## Fitur Unggulan
+1. **Multi-Model Dynamic Chat**: Beralih antar model terbaik dunia kapan saja tanpa kehilangan konteks.
+2. **Artifact Sandbox Code Runner**: Menampilkan pratinjau langsung kode HTML/React/Tailwind yang dihasilkan oleh AI secara interaktif.
+3. **Web Search Crawler**: Mengambil referensi berita dan fakta real-time dari internet.
+4. **Arena Mode**: Membandingkan hasil respons dua model AI secara berdampingan dalam satu layar.
+5. **AI Rooms**: Ruang obrolan kolaboratif dengan kecerdasan buatan.
+6. **Voice Interactive Calling**: Panggilan suara interaktif dengan AI secara hands-free.
+
+## Panduan Penggunaan API & Ekosistem
+- Halaman Login & Registrasi: https://lucidchat-ai.vercel.app/login
+- Halaman Chat Utama: https://lucidchat-ai.vercel.app/chat
+- Sitemap XML: https://lucidchat-ai.vercel.app/sitemap.xml
+- Kontak Pengembang: putrarawr18@gmail.com
+- Repositori: https://github.com/putrarawr/LucidChat

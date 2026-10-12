@@ -12,16 +12,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/privacy`,
+      url: `${baseUrl}/chat`,
       lastModified: currentDate,
-      changeFrequency: "monthly",
-      priority: 0.6,
+      changeFrequency: "daily",
+      priority: 0.95,
     },
     {
-      url: `${baseUrl}/terms`,
+      url: `${baseUrl}/rooms`,
       lastModified: currentDate,
-      changeFrequency: "monthly",
-      priority: 0.6,
+      changeFrequency: "daily",
+      priority: 0.85,
     },
     {
       url: `${baseUrl}/login`,
@@ -35,5 +35,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+
   ];
 }

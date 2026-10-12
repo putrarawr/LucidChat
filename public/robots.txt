@@ -28,4 +28,9 @@ Allow: /
 User-agent: Applebot
 Allow: /
 
+# LLM Context Documentation (https://llmstxt.org)
+User-agent: *
+Allow: /llms.txt
+Allow: /llms-full.txt
+
 Sitemap: https://lucidchat-ai.vercel.app/sitemap.xml
