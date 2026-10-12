@@ -77,11 +77,12 @@ export const metadata: Metadata = {
   },
   verification: {
     google: [
+      "7uQGS3EmRA64Z8Wly73Zs7ZAOJpFzXN-dJFt51009Mo",
       "C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs",
-      "googleb7af7af5c65ae5c9",
     ],
   },
 };
+
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -176,8 +177,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="google-site-verification" content="7uQGS3EmRA64Z8Wly73Zs7ZAOJpFzXN-dJFt51009Mo" />
         <meta name="google-site-verification" content="C76-Ymp8Dk4TtuLp2h09HPvgGbVQV5Do6ngnVOo8CJs" />
-        <meta name="google-site-verification" content="googleb7af7af5c65ae5c9" />
+
         
         {/* GEO-Targeting Metadata */}
         <meta name="geo.region" content="ID-JK" />
