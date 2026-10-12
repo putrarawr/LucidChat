@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getOpenAIClient, googleAI, anthropic, ProviderType } from "@/lib/ai-clients";
+import { getOpenAIClient, anthropic, ProviderType } from "@/lib/ai-clients";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, validatePromptLength } from "@/lib/rate-limit";
 import { checkContentModeration } from "@/lib/moderation";
@@ -120,8 +120,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId = user?.id || "demo-user-session";
-
     const {
       messages,
       modelId,
@@ -150,6 +148,10 @@ export async function POST(req: NextRequest) {
     const cfConnectingIp = req.headers.get("cf-connecting-ip");
     const clientIp = (forwardedFor ? forwardedFor.split(",")[0].trim() : null) || realIp || cfConnectingIp || "127.0.0.1";
 
+    // Isolate anonymous/guest users per client IP so guests do not compete for 1 shared global quota
+    const guestIdentifier = `guest:${clientIp.replace(/[^a-zA-Z0-9]/g, "_")}`;
+    const effectiveUserId = user?.id || guestIdentifier;
+
     // 0. IP Blacklist Enforcement
     if (isIpBlacklisted(clientIp)) {
       return new Response(
@@ -161,24 +163,26 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Dual Rate Limiting (User + IP & Burst Protection)
-    const userRateLimit = await checkRateLimit(`user:${userId}`);
-    if (!userRateLimit.allowed) {
-      return new Response(
-        JSON.stringify({ error: userRateLimit.reason || "Terlalu banyak permintaan. Silakan tunggu 1 menit." }),
-        { status: 429, headers: { "Content-Type": "application/json" } }
-      );
+    if (user?.id) {
+      const userRateLimit = await checkRateLimit(`user:${user.id}`);
+      if (!userRateLimit.allowed) {
+        return new Response(
+          JSON.stringify({ error: userRateLimit.reason || "Terlalu banyak permintaan. Silakan tunggu 1 menit." }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const ipRateLimit = await checkRateLimit(`ip:${clientIp}`);
     if (!ipRateLimit.allowed) {
       return new Response(
-        JSON.stringify({ error: ipRateLimit.reason || "Terlalu banyak permintaan dari IP ini. Silakan coba lagi nanti." }),
+        JSON.stringify({ error: ipRateLimit.reason || "Terlalu banyak permintaan dari jaringan IP ini. Silakan coba lagi nanti." }),
         { status: 429, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const { checkDailyQuota } = await import("@/lib/rate-limit");
-    const dailyQuota = await checkDailyQuota(userId, isCustomKeyUsed);
+    const dailyQuota = await checkDailyQuota(effectiveUserId, isCustomKeyUsed);
     if (!dailyQuota.allowed) {
       return new Response(
         JSON.stringify({
@@ -375,8 +379,8 @@ export async function POST(req: NextRequest) {
       const lockedUserPrompt = `${sanitizePromptDelimiters(lastUserMessage)}\n\n${STRICT_SYSTEM_LOCK}`;
 
       // Automatic Legacy Model Remapping & Web Crawler Agent Remapping
-      if (activeId === "web-crawler-agent") {
-        activeId = "groq/qwen/qwen3.6-27b";
+      if (activeId === "web-crawler-agent" || activeId.includes("qwen3.6-27b")) {
+        activeId = "groq/qwen/qwen3.8-27b";
         activeProv = "groq";
       } else if (activeId.includes("gemini-2.0-flash") || activeId.includes("gemini-2.5-flash")) {
         activeId = "gemini/gemini-3.6-flash";
@@ -393,14 +397,7 @@ export async function POST(req: NextRequest) {
       const historyWindow = rawHistory.slice(-24);
 
       if (activeProv === "gemini") {
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const clientGemini = customGeminiKey ? new GoogleGenerativeAI(customGeminiKey) : googleAI;
-        
-        // Pass privileged system instruction through official API parameter
-        const geminiModel = clientGemini.getGenerativeModel({
-          model: actualModelId || "gemini-3.6-flash",
-          systemInstruction: finalSystemPrompt,
-        });
+        const { generateGeminiStreamWithPool } = await import("@/lib/gemini-pool");
 
         // Construct full multi-turn conversational contents for Gemini
         const geminiContents: { role: string; parts: ({ text: string } | { inlineData: { mimeType: string; data: string } })[] }[] = [];
@@ -424,7 +421,12 @@ export async function POST(req: NextRequest) {
           parts: currentParts,
         });
 
-        const result = await geminiModel.generateContentStream({ contents: geminiContents });
+        const result = await generateGeminiStreamWithPool({
+          modelName: actualModelId || "gemini-3.6-flash",
+          systemInstruction: finalSystemPrompt,
+          contents: geminiContents,
+          customKey: customGeminiKey,
+        });
         
         const encoder = new TextEncoder();
         return new ReadableStream({
@@ -669,10 +671,10 @@ export async function POST(req: NextRequest) {
       primaryModelId = "openrouter/qwen/qwen-2.5-coder-32b-instruct";
       primaryProvider = "openrouter";
     } else if (lucidMode === "lucid-deepsearch") {
-      primaryModelId = "groq/qwen/qwen3.6-27b";
+      primaryModelId = "groq/qwen/qwen3.8-27b";
       primaryProvider = "groq";
     } else if (lucidMode === "lucid-reasoning") {
-      primaryModelId = "groq/qwen/qwen3.6-27b";
+      primaryModelId = "groq/qwen/qwen3.8-27b";
       primaryProvider = "groq";
     } else if (lucidMode === "lucid-all-in-one") {
       primaryModelId = "gemini/gemini-3.6-flash";
@@ -681,10 +683,11 @@ export async function POST(req: NextRequest) {
 
     const candidateChain: { id: string; provider: ProviderType }[] = [
       { id: primaryModelId, provider: primaryProvider },
-      { id: "groq/qwen/qwen3.6-27b", provider: "groq" },
+      { id: "gemini/gemini-3.6-flash", provider: "gemini" },
+      { id: "gemini/gemini-3.5-flash-lite", provider: "gemini" },
+      { id: "groq/qwen/qwen3.8-27b", provider: "groq" },
       { id: "openrouter/qwen/qwen-2.5-coder-32b-instruct", provider: "openrouter" },
       { id: "cerebras/qwen-3.8-27b", provider: "cerebras" },
-      { id: "gemini/gemini-3.6-flash", provider: "gemini" },
     ];
 
     const uniqueCandidates: { id: string; provider: ProviderType }[] = [];

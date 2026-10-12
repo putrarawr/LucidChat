@@ -2,8 +2,8 @@
 const rateLimitMap = new Map<string, number[]>();
 const dailyQuotaMap = new Map<string, { count: number; resetTime: number }>();
 
-const MAX_REQUESTS_PER_MIN = Number(process.env.MAX_REQUESTS_PER_MINUTE) || 20;
-const MAX_BURST_REQUESTS_10S = 6; // Max 6 requests per 10 seconds (anti-sandbox spam)
+const MAX_REQUESTS_PER_MIN = Number(process.env.MAX_REQUESTS_PER_MINUTE) || 30;
+const MAX_BURST_REQUESTS_10S = 10; // Max 10 requests per 10 seconds (prevents bot sandbox spam while allowing natural chat)
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT_PER_USER) || 50;
 
 const WINDOW_MS = 60 * 1000; // 1 minute
